@@ -9,9 +9,14 @@ namespace Bodian.WinUI.ViewModels;
 /// 右侧播放队列抽屉的状态与动作。**单例**，与主窗口同寿命。
 /// </summary>
 /// <remarks>
-/// <b>整表重建，不做增量同步。</b> 队列变动不频繁（换页、增删、切歌），
+/// <b>条目有增删挪动就整表重建，不做增量同步。</b> 那类变动不频繁（换页、增删、拖动重排），
 /// 而增量同步要自己维护一套「哪一行对应哪个下标」的影子状态 ——
 /// 队列那边刚因为下标重映射踩过一遍，这里没必要再来一次。
+/// <para>
+/// <b>唯一例外是「只动了游标」</b>：点行切歌、一首放完自动续播都不改条目，这时只把
+/// <c>IsCurrent</c> 挪过去。整表重建会清空集合，而 ListView 的滚动位置跟着弹回顶部 ——
+/// 点一首歌就跳一次，那是可见的破绽。
+/// </para>
 /// </remarks>
 public sealed partial class PlayQueueViewModel : ObservableObject
 {
@@ -112,11 +117,30 @@ public sealed partial class PlayQueueViewModel : ObservableObject
         }
     }
 
+    /// <summary>
+    /// 上次建表时用的「能不能拖」。模式一变就得整表重建 —— <c>CanReorder</c> 是建行那一刻的快照，
+    /// 而它驱动的手柄显隐没有绑定通知，见 <see cref="PlayQueueRow.CanReorder"/>。
+    /// </summary>
+    private bool _builtCanReorder;
+
     private void Refresh()
     {
         var queue = _coordinator.Queue;
         var current = queue.CurrentIndex;
         var canReorder = _coordinator.CanReorderQueue;
+
+        // 队列本体没动、只有游标动了（点行切歌、一首放完自动续播）就地改「哪一行是当前行」。
+        // ★ 不能顺手整表重建：集合一清空，ListView 的滚动位置就弹回顶部 ——
+        //   而「点一首歌」正是最常走到这里的一步，用户看到的是「每点一次就刷一下、回到最上面」。
+        if (CanReuseRows(queue, canReorder))
+        {
+            for (var i = 0; i < Rows.Count; i++)
+            {
+                Rows[i].IsCurrent = i == current;
+            }
+
+            return;
+        }
 
         Rows.Clear();
 
@@ -131,7 +155,34 @@ public sealed partial class PlayQueueViewModel : ObservableObject
             });
         }
 
+        _builtCanReorder = canReorder;
         IsEmpty = Rows.Count == 0;
         CountText = Rows.Count == 0 ? "" : $"共 {Rows.Count} 首";
+    }
+
+    /// <summary>
+    /// 现有这些行还能不能接着用，不必重建。
+    /// </summary>
+    /// <remarks>
+    /// <b>按下标逐个比引用。</b> 增删、拖动重排、随机模式重洗都会让某一格对不上，于是整表重建；
+    /// 只动游标的变更则每一格都对得上，行号（<see cref="PlayQueueRow.Position"/>）也就还是对的 ——
+    /// 它是建行时定下的，只有位置真的变了才需要重建。
+    /// </remarks>
+    private bool CanReuseRows(PlayQueue queue, bool canReorder)
+    {
+        if (Rows.Count != queue.Count || _builtCanReorder != canReorder)
+        {
+            return false;
+        }
+
+        for (var i = 0; i < Rows.Count; i++)
+        {
+            if (!ReferenceEquals(Rows[i].Source, queue.Items[i]))
+            {
+                return false;
+            }
+        }
+
+        return true;
     }
 }

@@ -42,6 +42,15 @@ public sealed partial class PlayQueuePanel : UserControl
     /// <summary>让位的行滑到新位置用的时长。</summary>
     private static readonly TimeSpan ShiftDuration = TimeSpan.FromMilliseconds(140);
 
+    /// <summary>
+    /// 打开时定位最多重试几轮。
+    /// </summary>
+    /// <remarks>
+    /// <b>不是「可能失败」的补丁，而是「不确定在第几拍」的等待。</b> <c>Loaded</c> 与
+    /// 「列表量出可滚高度」不一定是同一次布局的事，见 <see cref="Reveal(int)"/>。
+    /// </remarks>
+    private const int RevealRetries = 2;
+
     /// <summary>卡片浮起来的高度，<c>ThemeShadow</c> 靠它投影。</summary>
     private const float GhostLift = 32;
 
@@ -73,7 +82,11 @@ public sealed partial class PlayQueuePanel : UserControl
         RowList.AddHandler(PointerCaptureLostEvent, new PointerEventHandler(OnListPointerCaptureLost), true);
         RowList.AddHandler(PointerCanceledEvent, new PointerEventHandler(OnListPointerCanceled), true);
 
-        Loaded += (_, _) => AttachRows();
+        Loaded += (_, _) =>
+        {
+            AttachRows();
+            RevealCurrent();
+        };
         Unloaded += (_, _) => DetachRows();
     }
 
@@ -155,6 +168,158 @@ public sealed partial class PlayQueuePanel : UserControl
 
         _attached.Rows.CollectionChanged -= OnRowsChanged;
         _attached = null;
+    }
+
+    // ── 打开时定位 ──────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// 打开时把正在播放那一行摆到<b>面板可视区的竖直正中</b>。
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <b>只在刚拉开时做一次。</b> 两个宿主都是每次打开新建一个面板（<c>MainWindow.ToggleQueue</c>
+    /// 与 <c>MiniPlayerWindow.EnsureQueueView</c>），所以挂在 <c>Loaded</c> 上就等于「每次打开都定位」。
+    /// 面板开着的时候不跟着切歌滚 —— 队列是给人翻的，自动滚会把正在看的位置顶走。
+    /// </para>
+    /// <para>
+    /// <b>排到 dispatcher 下一轮再动手</b>，并且允许再等一两轮：<c>Loaded</c> 与「列表量出可滚高度」
+    /// 不一定是同一拍（<c>ExtentHeight</c> 还是 0 就什么都算不了）。重试是幂等的 ——
+    /// 每次要么什么都不做，要么一次把偏移设到位，所以看不到中间态。
+    /// </para>
+    /// <para>
+    /// 都量不到尺寸时退回「够到就行」（<c>ScrollIntoView</c>）：把这一行带进可视区，
+    /// 总比停在顶上强。
+    /// </para>
+    /// </remarks>
+    private void RevealCurrent()
+    {
+        if (DispatcherQueue is { } dispatcher && dispatcher.TryEnqueue(() => Reveal(RevealRetries)))
+        {
+            return;
+        }
+
+        Reveal(0);
+    }
+
+    private void Reveal(int attempts)
+    {
+        if (CurrentRow() is not { } row)
+        {
+            return;
+        }
+
+        if (CenterOn(row))
+        {
+            return;
+        }
+
+        if (attempts > 0 && DispatcherQueue is { } dispatcher)
+        {
+            dispatcher.TryEnqueue(() => Reveal(attempts - 1));
+            return;
+        }
+
+        RowList.ScrollIntoView(row);
+    }
+
+    /// <summary>正在播放那一行；队列为空时为 <c>null</c>。</summary>
+    private PlayQueueRow? CurrentRow()
+    {
+        if (ViewModel is not { } viewModel)
+        {
+            return null;
+        }
+
+        foreach (var row in viewModel.Rows)
+        {
+            if (row.IsCurrent)
+            {
+                return row;
+            }
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    /// 把某一行摆到可视区竖直正中。量不到尺寸（还没布局完）时返回 <c>false</c>，
+    /// 让调用方下一轮再试。
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <b>偏移一次算准，不靠先滚一下再挪回去。</b> 早先的写法是 <c>ScrollIntoView(Leading)</c>
+    /// 把行顶到最上面、再回退半个空档 —— 那要求 <c>ScrollIntoView</c> 当场生效，而它会动画、
+    /// 也可能排进下一轮布局，时机一错落点就是随机的。（那个写法已经删掉。）
+    /// </para>
+    /// <para>
+    /// <b>行等长，所以行距算得出来</b>：标题与歌手都是单行省略号、封面与按钮定宽定高，
+    /// 于是「可滚内容总高 / 条数」就是每行占的高度（含行距）。再拿一个已实现的行当锚点 ——
+    /// 它在内容坐标系里的位置已经含了列表的上内边距这类常量，不用去猜 ——
+    /// 任意下标的行顶 = 锚点行顶 + 相差几行 × 行距。
+    /// </para>
+    /// <para>
+    /// <b>目标偏移 = 行顶 - (可视高 - 行距) / 2</b>：这一行就贴在可视区的竖直正中。
+    /// 越界由 <c>ChangeView</c> 钳住 —— 行落在队列头尾那半屏里时摆不到正中，
+    /// 就停在能到的最中间，不会把列表拉出一段空白。
+    /// </para>
+    /// </remarks>
+    private bool CenterOn(PlayQueueRow row)
+    {
+        if (ViewModel is not { } viewModel
+            || FindDescendant<ScrollViewer>(RowList) is not { } scroll
+            || RowList.ItemsPanelRoot is not ItemsStackPanel panel
+            || viewModel.Rows.Count == 0
+            || scroll.ViewportHeight <= 0)
+        {
+            return false;
+        }
+
+        var anchor = panel.FirstVisibleIndex;
+
+        if (anchor < 0 || RowList.ContainerFromIndex(anchor) is not FrameworkElement anchorRow)
+        {
+            return false;
+        }
+
+        var pitch = scroll.ExtentHeight / viewModel.Rows.Count;
+
+        if (!double.IsFinite(pitch) || pitch <= 0)
+        {
+            return false;
+        }
+
+        var anchorTop = anchorRow.TransformToVisual(panel).TransformPoint(default).Y;
+        var rowTop = anchorTop + ((viewModel.Rows.IndexOf(row) - anchor) * pitch);
+
+        scroll.ChangeView(null, rowTop - ((scroll.ViewportHeight - pitch) / 2), null, true);
+
+        return true;
+    }
+
+    private static T? FindDescendant<T>(DependencyObject? node)
+        where T : DependencyObject
+    {
+        if (node is null)
+        {
+            return null;
+        }
+
+        var count = VisualTreeHelper.GetChildrenCount(node);
+        for (var i = 0; i < count; i++)
+        {
+            var child = VisualTreeHelper.GetChild(node, i);
+            if (child is T match)
+            {
+                return match;
+            }
+
+            if (FindDescendant<T>(child) is { } deeper)
+            {
+                return deeper;
+            }
+        }
+
+        return null;
     }
 
     // ── 悬停态 ──────────────────────────────────────────────────────────────
