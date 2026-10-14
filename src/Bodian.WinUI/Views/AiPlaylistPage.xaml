@@ -25,7 +25,7 @@
                     Foreground="{ThemeResource TextFillColorTertiaryBrush}"
                     Style="{StaticResource CaptionTextBlockStyle}"
                     Text="{x:Bind ViewModel.BigTitle, Mode=OneWay}"
-                    Visibility="{x:Bind HasBigTitle, Mode=OneWay}"
+                    Visibility="{x:Bind local:Formats.Visible(ViewModel.HasBigTitle), Mode=OneWay}"
                     TextTrimming="CharacterEllipsis" />
 
                 <TextBlock

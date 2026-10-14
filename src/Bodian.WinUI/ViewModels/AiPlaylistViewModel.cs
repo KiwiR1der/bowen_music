@@ -61,7 +61,19 @@ public sealed partial class AiPlaylistViewModel : ObservableObject
 
     /// <summary>大字标题，形如 <c>Daily Songs</c>。装饰用，缺了不显示。</summary>
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasBigTitle))]
     public partial string BigTitle { get; set; } = "";
+
+    /// <summary>
+    /// 大字标题有没有内容。给 <c>x:Bind</c> 用，空的时候整行收起来。
+    /// </summary>
+    /// <remarks>
+    /// <b>必须挂在 ViewModel 上、不能挂在页面上。</b> <see cref="BigTitle"/> 是加载完才赋值的
+    /// （<see cref="EnsureLoadedAsync"/> 里那个网络请求回来之后），而页面自己不是
+    /// <c>INotifyPropertyChanged</c> —— 挂在页面上的只读属性算出来的是加载前的空值，
+    /// 那行大字会永远停在 <c>Collapsed</c>。这条同时是 XAML 编译器 <c>WMC1506</c> 警告的成因。
+    /// </remarks>
+    public bool HasBigTitle => !string.IsNullOrWhiteSpace(BigTitle);
 
     [ObservableProperty]
     public partial bool IsBusy { get; set; }

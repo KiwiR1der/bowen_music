@@ -1,7 +1,6 @@
 using Bodian.Core.Models;
 using Bodian.WinUI.Services;
 using Bodian.WinUI.ViewModels;
-using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 
 namespace Bodian.WinUI.Views;
@@ -31,10 +30,6 @@ public sealed partial class AiPlaylistPage : Page, INavigationAware
     public void OnNavigatedFrom()
     {
     }
-
-    /// <summary>大字标题有没有内容。给 <c>x:Bind</c> 用，直接返回 <see cref="Visibility"/>。</summary>
-    private Visibility HasBigTitle =>
-        string.IsNullOrWhiteSpace(ViewModel.BigTitle) ? Visibility.Collapsed : Visibility.Visible;
 
     private void OnTrackInvoked(object? sender, Track track) => _ = ViewModel.PlayAsync(track);
 }
