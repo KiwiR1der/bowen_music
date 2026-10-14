@@ -1548,7 +1548,8 @@
                   图还没加载出来，转出来是一张**全透明**的 ICO，表现成「托盘上什么都没有」。
                   Tray.Icon 收 System.Drawing.Icon，直接读 .ico 文件，没有中间转换。
 
-                  托盘图标由 shell 绘制、不跟随应用主题，所以固定用深色版。
+                  托盘图标由 shell 绘制、不会自己跟应用主题走，所以深色主题下用 Assets/Ripple.ico、
+                  浅色主题下用 Assets/RippleLight.ico，由 ApplyTrayIcon 按期换。
             -->
 
             <!--

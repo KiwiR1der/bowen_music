@@ -78,7 +78,7 @@
 2. **菜单项只认 `Command`，不认 `Click`。** 默认模式把 `MenuFlyout` 转成 Win32 菜单，点击转发挂在项上的命令。所以「退出」「显示主界面」也必须是命令。
 3. **`ContextMenuMode` 的三个成员是 `ActiveWindow` / `PopupMenu` / `SecondWindow`**（没有 "Default"），**默认 `PopupMenu`**。
 4. **`MenuActivation` 默认 `RightClick`**，不用显式设。
-5. **`OnTaskbarCreated` 存在**，文档写明「如果整个任务栏被重建（例如 Explorer 被关闭），则重建托盘图标」—— explorer 重启后图标丢失这条风险由库自己兜住了。
+5. **`OnTaskbarCreated` 存在**（`MessageWindow` 收到 `RegisterWindowMessage("TaskbarCreated")` 就触发），但**它兜不住 explorer 重启** —— 那一路只是把手里存着的 HICON 句柄再交一次，而那个句柄可能早就没了，托盘上于是留一块空白。现在由应用自己再补一次，见 §7。
 6. `GeneratedIconSource` 的属性是 `Text` / `FontFamily` / `FontSize` / `Foreground` / `Size` / `Background*` / `Border*` / `CornerRadius` / `TextMargin` / `Margin`。
 
 ### 5.2 `PathIcon` 的坑
@@ -161,9 +161,19 @@
 
 ## 7. 托盘图标
 
-用户尚未定正式 `.ico`，当前是**占位**：库自带的动态图标生成，画一个 CJK 字符「波」（CJK 字形在 Win10 上必然存在；Emoji 要另挂字体，16×16 缩下去会糊）。
+图标是 `Assets/Ripple.ico`（深色主题）与 `Assets/RippleLight.ico`（浅色主题），在
+`MainWindow.ConfigureTitleBar` 里按 `ShellRoot.ActualTheme` 交给 `Tray.Icon`。
 
-**正式图标到位后只改 `MainWindow.xaml` 里 `<tb:TaskbarIcon.IconSource>` 这一个元素**：换成 `IconSource="/Assets/Tray.ico"`，再给 csproj 加一条 `Content` + 复制到输出。本项目目前没有 `Assets/` 目录，也没有任何图片资源，所以那是第一次引入。
+- **跟的是应用自己的实际主题**，也就是「设置 → 外观」那一档；那一档选「跟随系统」时才等于
+  Windows 的主题。托盘图标是应用交上去的一张位图，shell 只照着画，Windows 单独改深浅不会动它。
+- **不能走 `IconSource`**：库在属性变更那一刻同步把 `ImageSource` 渲染成 PNG 再转 ICO，
+  而 `BitmapImage` 是异步解码的，那一瞬间转出来是一张**全透明**的图（见 `MainWindow.xaml` 里那段注释）。
+- **每次都新建 `System.Drawing.Icon`，不缓存复用**：库的 `Icon` 属性回调里写着 `oldValue?.Dispose()`
+  —— 交出去的上一个对象归库所有。留一份引用、下次再交回去，就是一张 handle 已毁的空图。
+- **explorer 重启后自己补一次**（2026-10-14）：`TaskbarCreated` 时换一张新图标（NIM_MODIFY），
+  再 `ForceCreate(enablesEfficiencyMode: false)`。库那一路只重发旧句柄，重建失败时 `IsCreated`
+  还会停在 false —— 此后 `UpdateIcon` 只存句柄、不发 NIM_ADD，表现成「图标位置回来了、图没了，
+  而且之后怎么切主题都不变」。
 
 ## 8. 测试
 

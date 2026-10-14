@@ -151,10 +151,15 @@ public sealed partial class MainWindow : Window, IPlaylistLibrarySink, IWindowHa
     /// <summary>应用内快捷键的持有者。加速器按它的键位表装，见 <see cref="ConfigureShortcuts"/>。</summary>
     private readonly IShortcutService _shortcuts;
 
-    /// <summary>托盘图标的句柄。留着是为了退出时释放 —— 它握着 .ico 的文件句柄。</summary>
+    /// <summary>
+    /// 当前交给托盘库的那个图标对象。**只用来在退出时释放**，不能拿来再设一次 ——
+    /// 库换图时会把这个对象 Dispose 掉，见 <see cref="ApplyTrayIcon"/>。
+    /// </summary>
     private System.Drawing.Icon? _trayIcon;
-    private System.Drawing.Icon? _darkTrayIcon;
-    private System.Drawing.Icon? _lightTrayIcon;
+
+    /// <summary>上面那个图标是深色版还是浅色版。null = 还没设过。</summary>
+    private bool? _trayIconDark;
+
     private bool _themeChromeUpdateQueued;
 
     private readonly CoverDropAnimation? _coverMotion;
@@ -299,10 +304,10 @@ public sealed partial class MainWindow : Window, IPlaylistLibrarySink, IWindowHa
             UnwatchSessionEnd();
             DisposeTray();
 
-            // 托盘图标握着 .ico 的文件句柄，要显式放掉。
-            _darkTrayIcon?.Dispose();
-            _lightTrayIcon?.Dispose();
-            _darkTrayIcon = _lightTrayIcon = _trayIcon = null;
+            // 当前那张托盘图标要显式放掉（换图时库会释放上一张，最后一张归我们）。
+            _trayIcon?.Dispose();
+            _trayIcon = null;
+            _trayIconDark = null;
 
             SaveWindowPlacement();
         };
@@ -404,6 +409,9 @@ public sealed partial class MainWindow : Window, IPlaylistLibrarySink, IWindowHa
             // 而 BitmapImage 是异步解码的，那一刻还没加载出来，转出来是一张全透明的图。
             // Icon 直接读 .ico 文件，没有中间环节。见 MainWindow.xaml 里那段注释。
             ApplyTrayIcon();
+
+            // Explorer 崩溃重启后系统会广播 TaskbarCreated，库那一路重建不可靠，自己再补一次。
+            Tray.TrayIcon.MessageWindow.TaskbarCreated += (_, _) => DispatcherQueue.TryEnqueue(OnTaskbarCreated);
         }
 
         ShellRoot.ActualThemeChanged += (_, _) => QueueThemeChromeUpdate();
@@ -518,8 +526,9 @@ public sealed partial class MainWindow : Window, IPlaylistLibrarySink, IWindowHa
     /// 托盘图标跟随实际主题在深浅两版之间切。
     /// </summary>
     /// <remarks>
-    /// 托盘图标由 shell 绘制，**不会自动跟应用主题走**，只能自己换。
-    /// 深浅两版图标各创建一次，主题切换只替换引用；窗口关闭时统一释放。
+    /// 托盘图标由 shell 绘制，**不会自动跟应用主题走**，只能自己换。跟着的是
+    /// <see cref="ShellRoot"/> 的实际主题 —— 也就是「设置 → 外观」那一档；那一档选
+    /// 「跟随系统」时它才等于 Windows 的主题。Windows 单独改深浅不会直接动这颗图标。
     /// </remarks>
     private void QueueThemeChromeUpdate()
     {
@@ -534,29 +543,56 @@ public sealed partial class MainWindow : Window, IPlaylistLibrarySink, IWindowHa
         })) _themeChromeUpdateQueued = false;
     }
 
-    private void ApplyTrayIcon()
+    /// <summary>
+    /// 把当前主题对应的那张图标交给托盘。force = 换一张新对象（Explorer 重启后要这么走）。
+    /// </summary>
+    /// <remarks>
+    /// <b>每次都新建，绝不缓存复用。</b> 库的 <c>Icon</c> 属性变更回调里写着
+    /// <c>oldValue?.Dispose()</c> —— 交出去的上一个对象归库所有，会被它释放。
+    /// 留一份引用、下次再交回去，就是一张 handle 已被毁掉的空图：托盘上位置对、图没有，
+    /// 而且此后连换主题都没反应（见 <see cref="OnTaskbarCreated"/>）。
+    /// </remarks>
+    private void ApplyTrayIcon(bool force = false)
     {
         var dark = ShellRoot.ActualTheme == ElementTheme.Dark;
-        var next = dark ? _darkTrayIcon : _lightTrayIcon;
-        if (ReferenceEquals(_trayIcon, next) && next is not null) return;
+        if (!force && _trayIconDark == dark) return;
         try
         {
-            if (next is null)
-            {
-                var path = Path.Combine(AppContext.BaseDirectory, "Assets", dark ? "Ripple.ico" : "RippleLight.ico");
-                if (!File.Exists(path)) return;
-                next = new System.Drawing.Icon(path);
-                if (dark) _darkTrayIcon = next;
-                else _lightTrayIcon = next;
-            }
-            Tray.Icon = next;
-            _trayIcon = next;
+            var path = Path.Combine(AppContext.BaseDirectory, "Assets", dark ? "Ripple.ico" : "RippleLight.ico");
+            if (!File.Exists(path)) return;
+            _trayIcon = new System.Drawing.Icon(path);
+            Tray.Icon = _trayIcon;
+            _trayIconDark = dark;
         }
         catch (Exception exception)
         {
             // 图标读不出来不该影响启动：托盘顶着一个默认图标，其余功能照常。
             Debug.WriteLine($"托盘图标加载失败：{exception.Message}");
         }
+    }
+
+    /// <summary>
+    /// Explorer 崩溃/重启后把图标重新挂上去。
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// 库自己会处理 <c>TaskbarCreated</c>（<c>TrayIcon.TryRemove()</c> 再 <c>Create()</c>），
+    /// 但那条路只把**它手里那个 HICON 句柄**再交一次。句柄可能早就没了（要么被它自己换图时
+    /// Dispose，要么被那张 <c>System.Drawing.Icon</c> 释放），于是托盘上留下的是一块空白；
+    /// 更麻烦的是重建失败时 <c>IsCreated</c> 停在 false，此后 <c>UpdateIcon</c> 只会把句柄存下来、
+    /// 不再发 NIM_ADD —— 表现就是「从此怎么切主题图标都不变」。
+    /// </para>
+    /// <para>
+    /// 所以等库那一路先跑完，这里再自己补一次：换一张新建的图标（走 NIM_MODIFY），
+    /// 然后 <c>ForceCreate</c> 兜住重建失败那一支。它的默认参数会顺手打开效率模式
+    /// （给「藏在托盘里的小工具」用的），必须显式传 false。
+    /// </para>
+    /// </remarks>
+    private void OnTaskbarCreated()
+    {
+        if (_closed) return;
+        ApplyTrayIcon(force: true);
+        Tray.ForceCreate(enablesEfficiencyMode: false);
     }
 
     private void UpdateCaptionButtonColors()
