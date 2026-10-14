@@ -42,13 +42,20 @@
 
 **选中底是画出来的，不是列表项自己画的**（2026-10-07）：分类栏就是「一条不能收起的侧栏」，
 所以与侧栏共用 `Controls/SelectionPill` —— 选中项一变，那张浮动 `Border` 从旧位置滑到新位置。
-代价是两件事必须一起做对：
+代价是三件事必须一起做对：
 
 - 列表项自己的选中底要在 `ListView.Resources` 里压成透明（`ListViewItemBackgroundSelected` 及其
   PointerOver / Pressed 三个键，写法同 `AudioQualityPicker.xaml`），否则会出现
   「旧项瞬间亮着 + 高亮块慢慢追上」的双高亮；
+- 同一处还要覆写 `ListViewItemCornerRadius`：模板里 `ListViewItemPresenter` 的 `CornerRadius`
+  直接绑这个 token（默认 4），项样式上那句 `CornerRadius="RadiusSm"` 不生效，不覆写的话
+  悬停选中项时浮动块与项底色的圆角对不上；
 - 高亮块要画在列表**之下**：包一层 `Top` 对齐的 `Grid`，`Canvas` + `Border` 在前、`ListView` 在后。
   因此这条栏必须保持透明底（`Background="Transparent"`）—— 项的文字才压在高亮块之上。
+
+浮动块落在「项自己那块底色」的矩形上，而不是容器矩形（2026-10-14）：两种宿主都从容器内缩一圈
+—— 侧栏读 `NavigationViewItemButtonMargin`，列表项是 `ListViewItemPresenter` 写死的 4,2。
+不缩的话，鼠标悬停选中项时会看到一大一小两个框。
 
 底色用 `SelectionPillBrush`，与 `NavigationViewItemBackgroundSelected` 同色号
 （`#1A000000` / `#1AFFFFFF`），高对比度那档是 `Transparent`（保留系统自带的选中底）。

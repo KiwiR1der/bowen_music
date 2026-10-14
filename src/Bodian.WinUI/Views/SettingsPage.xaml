@@ -153,6 +153,15 @@
                     <x:Boolean x:Key="ListViewItemSelectionCheckMarkVisualEnabled">False</x:Boolean>
 
                     <!--
+                        项自己那块底色的圆角。★ 必须覆写这个 token：模板里 ListViewItemPresenter 的
+                        CornerRadius 绑的是 {ThemeResource ListViewItemCornerRadius}（默认 4），
+                        项样式上那句 CornerRadius="RadiusSm" 根本不生效。
+                        浮动高亮块写的是 RadiusSm（6），两边不同值的话悬停选中项会看到双层圆角。
+                        值只能是字面量：CornerRadius 资源之间没法互相引用。
+                    -->
+                    <CornerRadius x:Key="ListViewItemCornerRadius">6</CornerRadius>
+
+                    <!--
                         选中底改由上面那块浮动 Border 画，这里把项自己那层压成透明 ——
                         不压的话会出现「旧项瞬间亮着 + 浮动块慢慢追上」的双高亮。
 

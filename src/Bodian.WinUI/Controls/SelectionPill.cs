@@ -89,6 +89,13 @@ public static class SelectionPill
                 ? value
                 : new Thickness(4, 2, 4, 2);
 
+    /// <summary>列表项的选中底同样内缩一圈：<c>ListViewItemPresenter</c> 把底色画在内缩后的矩形上。</summary>
+    /// <remarks>
+    /// 这一圈读不到 token，值是实测的：容器 200×40 时项自己那块底色是 192×36，即内缩 4,2。
+    /// 浮动块不跟着缩的话，鼠标悬停选中项会看到一大一小两个框（分类栏曾是这个毛病）。
+    /// </remarks>
+    private static Thickness ListItemInset => new(4, 2, 4, 2);
+
     /// <summary>两个矩形是不是同一个位置。0.5px 容差，吸收变换带来的亚像素抖动。</summary>
     private static bool BoxesMatch(Rect a, Rect b) =>
         Math.Abs(a.X - b.X) < 0.5
@@ -325,9 +332,9 @@ public static class SelectionPill
             var full = container.TransformToVisual(layer)
                 .TransformBounds(new Rect(0, 0, container.ActualWidth, container.ActualHeight));
 
-            // 导航项的底色内缩一圈（模板把 NavigationViewItemButtonMargin 加在里面那层上），
-            // 列表项不用：容器自己的矩形就是它画底色的范围。
-            var inset = owner is NavigationView ? NavigationItemInset : default;
+            // 两种宿主的项都把底色从容器内缩一圈，浮动块要落在同一个矩形上，
+            // 否则悬停选中项时两块底色对不齐（见两个 Inset 的注释）。
+            var inset = owner is NavigationView ? NavigationItemInset : ListItemInset;
             bounds = new Rect(
                 full.X + inset.Left,
                 full.Y + inset.Top,

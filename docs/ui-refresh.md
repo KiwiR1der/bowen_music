@@ -2155,3 +2155,26 @@ WinUI 构建通过，0 错误，1 个既有 `AiPlaylistPage.xaml:28` `WMC1506` �
 
 **未覆盖**：静音的外观、键盘 ↑/↓ 打开滑条、设置页那一行的实际观感都只能手动验收，
 清单见 [`backlog.md`](backlog.md)；`IconVolumeMute` 这条渲染路径此前从未真正显示过，重点看一眼。
+
+## 35. 分类栏的选中块与项底色对齐（2026-10-14）
+
+用户报的是「设置页选中背景和悬浮背景不一样大」，要的是两者统一。
+
+根因是 `Controls/SelectionPill` 对列表宿主的假设错了：它按**容器矩形**落位，而
+`ListViewItemPresenter` 画底色时会从容器内缩一圈 —— 实测容器 200×40 时项底色是 192×36，
+即内缩 4,2（与 `NavigationViewItemButtonMargin` 同值）。侧栏没露馅是因为 NavigationView
+那一支本来就按 `NavigationViewItemButtonMargin` 内缩，只有分类栏少缩了这一圈，
+于是选中块比悬停块大一圈，鼠标停在选中项上会看到两个不同尺寸的框。
+
+第二处不一致是圆角：模板里 `ListViewItemPresenter` 的 `CornerRadius` 直接绑
+`{ThemeResource ListViewItemCornerRadius}`（默认 4），项样式上那句 `CornerRadius="RadiusSm"`
+从来没生效过；浮动块写的是 `RadiusSm`（6）。
+
+改法：`SelectionPill` 给列表宿主也套上 4,2 的内缩（侧栏行为不变），分类栏的
+`ListView.Resources` 里覆写 `ListViewItemCornerRadius` 为 6。两处底色此后是同一个矩形、
+同一档圆角，选中块与悬停块完全重合。
+
+**验证**：WinUI 构建通过，0 错误，1 个既有 `AiPlaylistPage.xaml:28` `WMC1506` 警告。
+
+**未覆盖**：观感只能手动验收 —— 悬停选中项时只应看到一块底色（两层半透明叠出的深色），
+不该有一大一小两个框，也不该看到内外两道圆角。

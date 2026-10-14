@@ -30,7 +30,7 @@
 | `src/Bodian.WinUI/Services/AppMotion.cs` | 通用淡入、位移、缩放和卡片换页；取消旧任务，卸载时恢复视觉状态 |
 | `src/Bodian.WinUI/Controls/Motion.cs` | 标记 Tab 内容、共享封面身份和宿主裁剪；只动画内容根节点 |
 | `src/Bodian.WinUI/Controls/PillTabBar.xaml.cs` | 选中指示块的位置、宽度与方向过渡 |
-| `src/Bodian.WinUI/Controls/SelectionPill.cs` | 通用「选中底滑动块」：侧栏分类与设置页分类栏共用，按选中项容器量位置并滑动 |
+| `src/Bodian.WinUI/Controls/SelectionPill.cs` | 通用「选中底滑动块」：侧栏分类与设置页分类栏共用，按选中项自己那块底色的矩形（容器内缩一圈）量位置并滑动 |
 | `src/Bodian.WinUI/Services/CoverTransitionAnimator.cs` | 统一的封面飞行层、详情往返、歌词封面交接；复用现有图像源 |
 | `src/Bodian.WinUI/Services/CoverDropAnimation.cs` | 捕获单曲点击来源，确认播放结果后启动下坠 |
 | `src/Bodian.WinUI/Controls/CoverDropPath.cs` | 下坠轨迹与缩放的纯数学计算 |
