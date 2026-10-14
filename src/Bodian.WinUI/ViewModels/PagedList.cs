@@ -167,6 +167,35 @@ public sealed class PagedList<T> : ObservableObject
         }
     }
 
+    /// <summary>
+    /// 去掉满足条件的一项，返回是否真的移除了。
+    /// </summary>
+    /// <remarks>
+    /// <b>比 <see cref="ReloadAsync"/> 轻得多，这是它存在的理由。</b> 重拉的动作顺序是先清空、
+    /// 再等一次请求才填回来；中间那一轮布局里列表是空的，可用高度归零、滚动偏移被夹到 0，
+    /// 容器也全被回收 —— 位置回不去，压在列表上的共享封面动画同样找不到返回落点
+    /// （见 <c>docs/animations.md</c> 的「返回时的滚动位置」）。页面自己知道哪一项已经不该在了
+    /// （例如详情页里取消了关注）时，用这个只动那一项，其余一概不碰。
+    /// </remarks>
+    public bool Remove(Predicate<T> match)
+    {
+        ArgumentNullException.ThrowIfNull(match);
+
+        for (var index = 0; index < Items.Count; index++)
+        {
+            if (!match(Items[index]))
+            {
+                continue;
+            }
+
+            Items.RemoveAt(index);
+            UpdateStatusText();
+            return true;
+        }
+
+        return false;
+    }
+
     public async Task LoadMoreAsync(CancellationToken cancellationToken = default)
     {
         if (IsBusy || _cursor is null || !HasMore)
@@ -271,8 +300,12 @@ public sealed class PagedList<T> : ObservableObject
 
         // 只说条数。曾经在还有下一页时补一个「（滚动加载）」，那是滚到底自动翻页刚上线时
         // 用来提示行为变化的，现在列表末尾本来就有「没有更多了哦~」，这句纯属噪音。
+        UpdateStatusText();
+    }
+
+    /// <summary>把当前条数刷到状态文案上。<b>凡是改动 <see cref="Items"/> 的地方都要走这里</b>，否则数字会停在旧值上。</summary>
+    private void UpdateStatusText() =>
         StatusText = Items.Count == 0
             ? EmptyText
             : _countUnit is null ? $"{Items.Count} 项" : $"共 {Items.Count} {_countUnit}";
-    }
 }

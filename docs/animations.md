@@ -69,6 +69,12 @@
 
 共享封面动画要**等滚动落位之后**才启动（`NavigationService.PlaySharedCoverAsync`）。不等的后果有两种：列表还在顶上时等不到落点，整段动画被静默跳过；或者落点按列表顶部的坐标量出来，封面飞到半路停下。侧栏换根（发现 / 我喜欢的 / 乐库）走同一条路径，因此也回到原位置。
 
+**返回时不要把列表重拉一遍。** 位置恢复只在「列表本身没被重建」的前提下成立：`PagedList.ReloadAsync` 会先 `Items.Clear()` 再重填，滚动位置归零、容器全被回收 —— 既回不到原处，共享封面也找不到落点，整段退回普通页面过渡。所以「详情页里改过的状态，返回时同步回列表」要用增量方式（`PagedList.Remove`），不要用重拉。2026-10-14 修的「关注的歌手」返回即失败就是这个成因：它在 `OnNavigatedTo` 里无条件重拉，第一页看不出来（项还在顶部），翻过一页必现。
+
+**两次「重建」的差别在清空与重填之间有没有让出一轮布局。** 实测：「最近播放」换根回来位置**不丢**，虽然它每次进入都会 `Tracks.Clear()` 再重填 —— 因为它清空之后是**同步**把条目加回去的，中间没有 `await`，列表从没以「空」的状态量过一次。而 `ReloadAsync` 是 `Items.Clear()` 之后等一次网络请求，那一轮布局里列表是空的、可用高度归零，偏移被夹到 0，之后填回多少条都回不去。机制由这两处代码的差别推得，没有逐帧验证。
+
+页面 `OnNavigatedTo` 里「已加载就不做事」的 `EnsureLoadedAsync` 最稳，返回路径优先用它。
+
 ## 导航与 MV 生命周期
 
 播放请求即时处理，普通页面在完成内容切换后播放入场动画。沉浸页离场等待视觉交接结束，再执行页面生命周期和内容卸载；过渡中重复返回或选页时只提交最后目标。
@@ -119,6 +125,12 @@ MV 的“退出 MV”调用 `ExitImmersiveToShell`，使用 `GoBackTo` 跳过栈
 - `dotnet build src/Bodian.WinUI/Bodian.WinUI.csproj --no-restore -v minimal` 成功，0 错误；保留 `AiPlaylistPage.xaml:28` 原有的 `WMC1506` 绑定警告。
 - `dotnet test --project tests/Bodian.Core.Tests/Bodian.Core.Tests.csproj --no-restore`：1594 项通过，0 失败、0 跳过。Core 未改动。
 - 2026-10-14 实机确认：点榜卡片 / 乐库大类时封面飞入页头、返回时缩回原卡片；排行榜展开一组时卡片淡入、收起时直接重排不抖；乐库首页与分类页的卡片封面、以及乐库分类页的专辑封面，都在图解码完成时淡入而不是硬切。
+
+2026-10-14 的「关注的歌手」返回位置修复：
+
+- 成因见上文「返回时不要把列表重拉一遍」。
+- `dotnet build src/Bodian.WinUI/Bodian.WinUI.csproj --no-restore -v minimal` 成功，0 错误；`dotnet test --project tests/Bodian.Core.Tests/Bodian.Core.Tests.csproj --no-restore`：1594 项通过。`PagedList` 在 WinUI 项目里，没有单测项目覆盖它，改动靠构建与实机验证。
+- 2026-10-14 实机确认：翻过一页之后进歌手详情再返回，列表停在原处、封面缩回原卡片；在详情页取消关注再返回，这一位从列表消失且其余项不跳位、位置不丢。
 
 ## 诊断
 

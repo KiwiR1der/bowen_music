@@ -55,10 +55,24 @@ public sealed class FollowedArtistsViewModel
         Artists.EnsureLoadedAsync(cancellationToken);
 
     /// <summary>
-    /// 重新拉一次。给「从歌手详情返回」用 —— 详情页里可以取消关注，回来列表得跟着变。
+    /// 重新拉一次。给**换账号**用。
     /// </summary>
+    /// <remarks>
+    /// <b>不要拿它当「从歌手详情返回」的同步手段。</b> 那是它早先的用法。问题出在
+    /// <c>ReloadAsync</c> 的动作顺序：先 <c>Items.Clear()</c>、再等一次网络请求才填回来。
+    /// 中间那一轮布局里列表是空的，可用高度归零、滚动偏移被夹到 0，之后填回多少条都回不去 ——
+    /// 位置没了，共享封面的返回落点也跟着没了，翻过一页之后必现。
+    /// （「最近播放」那页也每次都清空重填，但它是清空之后**同步**加回去，所以位置不丢。）
+    /// 返回路径现在走 <see cref="Remove"/>，见 <c>docs/animations.md</c> 的「返回时的滚动位置」。
+    /// </remarks>
     public Task RefreshAsync(CancellationToken cancellationToken = default) =>
         Artists.ReloadAsync(cancellationToken);
+
+    /// <summary>
+    /// 把一位歌手从列表里去掉，返回是否真的移除了。详情页里能改的只有「这一位还关不关注」，
+    /// 所以只动这一项，不重拉。
+    /// </summary>
+    public bool Remove(long artistId) => Artists.Remove(artist => artist.Id == artistId);
 
     /// <summary>
     /// 一次取全部关注歌手，并声明这就是最后一页。

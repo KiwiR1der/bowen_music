@@ -18,13 +18,21 @@ public sealed partial class FollowedArtistsPage : Page, INavigationAware, IAccou
     private readonly INavigationService _navigation;
 
     /// <summary>
-    /// 本页刚打开过歌手详情。详情页里能取消关注，所以回来时要重拉一次列表。
+    /// 本页刚打开过的那一个歌手详情页。
     /// </summary>
     /// <remarks>
-    /// 根页实例被 <see cref="NavigationService"/> 缓存（同一个页面实例反复显示），
-    /// 所以这个标志在「压栈进详情 → 返回」这条路上一定还在。
+    /// <para>
+    /// 详情页里能取消关注，回来时列表得跟着变。**但不能再重拉整个列表** ——
+    /// 那会清空重建，滚动位置归零、容器的共享封面返回落点一起消失，翻过一页之后必现
+    /// （见 <c>docs/animations.md</c> 的「返回时的滚动位置」）。
+    /// </para>
+    /// <para>
+    /// 留着这个引用，回来时读它最终确定的关注态，只动那一位。根页实例被
+    /// <see cref="NavigationService"/> 缓存（同一个页面实例反复显示），所以引用在
+    /// 「压栈进详情 → 返回」这条路上一定还在。
+    /// </para>
     /// </remarks>
-    private bool _detailOpened;
+    private ArtistDetailPage? _openedDetail;
 
     public FollowedArtistsPage(
         FollowedArtistsViewModel viewModel,
@@ -46,10 +54,17 @@ public sealed partial class FollowedArtistsPage : Page, INavigationAware, IAccou
 
     public void OnNavigatedTo()
     {
-        if (_detailOpened)
+        if (_openedDetail is { } detail)
         {
-            _detailOpened = false;
-            _ = ViewModel.RefreshAsync();
+            _openedDetail = null;
+
+            // 只有「这次进来确实取消了关注」才动列表。IsFollowed 为 null 是「没能判定」
+            // （未登录或读取失败），那时什么都不做 —— 宁可不删，也不能凭空抹掉一位关注的歌手。
+            if (detail.ViewModel.IsFollowed is false)
+            {
+                ViewModel.Remove(detail.ViewModel.Artist.Id);
+            }
+
             return;
         }
 
@@ -74,7 +89,9 @@ public sealed partial class FollowedArtistsPage : Page, INavigationAware, IAccou
             return;
         }
 
-        _detailOpened = true;
-        _navigation.Navigate(_artistFactory(artist));
+        // 留住这个实例：返回时要读它最终确定的关注态，见 _openedDetail。
+        var page = _artistFactory(artist);
+        _openedDetail = page;
+        _navigation.Navigate(page);
     }
 }
