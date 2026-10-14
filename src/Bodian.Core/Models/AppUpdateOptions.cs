@@ -40,6 +40,18 @@ public sealed record AppUpdateOptions
         ? new Uri($"https://api.github.com/repos/{Owner}/{Repository}/releases/latest")
         : null;
 
+    /// <summary>
+    /// Releases 页面。
+    /// </summary>
+    /// <remarks>
+    /// <b>便携版走这条</b>：它们的更新是「自己解压覆盖」，应用代劳不了，
+    /// 所以那一路只把页面打开（见 <see cref="AppUpdateAssetPicker"/>）。
+    /// 与 <see cref="ReleaseApiUri"/> 不同 —— 那个是查版本的接口，这个给人看。
+    /// </remarks>
+    public Uri? ReleasePageUri => IsConfigured
+        ? new Uri($"https://github.com/{Owner}/{Repository}/releases/latest")
+        : null;
+
     /// <summary>项目主页。<b>未配置时是 <c>null</c></b>。</summary>
     public Uri? ProjectUri => ProjectUrl.Length > 0 ? new Uri(ProjectUrl) : null;
 

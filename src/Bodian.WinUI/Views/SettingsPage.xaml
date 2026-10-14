@@ -424,11 +424,25 @@
                                 FontSize="28"
                                 FontWeight="SemiBold"
                                 Text="{x:Bind local:Formats.AppName}" />
-                            <TextBlock
+
+                            <!--
+                                版本行。查到新版本时右边挂一句提示 —— 自动检查在启动时就跑过了，
+                                用户可能一路没看见那个对话框（比如被登录框挡着），这一行是兜底。
+                            -->
+                            <StackPanel
                                 HorizontalAlignment="Center"
-                                FontSize="{StaticResource FontSizeBody}"
-                                Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                                Text="{x:Bind ViewModel.About.VersionLabel}" />
+                                Orientation="Horizontal"
+                                Spacing="8">
+                                <TextBlock
+                                    FontSize="{StaticResource FontSizeBody}"
+                                    Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                    Text="{x:Bind ViewModel.About.VersionLabel}" />
+                                <TextBlock
+                                    FontSize="{StaticResource FontSizeBody}"
+                                    Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}"
+                                    Text="{x:Bind ViewModel.Update.LatestVersionLabel, Mode=OneWay}"
+                                    Visibility="{x:Bind local:Formats.Visible(ViewModel.Update.HasUpdate), Mode=OneWay}" />
+                            </StackPanel>
 
                             <TextBlock
                                 MaxWidth="420"
@@ -469,40 +483,47 @@
                                 </Button>
 
                                 <!--
-                                    检查更新。更新源还没配，点下去会显示「尚未配置更新源」，
-                                    并且**不会产生任何出站连接**（未配置时服务直接短路）。
+                                    检查更新。弹的是全应用共用那一个对话框（见 Controls/UpdateDialog.cs），
+                                    启动时的自动检查弹的也是它 —— 两处状态是同一份。
+                                    正在查或正在下载时禁掉，见 UpdateViewModel.CanStartCheck 的说明。
                                 -->
                                 <Button
-                                    Command="{x:Bind ViewModel.About.CheckUpdateCommand}"
-                                    IsEnabled="{x:Bind ViewModel.About.CanCheck, Mode=OneWay}"
+                                    Click="OnCheckUpdateClick"
+                                    IsEnabled="{x:Bind ViewModel.Update.CanStartCheck, Mode=OneWay}"
                                     Style="{StaticResource BodianAboutAccentButton}">
                                     <StackPanel Orientation="Horizontal" Spacing="8">
                                         <controls:Icon Data="{StaticResource IconRefresh}" Size="{StaticResource SizeIconSm}" />
                                         <TextBlock Text="检查更新" />
                                     </StackPanel>
                                 </Button>
-
-                                <Button
-                                    Command="{x:Bind ViewModel.About.OpenDownloadCommand}"
-                                    Style="{StaticResource BodianAboutAccentButton}"
-                                    Visibility="{x:Bind local:Formats.Visible(ViewModel.About.HasDownload), Mode=OneWay}">
-                                    <TextBlock Text="前往下载" />
-                                </Button>
                             </StackPanel>
 
-                            <ProgressRing
-                                Width="{StaticResource SizeProgressRing}"
-                                Height="{StaticResource SizeProgressRing}"
+                            <!--
+                                自动检查开关。
+                                ★ **做成这一列里的一行小字，不是一张卡片、也不另开分组。**
+                                  整块「关于」是一列居中的身份内容，旁边挂一张通栏卡片会与这一列
+                                  的宽度打架（限宽就变成浮在中间的孤岛，不限宽就通栏突兀）；
+                                  而这里只有一个布尔值，为它单起一个「更新」分组也过重。
+                                  说明挂在 ToolTip 上，不占高度。
+                            -->
+                            <StackPanel
+                                Margin="0,4,0,0"
                                 HorizontalAlignment="Center"
-                                IsActive="{x:Bind ViewModel.About.IsChecking, Mode=OneWay}" />
-
-                            <TextBlock
-                                HorizontalAlignment="Center"
-                                FontSize="{StaticResource FontSizeBody}"
-                                Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                                Text="{x:Bind ViewModel.About.UpdateStatusText, Mode=OneWay}"
-                                TextAlignment="Center"
-                                Visibility="{x:Bind local:Formats.Visible(ViewModel.About.HasStatus), Mode=OneWay}" />
+                                Orientation="Horizontal"
+                                Spacing="12">
+                                <TextBlock
+                                    VerticalAlignment="Center"
+                                    FontSize="{StaticResource FontSizeBody}"
+                                    Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                    Text="启动时自动检查更新" />
+                                <ToggleSwitch
+                                    AutomationProperties.Name="自动检查更新"
+                                    IsOn="{x:Bind ViewModel.Update.AutoCheck, Mode=TwoWay}"
+                                    MinWidth="0"
+                                    OffContent=""
+                                    OnContent=""
+                                    ToolTipService.ToolTip="{x:Bind ViewModel.Update.AutoCheckDescription, Mode=OneWay}" />
+                            </StackPanel>
 
                             <TextBlock
                                 Margin="0,12,0,0"

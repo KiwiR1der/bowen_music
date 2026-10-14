@@ -9,12 +9,19 @@ using Microsoft.Extensions.Logging.Abstractions;
 namespace Bodian.WinUI.ViewModels;
 
 /// <summary>
-/// 设置页「关于」分区。
+/// 设置页「关于」分区里的静态部分：图标、版本号、声明、两个外链。
 /// </summary>
 /// <remarks>
+/// <para>
 /// <b>版本号从程序集读，不用 <c>Package.Current</c></b>：本项目是 unpackaged 运行，
 /// 没有 MSIX 身份，<c>Package.Current</c> 会直接抛。版本号的唯一来源是
 /// <c>src/Directory.Build.props</c> 里的 <c>&lt;Version&gt;</c>。
+/// </para>
+/// <para>
+/// <b>检查更新的状态与动作全在 <see cref="UpdateViewModel"/> 里</b>，这里不再持有一份 ——
+/// 那是这一块曾经有、后来拆掉的东西：两份「正在检查」的状态必然会对不上。
+/// 本类只留「这一页上不随更新流程变化的东西」。
+/// </para>
 /// </remarks>
 public sealed partial class AboutViewModel : ObservableObject
 {
@@ -36,11 +43,6 @@ public sealed partial class AboutViewModel : ObservableObject
         var version = typeof(AboutViewModel).Assembly.GetName().Version ?? new Version(0, 0, 0);
         VersionText = AppUpdateCheckResult.Format(version);
         CurrentVersion = version;
-
-        if (!_updates.Options.IsConfigured)
-        {
-            UpdateStatusText = "尚未配置更新源";
-        }
     }
 
     /// <summary>当前版本，如 <c>0.1.0</c>。</summary>
@@ -55,64 +57,20 @@ public sealed partial class AboutViewModel : ObservableObject
 
     public Version CurrentVersion { get; }
 
-    /// <summary>项目主页能不能点。仓库还没建，现在是 false。</summary>
+    /// <summary>项目主页能不能点。更新源没配时为 false。</summary>
     public bool CanOpenProject => _updates.Options.ProjectUri is not null;
 
     /// <summary>仓库地址能不能点。同上。</summary>
     public bool CanOpenRepository => _updates.Options.RepositoryUri is not null;
 
-    /// <summary>正在检查。检查期间按钮禁用。</summary>
-    [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(CanCheck))]
-    public partial bool IsChecking { get; set; }
-
-    /// <summary>检查结果或「尚未配置」的说明。</summary>
-    [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(HasStatus))]
-    public partial string UpdateStatusText { get; set; } = "";
-
-    /// <summary>查到新版本时才有得下载。</summary>
-    [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(HasDownload))]
-    public partial Uri? DownloadUri { get; set; }
-
-    /// <summary>「前往下载」按钮的显隐。给绑定用 —— x:Bind 里写不了判空。</summary>
-    public bool HasDownload => DownloadUri is not null;
-
     /// <summary>非官方声明。与 README 里那段是同一句话。</summary>
     public string DisclaimerText => Disclaimer;
-
-    public bool CanCheck => !IsChecking;
-
-    public bool HasStatus => UpdateStatusText.Length > 0;
-
-    [RelayCommand]
-    private async Task CheckUpdateAsync()
-    {
-        IsChecking = true;
-        DownloadUri = null;
-
-        try
-        {
-            var result = await _updates.CheckAsync(CurrentVersion).ConfigureAwait(true);
-
-            UpdateStatusText = result.Message;
-            DownloadUri = result.DownloadUri;
-        }
-        finally
-        {
-            IsChecking = false;
-        }
-    }
 
     [RelayCommand]
     private void OpenProject() => Open(_updates.Options.ProjectUri);
 
     [RelayCommand]
     private void OpenRepository() => Open(_updates.Options.RepositoryUri);
-
-    [RelayCommand]
-    private void OpenDownload() => Open(DownloadUri);
 
     /// <remarks>
     /// 用 <c>Process.Start</c> + <c>UseShellExecute</c> 而不是 <c>Launcher.LaunchUriAsync</c>：

@@ -162,6 +162,16 @@ public sealed partial class MainWindow : Window, IPlaylistLibrarySink, IWindowHa
     private readonly IShortcutService _shortcuts;
 
     /// <summary>
+    /// 检查更新。
+    /// </summary>
+    /// <remarks>
+    /// <b>外壳持有它是因为两件事只有外壳做得了</b>：对话框要挂在 <see cref="ShellRoot"/> 的
+    /// <c>XamlRoot</c> 上，而「装之前先退出应用」要走 <see cref="ExitApp"/> 那条既有的收尾链。
+    /// <see cref="UpdateViewModel"/> 因此只对外发事件、不反向依赖外壳，避免 DI 成环。
+    /// </remarks>
+    private readonly UpdateViewModel _updates;
+
+    /// <summary>
     /// 当前交给托盘库的那个图标对象。**只用来在退出时释放**，不能拿来再设一次 ——
     /// 库换图时会把这个对象 Dispose 掉，见 <see cref="ApplyTrayIcon"/>。
     /// </summary>
@@ -199,6 +209,7 @@ public sealed partial class MainWindow : Window, IPlaylistLibrarySink, IWindowHa
         Func<Track, MvPage> mvFactory,
         TrackActionsService trackActions,
         NotificationViewModel notifications,
+        UpdateViewModel updates,
         Playback.PlaybackCoordinator playback)
     {
         ArgumentNullException.ThrowIfNull(navigation);
@@ -217,9 +228,11 @@ public sealed partial class MainWindow : Window, IPlaylistLibrarySink, IWindowHa
         ArgumentNullException.ThrowIfNull(playlistDetailFactory);
         ArgumentNullException.ThrowIfNull(trackActions);
         ArgumentNullException.ThrowIfNull(notifications);
+        ArgumentNullException.ThrowIfNull(updates);
         ArgumentNullException.ThrowIfNull(shortcuts);
 
         _navigation = navigation;
+        _updates = updates;
         _login = login;
         _loginViewModel = loginViewModel;
         _sidebar = sidebar;
@@ -353,6 +366,11 @@ public sealed partial class MainWindow : Window, IPlaylistLibrarySink, IWindowHa
 
         _login.AccountChanged += OnAccountChanged;
         playback.ScopeSwitched += OnQueueScopeSwitched;
+
+        // 检查更新只对外发事件，两条接线都在这儿（见 _updates 的说明）。
+        _updates.UpdateFound += OnUpdateFound;
+        _updates.ExitRequested += OnUpdateExitRequested;
+
         PageHost.Loaded += OnHostLoaded;
 
         // 收起 / 展开侧栏时，「创建的歌单」在「面板里的列表」与「轨上一颗图标」之间切换。
@@ -952,6 +970,43 @@ public sealed partial class MainWindow : Window, IPlaylistLibrarySink, IWindowHa
     }
 
     /// <summary>
+    /// 自动检查查到了新版本，把更新对话框弹出来。
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <b>弹不出来就退化成一条通知。</b> 未登录启动时登录框正开着，而
+    /// <c>ContentDialog.ShowAsync</c> 在已有对话框开着时会抛 —— 那是个真实且常见的组合
+    /// （首装 + 未登录），不能让它变成一次静默的失败。
+    /// </para>
+    /// <para>
+    /// 通知里那句「可在设置→关于里更新」是有用的：关于页那一行版本号旁边也挂着新版本提示，
+    /// 两条路都能到同一个对话框。
+    /// </para>
+    /// </remarks>
+    private async void OnUpdateFound(object? sender, EventArgs args)
+    {
+        try
+        {
+            await UpdateDialog.ShowAsync(ShellRoot.XamlRoot, Theme.RequestedTheme, _updates);
+        }
+        catch (Exception)
+        {
+            // 不记日志也不把异常串摆给用户：本类没有日志设施（同 DisposeTray 的取舍），
+            // 而这里要的是一句用户能照做的话。
+            Notifications.Show($"发现新版本 {_updates.LatestVersionLabel}，可在「设置 → 关于」里更新");
+        }
+    }
+
+    /// <summary>
+    /// 安装程序已经起来了。
+    /// </summary>
+    /// <remarks>
+    /// 走 <see cref="ExitApp"/> 那条既有的收尾链，而不是自己杀进程 ——
+    /// 那条链里排着「当前页收尾 → 两个 WindowHost → SMTC → 播放引擎 → 容器」。
+    /// </remarks>
+    private void OnUpdateExitRequested(object? sender, EventArgs args) => ExitApp();
+
+    /// <summary>
     /// 把主窗口带回前台。托盘图标的左键与单实例唤醒都走这里。
     /// </summary>
     /// <remarks>
@@ -1232,6 +1287,10 @@ public sealed partial class MainWindow : Window, IPlaylistLibrarySink, IWindowHa
     private void OnHostLoaded(object sender, RoutedEventArgs e)
     {
         PageHost.Loaded -= OnHostLoaded;
+
+        // 启动时查一次新版本。自己的等待（几秒）与「开关关着就不查」都在 ViewModel 里，
+        // 这里只负责在**外壳立起来之后**叫它 —— 早于此弹不出对话框（XamlRoot 还没有）。
+        _ = _updates.RunStartupCheckAsync();
 
         if (_login.IsAuthenticated)
         {

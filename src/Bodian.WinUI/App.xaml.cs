@@ -310,6 +310,16 @@ public partial class App : Application
             sp.GetRequiredService<HttpMessageHandler>(),
             sp.GetRequiredService<AppUpdateOptions>(),
             sp.GetRequiredService<ILogger<GitHubReleaseUpdateService>>()));
+
+        // 更新偏好（自动检查开关、已跳过的版本号）落在自己的文件里（update.json）。
+        // 与外观、快捷键那些偏好分开，理由见 AppPaths.UpdatePreferencesFile。
+        builder.Services.AddSingleton<IUpdatePreferencesStore>(sp => new JsonUpdatePreferencesStore(
+            logger: sp.GetRequiredService<ILogger<JsonUpdatePreferencesStore>>()));
+
+        // ★ 单例。同一份状态要服务三处：启动时的自动检查、关于页那颗按钮、以及下载与取消。
+        //   各自持一份的话，「关于」页永远不知道后台那一次检查查到了什么。
+        builder.Services.AddSingleton<UpdateViewModel>();
+
         builder.Services.AddTransient<AboutViewModel>();
         builder.Services.AddTransient<SettingsViewModel>();
         builder.Services.AddTransient<SettingsPage>();
@@ -470,6 +480,11 @@ public partial class App : Application
             //   MV 页要把自己的 MediaPlayer 与元素解绑，否则容器释放它时元素还绑着 ——
             //   症状是「播放 MV 时点关闭直接卡死」。关窗口不走导航，页面收不到离场通知。
             window.TearDownForShutdown();
+
+            // 停掉下到一半的更新包。**这里只覆盖真退出** —— 点 ✕ 关到托盘时窗口关闭被取消、
+            // 整段根本不会跑，正是所愿：用户还在用这个程序，把他下到一半的包掐掉是错的。
+            // 半截文件由服务自己删掉，不会留下一个像模像样的坏安装包。
+            _host.Services.GetRequiredService<UpdateViewModel>().CancelDownload();
 
             // 桌面歌词窗与小窗也是独立的窗口，不关掉它们进程不会退出。
             _host.Services.GetRequiredService<DesktopLyricsWindowHost>().Dispose();

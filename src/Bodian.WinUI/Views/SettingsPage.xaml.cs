@@ -206,6 +206,31 @@ public sealed partial class SettingsPage : Page, INavigationAware
         => ViewModel.DesktopLyrics.ResetCommand.Execute(null);
 
     /// <summary>
+    /// 「检查更新」。弹的是全应用共用的那一个对话框。
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <b>结果不就地显示在这一页上</b>：启动时的自动检查只能靠对话框，页内再存一份结果，
+    /// 两处早晚会对不上（这也是原先 AboutViewModel 里那套状态被拆掉的原因）。
+    /// </para>
+    /// <para>
+    /// <b>异常要接住</b>：已经有别的对话框开着时 <c>ShowAsync</c> 会抛，
+    /// 静默失败会表现成「点了没反应」。
+    /// </para>
+    /// </remarks>
+    private async void OnCheckUpdateClick(object sender, RoutedEventArgs args)
+    {
+        try
+        {
+            await UpdateDialog.ShowAsync(XamlRoot, ActualTheme, ViewModel.Update, checkFirst: true);
+        }
+        catch (Exception exception)
+        {
+            _notifications.Show($"打开更新窗口失败：{exception.Message}", NoticeSeverity.Error);
+        }
+    }
+
+    /// <summary>
     /// 窗口窄下来时把分类栏收成图标轨。**不折行、也不变成横向条** ——
     /// 那种横排页签正是这一页要避开的形态。
     /// </summary>

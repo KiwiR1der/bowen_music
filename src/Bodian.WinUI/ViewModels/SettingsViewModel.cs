@@ -41,6 +41,7 @@ public sealed partial class SettingsViewModel : ObservableObject
         ShortcutSettingsViewModel shortcuts,
         StorageSettingsViewModel storage,
         AboutViewModel about,
+        UpdateViewModel update,
         InputMethodSettingsViewModel inputMethod,
         RestoreQueueSettingsViewModel restoreQueue)
     {
@@ -53,6 +54,7 @@ public sealed partial class SettingsViewModel : ObservableObject
         ArgumentNullException.ThrowIfNull(shortcuts);
         ArgumentNullException.ThrowIfNull(storage);
         ArgumentNullException.ThrowIfNull(about);
+        ArgumentNullException.ThrowIfNull(update);
         ArgumentNullException.ThrowIfNull(inputMethod);
         ArgumentNullException.ThrowIfNull(restoreQueue);
 
@@ -65,6 +67,7 @@ public sealed partial class SettingsViewModel : ObservableObject
         Shortcuts = shortcuts;
         Storage = storage;
         About = about;
+        Update = update;
         InputMethod = inputMethod;
         RestoreQueue = restoreQueue;
 
@@ -137,8 +140,14 @@ public sealed partial class SettingsViewModel : ObservableObject
     /// <summary>存储分区。</summary>
     public StorageSettingsViewModel Storage { get; }
 
-    /// <summary>关于分区。</summary>
+    /// <summary>关于分区里不随更新流程变化的那部分（图标、版本号、声明、两个外链）。</summary>
     public AboutViewModel About { get; }
+
+    /// <summary>
+    /// 检查更新的状态与动作。<b>与「关于」分开</b>：它是**全应用唯一一份** ——
+    /// 启动时的自动检查、关于页那颗按钮、下载与取消都走它，所以不能是这一页私有的。
+    /// </summary>
+    public UpdateViewModel Update { get; }
 
     public InputMethodSettingsViewModel InputMethod { get; }
 

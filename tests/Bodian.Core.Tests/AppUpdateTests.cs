@@ -25,6 +25,28 @@ public sealed class AppUpdateTests
         { "tag_name": "v0.2.0", "html_url": "https://github.com/someone/bodian/releases/tag/v0.2.0" }
         """;
 
+    /// <summary>形状照抄真实响应（2026-10-14 取自已发布的 v0.1.0）。</summary>
+    private const string LatestReleaseWithAssets = """
+        {
+          "tag_name": "v0.2.0",
+          "html_url": "https://github.com/someone/bodian/releases/tag/v0.2.0",
+          "body": "## 0.2.0 — 2026-10-14\r\n\r\n这一版的概要。\r\n\r\n### 新增\r\n\r\n- **下载** —— 应用内下安装包。\r\n\r\n### 校验\r\n\r\n| 文件 | SHA-256 |\n| --- | --- |\n| `BowenMusic_0.2.0_x64_setup.exe` | `aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa` |\r\n| `BowenMusic_0.2.0_x64_portable.zip` | `bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb` |\r\n",
+          "assets": [
+            {
+              "name": "BowenMusic_0.2.0_x64_setup.exe",
+              "size": 52222873,
+              "digest": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+              "browser_download_url": "https://github.com/someone/bodian/releases/download/v0.2.0/BowenMusic_0.2.0_x64_setup.exe"
+            },
+            {
+              "name": "BowenMusic_0.2.0_x64_portable.zip",
+              "size": 73084927,
+              "browser_download_url": "https://github.com/someone/bodian/releases/download/v0.2.0/BowenMusic_0.2.0_x64_portable.zip"
+            }
+          ]
+        }
+        """;
+
     // ── 配置 ───────────────────────────────────────────────────────────────
 
     [Fact]
@@ -39,6 +61,9 @@ public sealed class AppUpdateTests
         Assert.Equal(
             "https://github.com/ldm0715/bowen_music",
             AppUpdateOptions.Default.ProjectUri!.AbsoluteUri);
+        Assert.Equal(
+            "https://github.com/ldm0715/bowen_music/releases/latest",
+            AppUpdateOptions.Default.ReleasePageUri!.AbsoluteUri);
     }
 
     [Fact]
@@ -48,6 +73,7 @@ public sealed class AppUpdateTests
         var blank = new AppUpdateOptions();
         Assert.False(blank.IsConfigured);
         Assert.Null(blank.ReleaseApiUri);
+        Assert.Null(blank.ReleasePageUri);
         Assert.Null(blank.ProjectUri);
     }
 
@@ -86,7 +112,11 @@ public sealed class AppUpdateTests
 
         Assert.Equal(AppUpdateStatus.UpdateAvailable, result.Status);
         Assert.Equal(new Version(0, 2, 0), result.LatestVersion);
-        Assert.Equal("https://github.com/someone/bodian/releases/tag/v0.2.0", result.DownloadUri!.AbsoluteUri);
+        Assert.Equal("https://github.com/someone/bodian/releases/tag/v0.2.0", result.ReleasePageUri!.AbsoluteUri);
+
+        // 老的响应里没有 assets / body，不该因此炸掉。
+        Assert.Empty(result.Assets);
+        Assert.Empty(result.ReleaseNotes);
     }
 
     [Fact]
@@ -100,7 +130,7 @@ public sealed class AppUpdateTests
         Assert.Equal(new Version(0, 3, 1), result.LatestVersion);
 
         // 没有 html_url 时退回给它的地址。
-        Assert.Equal("https://example.invalid/dl", result.DownloadUri!.AbsoluteUri);
+        Assert.Equal("https://example.invalid/dl", result.ReleasePageUri!.AbsoluteUri);
     }
 
     [Theory]
@@ -144,13 +174,143 @@ public sealed class AppUpdateTests
     }
 
     [Fact]
-    public void Parse_NoUsableDownloadUrl_FailsInsteadOfHandingOutABrokenLink()
+    public void Parse_NoUsableReleasePage_FailsInsteadOfHandingOutABrokenLink()
     {
         var json = """{ "tag_name": "v9.9.9" }""";
 
-        var result = GitHubReleaseUpdateService.ParseLatestRelease(json, Current, fallbackDownloadUrl: "");
+        var result = GitHubReleaseUpdateService.ParseLatestRelease(json, Current, fallbackReleasePageUrl: "");
 
         Assert.Equal(AppUpdateStatus.Failed, result.Status);
+    }
+
+    // ── 产物与正文 ─────────────────────────────────────────────────────────
+
+    [Fact]
+    public void Parse_ReadsAssetsWithSizeAndUrl()
+    {
+        var result = GitHubReleaseUpdateService.ParseLatestRelease(LatestReleaseWithAssets, Current, "");
+
+        Assert.Equal(2, result.Assets.Count);
+
+        var setup = result.Assets[0];
+        Assert.Equal("BowenMusic_0.2.0_x64_setup.exe", setup.Name);
+        Assert.Equal(52222873, setup.SizeBytes);
+        Assert.Equal(
+            "https://github.com/someone/bodian/releases/download/v0.2.0/BowenMusic_0.2.0_x64_setup.exe",
+            setup.DownloadUri.AbsoluteUri);
+    }
+
+    [Fact]
+    public void Parse_PrefersTheDigestFieldForTheChecksum()
+    {
+        var result = GitHubReleaseUpdateService.ParseLatestRelease(LatestReleaseWithAssets, Current, "");
+
+        // 正文表格里写的是 aaaa…，接口的 digest 是 1111…。取接口那个。
+        Assert.Equal(new string('1', 64), result.Assets[0].Sha256);
+    }
+
+    [Fact]
+    public void Parse_FallsBackToTheBodyTableWhenTheDigestIsMissing()
+    {
+        var result = GitHubReleaseUpdateService.ParseLatestRelease(LatestReleaseWithAssets, Current, "");
+
+        // 第二个资产没有 digest 字段，只能从正文那张表里取。
+        Assert.Equal(new string('b', 64), result.Assets[1].Sha256);
+    }
+
+    [Fact]
+    public void Parse_ReadsTheReleaseNotesBody()
+    {
+        var result = GitHubReleaseUpdateService.ParseLatestRelease(LatestReleaseWithAssets, Current, "");
+
+        Assert.Contains("这一版的概要。", result.ReleaseNotes, StringComparison.Ordinal);
+
+        // 正文原样交出去（渲染是界面的事），所以校验段这里还在。
+        Assert.Contains("| 文件 | SHA-256 |", result.ReleaseNotes, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Parse_SkipsAssetsThatAreMissingRequiredFields()
+    {
+        var json = """
+            {
+              "tag_name": "v9.9.9",
+              "html_url": "https://example.invalid/r",
+              "assets": [
+                { "name": "no-url.exe" },
+                { "browser_download_url": "https://example.invalid/no-name" },
+                { "name": "ok.exe", "browser_download_url": "https://example.invalid/ok.exe", "size": 7 }
+              ]
+            }
+            """;
+
+        var result = GitHubReleaseUpdateService.ParseLatestRelease(json, Current, "");
+
+        // 一条坏条目不该把整次检查拖垮，剩下的仍然可用。
+        var asset = Assert.Single(result.Assets);
+        Assert.Equal("ok.exe", asset.Name);
+        Assert.Equal(7, asset.SizeBytes);
+    }
+
+    // ── 挑哪个包 ───────────────────────────────────────────────────────────
+
+    [Theory]
+    [InlineData("Uninstall.exe", true, AppInstallKind.Installed)]
+    [InlineData("Uninstall.exe", false, AppInstallKind.Portable)]
+    [InlineData("coreclr.dll", false, AppInstallKind.Portable)]
+    public void InstallKind_IsDecidedByTheUninstallerPresence(
+        string probe, bool present, AppInstallKind expected)
+    {
+        // 便携包里不会有 Uninstall.exe（那是 NSIS 装完写进去的），所以这一个判据就够了。
+        Assert.Equal(expected, AppInstallKindDetector.Detect(name => name == probe && present));
+    }
+
+    [Fact]
+    public void AssetPicker_GivesTheInstallerOnlyForInstalledBuilds()
+    {
+        var result = GitHubReleaseUpdateService.ParseLatestRelease(LatestReleaseWithAssets, Current, "");
+
+        var installer = AppUpdateAssetPicker.Select(AppInstallKind.Installed, result.Assets);
+        Assert.NotNull(installer);
+        Assert.Equal("BowenMusic_0.2.0_x64_setup.exe", installer.Name);
+
+        // 便携版一律不代下：那条路是「解压覆盖」，应用做不了，只引导去发布页。
+        Assert.Null(AppUpdateAssetPicker.Select(AppInstallKind.Portable, result.Assets));
+    }
+
+    [Fact]
+    public void AssetPicker_ReturnsNullWhenTheReleaseHasNoInstaller()
+    {
+        var onlyPortable = new AppUpdateAsset[]
+        {
+            new("BowenMusic_0.2.0_x64_portable.zip", 1, new Uri("https://example.invalid/a.zip")),
+        };
+
+        Assert.Null(AppUpdateAssetPicker.Select(AppInstallKind.Installed, onlyPortable));
+    }
+
+    // ── 跳过此版本 ─────────────────────────────────────────────────────────
+
+    [Theory]
+    [InlineData("0.2.0", "0.2.0", true)]
+    [InlineData("0.2.0", "0.1.0", true)]   // 跳过的版本比现在查到的还新：一样不提示
+    [InlineData("0.2.0", "0.3.0", false)]  // 更新的一版出来了，得重新提示
+    [InlineData("", "0.2.0", false)]
+    [InlineData("garbage", "0.2.0", false)] // 坏字符串当作没跳过，宁可多提示一次
+    public void SkippedVersion_SuppressesOnlyUpToThatVersion(
+        string skipped, string latest, bool expected)
+    {
+        var preferences = new UpdatePreferences(AutoCheck: true, SkippedVersion: skipped);
+
+        Assert.Equal(expected, preferences.IsSkipped(Version.Parse(latest)));
+    }
+
+    [Fact]
+    public void DefaultPreferences_AutoCheckIsOn()
+    {
+        // 默认关掉的「检查更新」等于没有 —— 这条是防止有人把默认值改成 false。
+        Assert.True(UpdatePreferences.Default.AutoCheck);
+        Assert.Empty(UpdatePreferences.Default.SkippedVersion);
     }
 
     // ── 端到端（处理器仍是桩） ──────────────────────────────────────────────

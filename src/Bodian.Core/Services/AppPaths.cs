@@ -247,6 +247,26 @@ public static class AppPaths
     /// </remarks>
     public static string MiniPlayerWindowFile => Path.Combine(LocalAppData, "mini-player-window.json");
 
+    /// <summary>
+    /// 更新偏好（明文 JSON）：自动检查开关、已跳过的版本号。
+    /// </summary>
+    /// <remarks>
+    /// <b>与 <see cref="SettingsFile"/> 分开</b>：那份是外观，这份是更新。理由是这一个文件
+    /// 有一处会被后台的自动检查读（启动时），与用户改外观的时机完全无关。
+    /// </remarks>
+    public static string UpdatePreferencesFile => Path.Combine(LocalAppData, "update.json");
+
+    /// <summary>
+    /// 下载下来的安装包。
+    /// </summary>
+    /// <remarks>
+    /// <b>不往系统的「下载」文件夹里丢东西</b>：那是用户自己的地盘，应用静默写进去会变成
+    /// 「咦这个文件哪来的」。放在数据目录下、界面上给「打开所在文件夹」，路径是可见的，
+    /// 想挪走随时能挪。也不放在 <see cref="CacheDirectory"/> 下 —— 那不是缓存，
+    /// 被「清除缓存」顺手删掉会让下了一半的包凭空消失。
+    /// </remarks>
+    public static string UpdateDownloadDirectory => Path.Combine(LocalAppData, "updates");
+
     /// <summary>日志目录。</summary>
     public static string LogDirectory => Path.Combine(LocalAppData, "logs");
 }
