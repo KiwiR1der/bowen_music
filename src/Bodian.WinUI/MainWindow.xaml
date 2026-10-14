@@ -848,7 +848,7 @@
                         <controls:Icon Size="{StaticResource SizeIconSm}" Data="{StaticResource IconMiniPlayer}" />
                     </Button>
 
-                    <!-- 设置。与左边的按钮同一套尺寸与底色，打开设置页（根页，不进返回栈）。 -->
+                    <!-- 设置。与左边的按钮同一套尺寸与底色，打开设置页（压栈，返回回到原处）。 -->
                     <Button
                         x:Name="SettingsButton"
                         Width="{StaticResource SizeRoundButton}"
@@ -1773,6 +1773,25 @@
                     </controls:TrayMenuItem>
 
                     <MenuFlyoutSeparator IsHitTestVisible="False" />
+
+                    <!--
+                        设置 = 主窗口设置页的入口，与标题栏那颗齿轮是同一个去处。
+                        托盘拉开时人正在系统别处，所以它要先把设置页切好、再把窗口带回前台。
+
+                        ★ 它是**唯一会收起菜单**的项：其余项都刻意保持菜单打开好连续操作
+                          （见 §5.7），而设置要落进主窗口、菜单浮在上面挡着没有意义。
+
+                        ★ Command 走 OpenSettings（MainWindow），不是拿标题栏那颗按钮的 Click ——
+                          RelayCommand 与按钮点击本来就不是一套接线。
+                    -->
+                    <controls:TrayMenuItem Style="{StaticResource TrayMenuItemStyle}" Command="{x:Bind OpenSettingsCommand}">
+                        <controls:TrayMenuItem.Body>
+                            <StackPanel Orientation="Horizontal" Spacing="8" Margin="8,6,8,6">
+                                <controls:Icon Data="{StaticResource IconSettings}" Size="16" VerticalAlignment="Center" />
+                                <TextBlock Text="设置" VerticalAlignment="Center" />
+                            </StackPanel>
+                        </controls:TrayMenuItem.Body>
+                    </controls:TrayMenuItem>
 
                     <!--
                         退出 = 唯一真正结束进程的入口。它只置一个位再关窗口，

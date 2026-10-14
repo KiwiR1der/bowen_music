@@ -136,6 +136,16 @@ public sealed partial class MainWindow : Window, IPlaylistLibrarySink, IWindowHa
     /// </remarks>
     private bool _exitRequested;
 
+    /// <summary>
+    /// 本次托盘命令要求收起菜单（目前只有「设置」）。
+    /// </summary>
+    /// <remarks>
+    /// 菜单默认在点击后保持打开（连续切歌、连开两个窗口开关是它的用途）。
+    /// 「设置」要落到主窗口的设置页，菜单浮在上面挡着不是要的效果 ——
+    /// 命令自己置位，<see cref="OnTrayMenuContentTapped"/> 在执行前清零。
+    /// </remarks>
+    private bool _dismissTrayMenu;
+
     /// <summary>系统正在注销或关机。由 <see cref="OnSessionWatchMessage"/> 置位。</summary>
     private bool _sessionEnding;
 
@@ -831,6 +841,39 @@ public sealed partial class MainWindow : Window, IPlaylistLibrarySink, IWindowHa
     private void OnSettingsClick(object sender, RoutedEventArgs e)
         => _navigation.Navigate<SettingsPage>();
 
+    /// <summary>
+    /// 托盘菜单的「设置」：把主窗口带回前台，落在设置页。
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <b>先切页再显示窗口。</b> 窗口是从托盘里拽出来的，反过来做的话用户会先看见上一页、
+    /// 再看着它跳走（与「返回时先露顶部再跳」是同一类毛病）。
+    /// </para>
+    /// <para>
+    /// <b>与标题栏那颗齿轮同一条路</b>：<c>Navigate</c> 压栈，不是换根 —— 从哪儿开的就退回到哪儿。
+    /// 已经在设置页时栈按身份判等、不重复压栈，也不会重跑页面生命周期。
+    /// </para>
+    /// <para>
+    /// <b>唯一会收起菜单的菜单项。</b> 菜单浮在设置页上挡着不是要的效果。
+    /// 收起由托盘库自己做：它的菜单窗口一旦失去激活就会 <c>Hide()</c> 整颗菜单并藏起窗口
+    /// （<c>TaskbarIcon.ContextMenu.WinUI.SecondWindow</c> 的 <c>window.Activated</c> 分支）——
+    /// 主窗口被激活正是这个时机。所以这里要做的只有一件事：置位
+    /// <see cref="_dismissTrayMenu"/>，别让 <see cref="OnTrayMenuContentTapped"/>
+    /// 再把菜单窗口带回前台（那一步会把菜单重新激活、于是又弹回来）。
+    /// </para>
+    /// <para>
+    /// 库在 2.4.1 没有公开的「关菜单」方法（<c>CloseContextMenu</c> 是 2.5 才有的），
+    /// 不要为了这一步去写按键或点窗口那类绕路。
+    /// </para>
+    /// </remarks>
+    [RelayCommand]
+    private void OpenSettings()
+    {
+        _dismissTrayMenu = true;
+        _navigation.Navigate<SettingsPage>();
+        ShowMainWindow();
+    }
+
     private void OnMiniPlayerPropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
         if (e.PropertyName == nameof(MiniPlayerViewModel.IsEnabled))
@@ -974,11 +1017,14 @@ public sealed partial class MainWindow : Window, IPlaylistLibrarySink, IWindowHa
                 if (item.IsEnabled && command?.CanExecute(item.CommandParameter) == true)
                 {
                     var menuWindow = NativeMethods.GetForegroundWindow();
+
+                    // 标志在执行前清零，由命令自己置位 —— 它决定这次要不要收起菜单。
+                    _dismissTrayMenu = false;
                     command.Execute(item.CommandParameter);
 
                     // 小窗首次显示会激活新窗口；把托盘窗口带回，继续显示原位置的菜单。
-                    // 「退出」仍真正关闭应用，不恢复菜单窗口。
-                    if (!_exitRequested && !_closed && menuWindow != 0 &&
+                    // 「退出」真正关闭应用，「设置」要把前台交给主窗口，两者都不恢复菜单窗口。
+                    if (!_dismissTrayMenu && !_exitRequested && !_closed && menuWindow != 0 &&
                         NativeMethods.GetForegroundWindow() != menuWindow)
                     {
                         NativeMethods.ShowWindow(menuWindow, 4); // SW_SHOWNOACTIVATE
