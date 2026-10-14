@@ -15,7 +15,7 @@ namespace Bodian.WinUI.Views;
 /// <b>实现 <see cref="INavigationIdentity"/> 是必须的。</b> 每个歌单详情都是同一个类型，
 /// 按类型判等会让「点第二个歌单」被当成「已经是这个页面」而静默不切换。
 /// </remarks>
-public sealed partial class PlaylistDetailPage : Page, INavigationAware, INavigationIdentity, IReusableDetailPage<PlaylistDetailViewModel>
+public sealed partial class PlaylistDetailPage : Page, INavigationAware, INavigationIdentity
 {
     private readonly IWindowHandleProvider _windowHandles;
 
@@ -30,15 +30,7 @@ public sealed partial class PlaylistDetailPage : Page, INavigationAware, INaviga
         InitializeComponent();
     }
 
-    public PlaylistDetailViewModel ViewModel { get; private set; }
-
-    void IReusableDetailPage<PlaylistDetailViewModel>.Rebind(PlaylistDetailViewModel model)
-    {
-        Bindings.StopTracking();
-        ViewModel = model;
-        PlaylistTracksList.IsSelectionMode = false;
-        Bindings.Update();
-    }
+    public PlaylistDetailViewModel ViewModel { get; }
 
     /// <summary>
     /// 身份带上 <c>source</c>：同一个 id 在不同 source 下是不同的歌单

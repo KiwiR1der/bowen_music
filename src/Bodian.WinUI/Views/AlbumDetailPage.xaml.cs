@@ -13,7 +13,7 @@ namespace Bodian.WinUI.Views;
 /// <b>压在栈上的详情页，不是根</b>：从「已购音乐」或「收藏的专辑」点进来时，
 /// 侧栏该继续高亮原来那一项。
 /// </remarks>
-public sealed partial class AlbumDetailPage : Page, INavigationAware, IReusableDetailPage<AlbumDetailViewModel>
+public sealed partial class AlbumDetailPage : Page, INavigationAware
 {
     private readonly INavigationService _navigation;
     private readonly Func<Artist, ArtistDetailPage> _artistFactory;
@@ -34,15 +34,7 @@ public sealed partial class AlbumDetailPage : Page, INavigationAware, IReusableD
         InitializeComponent();
     }
 
-    public AlbumDetailViewModel ViewModel { get; private set; }
-
-    void IReusableDetailPage<AlbumDetailViewModel>.Rebind(AlbumDetailViewModel model)
-    {
-        Bindings.StopTracking();
-        ViewModel = model;
-        AlbumTracksList.IsSelectionMode = false;
-        Bindings.Update();
-    }
+    public AlbumDetailViewModel ViewModel { get; }
 
     public void OnNavigatedTo() => _ = ViewModel.EnsureLoadedAsync();
 
