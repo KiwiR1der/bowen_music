@@ -61,26 +61,38 @@ public sealed class BodianHttpTransport : IBodianTransport, IDisposable
     }
 
     /// <summary>
-    /// 生产用的 handler。**这是唯一配置 handler 的地方**，单独写测试断言这几个属性。
+    /// 业务请求的 handler。**这是唯一配置 handler 的地方**，单独写测试断言这几个属性。
     /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <b><c>UseProxy</c> 永远显式写。</b> 它的默认值是 <c>true</c>，而 <c>Proxy</c> 为 null 时
+    /// 会落回 <c>HttpClient.DefaultProxy</c> —— 也就是**系统代理**。原来的写法只在
+    /// 给了 <c>Proxy</c> 时才设这两个属性，于是生产路径（没给）静默变成了「跟随系统代理」：
+    /// 外面开着代理，应用的请求也跟着绕。见 <c>docs/proxy.md</c> §1。
+    /// </para>
+    /// <para>
+    /// <b>业务请求固定直连，这是有意的，不是漏了配置。</b> 登录、歌单、封面全在国内，
+    /// 直连永远是对的。只有更新检查那条路需要代理，它有自己的 handler
+    /// （<see cref="Services.UpdateProxy.CreateHandler"/>）。
+    /// </para>
+    /// <para>
+    /// <see cref="BodianTransportOptions.Proxy"/> 因此收窄成**测试与本地开发的覆盖口**，
+    /// 生产恒为 null。
+    /// </para>
+    /// </remarks>
     public static SocketsHttpHandler CreateHandler(BodianTransportOptions options)
     {
         ArgumentNullException.ThrowIfNull(options);
 
-        var handler = new SocketsHttpHandler
+        return new SocketsHttpHandler
         {
             // 请求头里也显式带了 Accept-Encoding: gzip，这里负责真正的解压。
             AutomaticDecompression = DecompressionMethods.All,
             PooledConnectionLifetime = options.PooledConnectionLifetime,
+
+            UseProxy = options.Proxy is not null,
+            Proxy = options.Proxy is { } proxy ? new WebProxy(proxy) : null,
         };
-
-        if (options.Proxy is { } proxy)
-        {
-            handler.Proxy = new WebProxy(proxy);
-            handler.UseProxy = true;
-        }
-
-        return handler;
     }
 
     public Task<BodianEnvelope<T>> SendAsync<T>(

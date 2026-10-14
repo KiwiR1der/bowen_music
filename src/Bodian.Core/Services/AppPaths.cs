@@ -257,6 +257,16 @@ public static class AppPaths
     public static string UpdatePreferencesFile => Path.Combine(LocalAppData, "update.json");
 
     /// <summary>
+    /// 更新通道的代理偏好（明文 JSON）。
+    /// </summary>
+    /// <remarks>
+    /// <b>与 <see cref="UpdatePreferencesFile"/> 分开</b>：那份是「要不要自动检查」，
+    /// 这份是「走哪条网络」。两者改动的时机完全无关（一个是点开关，一个是填地址），
+    /// 何况地址里可能带密码 —— 混在一份文件里，以后想给代理那半边上 DPAPI 就得先拆开。
+    /// </remarks>
+    public static string ProxySettingsFile => Path.Combine(LocalAppData, "proxy.json");
+
+    /// <summary>
     /// 下载下来的安装包。
     /// </summary>
     /// <remarks>

@@ -35,6 +35,7 @@
 | [`dev-environment.md`](dev-environment.md) | 开发环境（本机实测状态，换机器时对照） |
 | [`release.md`](release.md) | **打包与发布**：三个产物的差别、NSIS 安装器设计、本地复现、首次发版准备 |
 | [`update.md`](update.md) | **检查更新与安装**：启动自动检查、安装版应用内下载、发布说明展示、跳过此版本 |
+| [`proxy.md`](proxy.md) | **网络与代理**：业务请求固定直连、更新通道的代理设置、为什么音频不纳入 |
 | [`size-optimization.md`](size-optimization.md) | **编译产物体积优化主文档**：AI/ML 组件剔除、语言资源裁剪、PDB 开关、自包含发布的取舍 |
 
 ### 接口与协议

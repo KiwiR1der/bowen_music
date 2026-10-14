@@ -369,6 +369,60 @@
                         </Border>
                     </StackPanel>
 
+                    <!--
+                        网络分区。**只管更新检查那一条路** —— 常规请求固定直连，没有开关，
+                        见 docs/proxy.md §3。所以第一行是只读的，用来说明「这页为什么不给业务也配代理」。
+                    -->
+                    <StackPanel controls:Motion.TabContent="True" Spacing="8" Visibility="{x:Bind local:Formats.Visible(ViewModel.IsNetworkSelected), Mode=OneWay}">
+                        <TextBlock Style="{StaticResource BodianSettingsGroupTitle}" Text="网络" />
+                        <Border Style="{StaticResource BodianSettingsCard}">
+                            <StackPanel>
+                                <controls:SettingsRow Description="登录、歌单、封面这些请求始终直连，不受系统代理影响" Header="常规请求">
+                                    <controls:SettingsRow.RightContent>
+                                        <TextBlock
+                                            VerticalAlignment="Center"
+                                            FontSize="{StaticResource FontSizeBody}"
+                                            Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                            Text="固定直连" />
+                                    </controls:SettingsRow.RightContent>
+                                </controls:SettingsRow>
+                                <Border Style="{StaticResource BodianSettingsRowDivider}" />
+                                <controls:SettingsRow Description="更新检查与安装包下载走哪条路；国内直连通常连不上 GitHub" Header="检查更新使用的代理">
+                                    <controls:SettingsRow.RightContent>
+                                        <ComboBox
+                                            ItemsSource="{x:Bind ViewModel.Network.ProxyModeOptions}"
+                                            SelectedIndex="{x:Bind ViewModel.Network.ProxyModeIndex, Mode=TwoWay}" />
+                                    </controls:SettingsRow.RightContent>
+                                </controls:SettingsRow>
+                                <Border Style="{StaticResource BodianSettingsRowDivider}" />
+                                <!--
+                                    地址这一行只在选「自定义」时可用。
+                                    ★ Text 刻意**不写 UpdateSourceTrigger**：默认就是 LostFocus，
+                                      每敲一个字都解析 + 落盘一次是没必要的，而用户也不会在中途去看状态行。
+                                -->
+                                <controls:SettingsRow
+                                    Description="例：http://127.0.0.1:7890，可以带用户名与密码"
+                                    Header="代理地址"
+                                    IsRowEnabled="{x:Bind ViewModel.Network.IsCustom, Mode=OneWay}">
+                                    <controls:SettingsRow.RightContent>
+                                        <TextBox
+                                            MinWidth="200"
+                                            Text="{x:Bind ViewModel.Network.ProxyAddress, Mode=TwoWay}" />
+                                    </controls:SettingsRow.RightContent>
+                                </controls:SettingsRow>
+                            </StackPanel>
+                        </Border>
+
+                        <TextBlock Style="{StaticResource BodianPageStatus}" Text="{x:Bind ViewModel.Network.StatusText, Mode=OneWay}" />
+
+                        <TextBlock
+                            FontSize="{StaticResource FontSizeBody}"
+                            Foreground="{ThemeResource SystemFillColorCriticalBrush}"
+                            Text="{x:Bind ViewModel.Network.ErrorText, Mode=OneWay}"
+                            TextWrapping="Wrap"
+                            Visibility="{x:Bind local:Formats.Visible(ViewModel.Network.HasError), Mode=OneWay}" />
+                    </StackPanel>
+
                     <StackPanel controls:Motion.TabContent="True" Spacing="8" Visibility="{x:Bind local:Formats.Visible(ViewModel.IsShortcutsSelected), Mode=OneWay}">
                         <TextBlock Style="{StaticResource BodianSettingsGroupTitle}" Text="快捷键" />
                         <Border Style="{StaticResource BodianSettingsCard}">

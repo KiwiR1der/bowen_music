@@ -42,6 +42,7 @@ public sealed partial class SettingsViewModel : ObservableObject
         StorageSettingsViewModel storage,
         AboutViewModel about,
         UpdateViewModel update,
+        NetworkSettingsViewModel network,
         InputMethodSettingsViewModel inputMethod,
         RestoreQueueSettingsViewModel restoreQueue)
     {
@@ -55,6 +56,7 @@ public sealed partial class SettingsViewModel : ObservableObject
         ArgumentNullException.ThrowIfNull(storage);
         ArgumentNullException.ThrowIfNull(about);
         ArgumentNullException.ThrowIfNull(update);
+        ArgumentNullException.ThrowIfNull(network);
         ArgumentNullException.ThrowIfNull(inputMethod);
         ArgumentNullException.ThrowIfNull(restoreQueue);
 
@@ -68,6 +70,7 @@ public sealed partial class SettingsViewModel : ObservableObject
         Storage = storage;
         About = about;
         Update = update;
+        Network = network;
         InputMethod = inputMethod;
         RestoreQueue = restoreQueue;
 
@@ -76,6 +79,7 @@ public sealed partial class SettingsViewModel : ObservableObject
             new SettingsCategoryItem("外观", "IconThemeAuto"),
             new SettingsCategoryItem("播放", "IconPlay"),
             new SettingsCategoryItem("歌词", "IconLyrics"),
+            new SettingsCategoryItem("网络", "IconGlobe"),
             new SettingsCategoryItem("快捷键", "IconKeyboard"),
             new SettingsCategoryItem("存储", "IconStorage"),
             new SettingsCategoryItem("关于", "IconInfo"),
@@ -149,15 +153,23 @@ public sealed partial class SettingsViewModel : ObservableObject
     /// </summary>
     public UpdateViewModel Update { get; }
 
+    /// <summary>网络分区：更新通道的代理。</summary>
+    public NetworkSettingsViewModel Network { get; }
+
     public InputMethodSettingsViewModel InputMethod { get; }
 
     /// <summary>「记住播放列表」开关。薄壳，真值在 <see cref="Coordinator"/> 里。</summary>
     public RestoreQueueSettingsViewModel RestoreQueue { get; }
 
+    /// <remarks>
+    /// <b>下标与 <see cref="Categories"/> 的顺序一一对应，改顺序就得改下面那一组 <c>IsXxxSelected</c>。</b>
+    /// 2026-10-14 插入「网络」时后面四条的编号整体后移过一次 —— 漏改一个的表现是「点甲显示乙」。
+    /// </remarks>
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(IsAppearanceSelected))]
     [NotifyPropertyChangedFor(nameof(IsPlaybackSelected))]
     [NotifyPropertyChangedFor(nameof(IsLyricsSelected))]
+    [NotifyPropertyChangedFor(nameof(IsNetworkSelected))]
     [NotifyPropertyChangedFor(nameof(IsShortcutsSelected))]
     [NotifyPropertyChangedFor(nameof(IsStorageSelected))]
     [NotifyPropertyChangedFor(nameof(IsAboutSelected))]
@@ -229,11 +241,13 @@ public sealed partial class SettingsViewModel : ObservableObject
 
     public bool IsLyricsSelected => SelectedCategoryIndex == 2;
 
-    public bool IsShortcutsSelected => SelectedCategoryIndex == 3;
+    public bool IsNetworkSelected => SelectedCategoryIndex == 3;
 
-    public bool IsStorageSelected => SelectedCategoryIndex == 4;
+    public bool IsShortcutsSelected => SelectedCategoryIndex == 4;
 
-    public bool IsAboutSelected => SelectedCategoryIndex == 5;
+    public bool IsStorageSelected => SelectedCategoryIndex == 5;
+
+    public bool IsAboutSelected => SelectedCategoryIndex == 6;
 
     /// <summary>
     /// 把各个单例的当前值同步进下标属性。页面进入时调一次，各单例在外面被改动时也调

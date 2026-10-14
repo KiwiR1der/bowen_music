@@ -435,6 +435,25 @@ public sealed class TransportTests : IDisposable
         Assert.Null(handler.Proxy);
     }
 
+    /// <summary>
+    /// 业务请求**固定直连**。
+    /// </summary>
+    /// <remarks>
+    /// <b>这条盯的是一个真出现过的 bug。</b> 原来只在给了代理时才设 <c>UseProxy</c>，
+    /// 而它的默认值是 <c>true</c> —— 于是生产路径（没给代理）静默跟随了系统代理。
+    /// 当时那条断言写的是 <c>Assert.Null(handler.Proxy)</c>，**在跟随系统代理时也成立**
+    /// （Proxy 确实是 null，走的是 UseProxy 那条默认路径），所以它测不出这个问题。
+    /// 现在直接断言 <c>UseProxy</c> 本身。
+    /// </remarks>
+    [Fact]
+    public void CreateHandler_DoesNotFollowTheSystemProxy()
+    {
+        var handler = BodianHttpTransport.CreateHandler(_options);
+
+        Assert.False(handler.UseProxy);
+        Assert.Null(handler.Proxy);
+    }
+
     [Fact]
     public void CreateHandler_ConfiguresProxy()
     {

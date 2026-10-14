@@ -376,3 +376,19 @@ dotnet test --project tests/Bodian.Core.Tests/Bodian.Core.Tests.csproj --no-rest
 它的 `Paths(key)` 是拿资源键去 `Application.Current.Resources` 里查的，没有自己的字典。
 
 用点与取舍见 [`search.md`](search.md) § 结果工具栏与视图切换。
+
+
+## 2026-10-14 网络分类
+
+设置页新增「网络」分类（更新通道的代理，见 [`proxy.md`](proxy.md)），配一颗图标：
+
+| 资源键 | Fluent 图标 | 用在哪 |
+| --- | --- | --- |
+| `IconGlobe` | `globe_24_regular`（带经纬线的地球） | 设置页分类栏的「网络」那一项 |
+
+**为什么不用现成的 `IconInfo`**：它是「关于」那一页的图标，两层都是实心圆加一个 i，
+放在同一列里会因为外形接近被认成同一类。地球的经纬线在 16px 下也还分得出来。
+
+同样**只改 `Themes/Icons.xaml` 一处**。取图标的方式与上两节一致：从
+`github.com/microsoft/fluentui-system-icons`（MIT）取 `globe_24_regular` 的 SVG，
+路径数据原样搬过来、前面加 `F1` 指明 nonzero 填充。

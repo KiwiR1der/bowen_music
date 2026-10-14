@@ -42,6 +42,14 @@ public sealed record BodianTransportOptions
     /// </summary>
     public long MaxResponseBytes { get; init; } = 8L * 1024 * 1024;
 
-    /// <summary>代理。本机开发在 7890 端口时传 <c>http://127.0.0.1:7890</c>。</summary>
+    /// <summary>
+    /// 代理入口。
+    /// </summary>
+    /// <remarks>
+    /// <b>生产恒为 <c>null</c>，业务请求固定直连</b> —— 见
+    /// <see cref="BodianHttpTransport.CreateHandler"/> 的说明。这个口子只留给测试与本地开发
+    /// （要抓包看请求时传 <c>http://127.0.0.1:7890</c>）。
+    /// 用户可配的那条代理只管更新通道，见 <c>docs/proxy.md</c>。
+    /// </remarks>
     public Uri? Proxy { get; init; }
 }

@@ -306,21 +306,33 @@ public partial class App : Application
 
         // 检查更新。AppUpdateOptions 是**唯一配置点** —— 仓库建好后只改它的三个字段。
         builder.Services.AddSingleton(AppUpdateOptions.Default);
-        builder.Services.AddSingleton<IAppUpdateService>(sp => new GitHubReleaseUpdateService(
-            sp.GetRequiredService<HttpMessageHandler>(),
-            sp.GetRequiredService<AppUpdateOptions>(),
-            sp.GetRequiredService<ILogger<GitHubReleaseUpdateService>>()));
 
         // 更新偏好（自动检查开关、已跳过的版本号）落在自己的文件里（update.json）。
         // 与外观、快捷键那些偏好分开，理由见 AppPaths.UpdatePreferencesFile。
         builder.Services.AddSingleton<IUpdatePreferencesStore>(sp => new JsonUpdatePreferencesStore(
             logger: sp.GetRequiredService<ILogger<JsonUpdatePreferencesStore>>()));
 
+        // 更新通道的代理（proxy.json）。读取只在这里发生一次，之后由「网络」那一页写。
+        builder.Services.AddSingleton<IProxySettingsStore>(sp => new JsonProxySettingsStore(
+            logger: sp.GetRequiredService<ILogger<JsonProxySettingsStore>>()));
+
+        // ★ 单例，而且**与业务那条 HttpMessageHandler 是两个东西**。
+        //   业务请求固定直连（见 BodianHttpTransport.CreateHandler）；更新检查要走哪条由用户定。
+        //   它实现了 IDisposable —— 自己建的那个 handler 归它释放，容器退出时会调。
+        builder.Services.AddSingleton(sp => new UpdateProxy(
+            sp.GetRequiredService<IProxySettingsStore>().Load()));
+
+        builder.Services.AddSingleton<IAppUpdateService>(sp => new GitHubReleaseUpdateService(
+            sp.GetRequiredService<UpdateProxy>().Handler,
+            sp.GetRequiredService<AppUpdateOptions>(),
+            sp.GetRequiredService<ILogger<GitHubReleaseUpdateService>>()));
+
         // ★ 单例。同一份状态要服务三处：启动时的自动检查、关于页那颗按钮、以及下载与取消。
         //   各自持一份的话，「关于」页永远不知道后台那一次检查查到了什么。
         builder.Services.AddSingleton<UpdateViewModel>();
 
         builder.Services.AddTransient<AboutViewModel>();
+        builder.Services.AddTransient<NetworkSettingsViewModel>();
         builder.Services.AddTransient<SettingsViewModel>();
         builder.Services.AddTransient<SettingsPage>();
 
