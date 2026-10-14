@@ -1,5 +1,6 @@
 using System.Collections.Specialized;
 using System.Numerics;
+using Bodian.WinUI.Services;
 using Bodian.WinUI.ViewModels;
 using Microsoft.UI.Input;
 using Microsoft.UI.Xaml;
@@ -81,6 +82,9 @@ public sealed partial class PlayQueuePanel : UserControl
         RowList.AddHandler(PointerReleasedEvent, new PointerEventHandler(OnListPointerReleased), true);
         RowList.AddHandler(PointerCaptureLostEvent, new PointerEventHandler(OnListPointerCaptureLost), true);
         RowList.AddHandler(PointerCanceledEvent, new PointerEventHandler(OnListPointerCanceled), true);
+
+        // 行列先藏起来：打开时要把它滑到「正在播放」那一行，定位完成前露出来的就是列表顶部。
+        AppMotion.Hide(RowList);
 
         Loaded += (_, _) =>
         {
@@ -182,34 +186,40 @@ public sealed partial class PlayQueuePanel : UserControl
     /// 面板开着的时候不跟着切歌滚 —— 队列是给人翻的，自动滚会把正在看的位置顶走。
     /// </para>
     /// <para>
-    /// <b>排到 dispatcher 下一轮再动手</b>，并且允许再等一两轮：<c>Loaded</c> 与「列表量出可滚高度」
-    /// 不一定是同一拍（<c>ExtentHeight</c> 还是 0 就什么都算不了）。重试是幂等的 ——
-    /// 每次要么什么都不做，要么一次把偏移设到位，所以看不到中间态。
+    /// <b>先把布局赶出来再定位。</b> <c>Loaded</c> 与「列表量出可滚高度」不一定是同一拍
+    /// （这一刻 <c>ExtentHeight</c> 还是 0），而排到 dispatcher 下一轮再动手的话，
+    /// 列表会在这一轮里先按「顶部」画出来、下一轮才滑过去 —— 打开时看得见的那一下「闪」就是它。
+    /// 行列因此在构造函数里就藏起来，定位到哪儿才在哪儿露面。
     /// </para>
     /// <para>
-    /// 都量不到尺寸时退回「够到就行」（<c>ScrollIntoView</c>）：把这一行带进可视区，
-    /// 总比停在顶上强。
+    /// 仍然量不到尺寸时排下一轮重试（重试是幂等的）；一路都量不到才退回「够到就行」
+    /// （<c>ScrollIntoView</c>）：把这一行带进可视区，总比停在顶上强。
     /// </para>
     /// </remarks>
     private void RevealCurrent()
     {
-        if (DispatcherQueue is { } dispatcher && dispatcher.TryEnqueue(() => Reveal(RevealRetries)))
+        if (CurrentRow() is { } row && !CenterOn(row))
         {
-            return;
+            // <c>Loaded</c> 时列表还没量出可滚高度：把布局赶出来，让定位落在这一帧上。
+            // 赶不出来也不怕 —— 行列还藏着，看不到「先画在顶上再跳」。
+            UpdateLayout();
         }
 
-        Reveal(0);
+        Reveal(RevealRetries);
     }
 
     private void Reveal(int attempts)
     {
         if (CurrentRow() is not { } row)
         {
+            // 队列为空、或没有正在播放的行：没有可定位的东西，直接露面。
+            ShowRows();
             return;
         }
 
         if (CenterOn(row))
         {
+            ShowRows();
             return;
         }
 
@@ -219,7 +229,32 @@ public sealed partial class PlayQueuePanel : UserControl
             return;
         }
 
+        // 兜底那次是滚过去的（会动画），等它滚完再露面 —— 否则又是「先画在顶上再跳」。
         RowList.ScrollIntoView(row);
+        ShowRowsAfterFallbackScroll();
+    }
+
+    /// <summary>定位落位，露出行列表。</summary>
+    private void ShowRows() => _ = AppMotion.RevealAsync(RowList);
+
+    /// <summary>兜底滚动之后的露面：<c>ScrollIntoView</c> 自己会滚一段，让它先滚完。</summary>
+    private void ShowRowsAfterFallbackScroll()
+    {
+        if (DispatcherQueue is not { } dispatcher)
+        {
+            ShowRows();
+            return;
+        }
+
+        var timer = dispatcher.CreateTimer();
+        timer.Interval = TimeSpan.FromMilliseconds(260);
+        timer.IsRepeating = false;
+        timer.Tick += (sender, _) =>
+        {
+            sender.Stop();
+            ShowRows();
+        };
+        timer.Start();
     }
 
     /// <summary>正在播放那一行；队列为空时为 <c>null</c>。</summary>
