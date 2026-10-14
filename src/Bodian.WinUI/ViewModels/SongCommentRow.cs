@@ -18,6 +18,7 @@ public sealed partial class SongCommentRow : ObservableObject
         DetailCommand = new AsyncRelayCommand(() => owner.OpenThreadAsync(this));
         ReplyCommand = new AsyncRelayCommand(() => owner.ReplyToAsync(this));
         ImageCommand = new RelayCommand(() => owner.OpenImage(ImageUri), () => ImageUri is not null);
+        ToggleContentCommand = new RelayCommand(() => IsContentExpanded = !IsContentExpanded);
     }
 
     public SongComment Comment => _comment;
@@ -35,7 +36,13 @@ public sealed partial class SongCommentRow : ObservableObject
     public bool IsLiked => _comment.IsLiked;
     public string ReplyCaption => string.IsNullOrWhiteSpace(_comment.ReplyNickname) ? "" : $"回复 @{_comment.ReplyNickname}";
     public bool HasReplyCaption => ReplyCaption.Length > 0;
-    public string ReplyActionText => ReplyCount > 0 ? $"{ReplyCount:N0} 条回复" : "回复";
+    public bool HasReplies => ReplyCount > 0;
+
+    /// <summary>「N 条回复」的展示文案。无可点语义 —— 入口是旁边那颗「查看」。</summary>
+    public string ReplyCountText => HasReplies ? $"{ReplyCount:N0} 条回复" : "";
+
+    /// <summary>正文展开按钮的文案。</summary>
+    public string ContentToggleText => IsContentExpanded ? "收起" : "更多";
     public string LikeActionText => IsLiking ? "处理中" : $"{(IsLiked ? "取消点赞" : "点赞")}，{LikeCount:N0} 个赞";
     public int SourcePage { get; }
     public SongCommentSort SourceSort { get; }
@@ -43,11 +50,43 @@ public sealed partial class SongCommentRow : ObservableObject
     public IAsyncRelayCommand DetailCommand { get; }
     public IAsyncRelayCommand ReplyCommand { get; }
     public IRelayCommand ImageCommand { get; }
+    public IRelayCommand ToggleContentCommand { get; }
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(LikeActionText))]
     [NotifyCanExecuteChangedFor(nameof(LikeCommand))]
     public partial bool IsLiking { get; set; }
+
+    /// <summary>正文是否已展开。折叠态由模板限制行数，展开后不再截断。</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ContentToggleText))]
+    [NotifyPropertyChangedFor(nameof(ShowContentToggle))]
+    public partial bool IsContentExpanded { get; set; }
+
+    /// <summary>
+    /// 正文在折叠态下是否真的超出了行数上限。
+    /// </summary>
+    /// <remarks>
+    /// 只有模板里那个 <c>TextBlock</c> 量得出来（<c>IsTextTrimmed</c>），所以由它的 SizeChanged 回写。
+    /// 不这么做的替代方案是按字符数猜，长英文和中文混排时会猜错。
+    /// </remarks>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ShowContentToggle))]
+    public partial bool IsContentTrimmed { get; set; }
+
+    /// <summary>「更多 / 收起」这颗按钮要不要露出来。展开态要留着，否则点开就收不回去了。</summary>
+    public bool ShowContentToggle => IsContentTrimmed || IsContentExpanded;
+
+    /// <summary>
+    /// 这一行是不是「评论详情」顶部的那一条。
+    /// </summary>
+    /// <remarks>
+    /// 详情页下方就是回复列表，头部那一行不用再给「查看」。模板按它隐藏那颗按钮。
+    /// 列表与详情共用同一个实例，所以置位与复位由 <c>SongCommentsViewModel.SetThreadRoot</c> 成对管理 ——
+    /// 漏掉复位会让列表里那一条也丢掉「查看」。
+    /// </remarks>
+    [ObservableProperty]
+    public partial bool IsThreadRoot { get; set; }
 
     public void Update(SongComment comment)
     {
@@ -55,7 +94,7 @@ public sealed partial class SongCommentRow : ObservableObject
         _comment = comment;
         foreach (var property in new[] { nameof(Comment), nameof(Nickname), nameof(AvatarUri), nameof(Content), nameof(ImageUri),
             nameof(PublishTime), nameof(Location), nameof(LikeCount), nameof(ReplyCount), nameof(IsLiked), nameof(ReplyCaption),
-            nameof(HasReplyCaption), nameof(ReplyActionText), nameof(LikeActionText) }) OnPropertyChanged(property);
+            nameof(HasReplyCaption), nameof(HasReplies), nameof(ReplyCountText), nameof(LikeActionText) }) OnPropertyChanged(property);
         ImageCommand.NotifyCanExecuteChanged();
     }
 }

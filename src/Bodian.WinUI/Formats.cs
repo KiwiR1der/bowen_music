@@ -287,7 +287,51 @@ public static class Formats
     public static string CommentMetadata(string time, string location) => string.IsNullOrWhiteSpace(location)
         ? time : string.IsNullOrWhiteSpace(time) ? $"IP 属地：{location}" : $"{time} · {location}";
 
-    public static Visibility CommentDetailVisibility(bool reply, long replyCount) => Visible(!reply && replyCount > 0);
+    /// <summary>评论正文折叠时最多占的行数。</summary>
+    /// <remarks>
+    /// 折叠是为了省掉长评论的纵向占位，行数按面板常用宽度下的观感取：5 行足够看出这条在说什么，
+    /// 又不至于两三条就撑满一屏。面板宽度改了要连这个一起看。
+    /// </remarks>
+    private const int CommentCollapsedLines = 5;
+
+    /// <summary>评论正文的最大行数。展开时给 0，<c>MaxLines=0</c> 在 WinUI 里表示不限行数。</summary>
+    public static int CommentContentMaxLines(bool expanded) => expanded ? 0 : CommentCollapsedLines;
+
+    /// <summary>评论正文的截断方式。折叠时以省略号收尾，展开时关掉。</summary>
+    /// <remarks>
+    /// 与 <see cref="CommentContentMaxLines"/> 必须成对切换：只给 <c>MaxLines</c> 会把文字硬切，
+    /// 连省略号都没有，看着像渲染出了问题。
+    /// </remarks>
+    public static TextTrimming CommentContentTrimming(bool expanded) =>
+        expanded ? TextTrimming.None : TextTrimming.CharacterEllipsis;
+
+    /// <summary>
+    /// 「查看」按钮的可见性：只有主评论、确实有回复、且不是详情页顶部那一条时才给入口。
+    /// </summary>
+    /// <remarks>
+    /// 回复自己不再挂「查看」；详情页顶部那一条下方就是回复列表，头部再来一个入口是重复的。
+    /// </remarks>
+    public static Visibility CommentDetailVisibility(bool reply, long replyCount, bool isThreadRoot) =>
+        Visible(!reply && !isThreadRoot && replyCount > 0);
+
+    /// <summary>
+    /// 「N 条回复」那行报数要不要露出来。
+    /// </summary>
+    /// <remarks>
+    /// 只是展示，不是入口 —— 回复本身在详情页里平铺，报了数也没地方可点。
+    /// </remarks>
+    public static Visibility CommentReplyCountVisibility(bool reply, long replyCount) =>
+        Visible(!reply && replyCount > 0);
+
+    /// <summary>
+    /// 「回复」按钮要不要露出来。
+    /// </summary>
+    /// <remarks>
+    /// 有回复的主评论把这一侧让给「查看」，其余情况都必须留着 —— <b>回复自己也要留</b>，
+    /// 否则「回复某条回复」就没有入口了。
+    /// </remarks>
+    public static Visibility CommentReplyActionVisibility(bool reply, long replyCount) =>
+        Visible(reply || replyCount == 0);
     public static string CommentReplyHeading(long count) => $"全部回复 · {count:N0}";
     public static Visibility VisibleWhenFalse(bool value) => Visible(!value);
 

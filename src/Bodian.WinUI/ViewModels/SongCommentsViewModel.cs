@@ -243,7 +243,7 @@ public sealed partial class SongCommentsViewModel : ObservableObject
         _contextGeneration++;
         _composerGeneration++;
         CancelReplies();
-        SelectedRoot = null;
+        SetThreadRoot(null);
         ReplyTarget = null;
         PreviewImageUri = null;
         _musicId = musicId;
@@ -274,7 +274,7 @@ public sealed partial class SongCommentsViewModel : ObservableObject
         CancelPending();
         CancelReplies();
         PreviewImageUri = null;
-        SelectedRoot = null;
+        SetThreadRoot(null);
         ReplyTarget = null;
         IsLoading = false;
         UpdateState();
@@ -285,7 +285,7 @@ public sealed partial class SongCommentsViewModel : ObservableObject
         if (!IsOpen || root.IsReply) return;
         SaveDraft();
         _composerGeneration++;
-        SelectedRoot = root;
+        SetThreadRoot(root);
         ReplyTarget = null;
         Feedback = "";
         RestoreDraft();
@@ -311,10 +311,25 @@ public sealed partial class SongCommentsViewModel : ObservableObject
         SaveDraft();
         _composerGeneration++;
         CancelReplies();
-        SelectedRoot = null;
+        SetThreadRoot(null);
         ReplyTarget = null;
         Feedback = "";
         RestoreDraft();
+    }
+
+    /// <summary>
+    /// 切换详情页顶部那一条，并成对维护 <see cref="SongCommentRow.IsThreadRoot"/>。
+    /// </summary>
+    /// <remarks>
+    /// 列表与详情共用同一个行实例，所以标记必须跟着 <see cref="SelectedRoot"/> 一起进出 ——
+    /// 单独赋值容易漏掉复位，列表里那一条就会一直少一颗「查看」。
+    /// </remarks>
+    private void SetThreadRoot(SongCommentRow? root)
+    {
+        if (ReferenceEquals(SelectedRoot, root)) return;
+        if (SelectedRoot is { } previous) previous.IsThreadRoot = false;
+        if (root is not null) root.IsThreadRoot = true;
+        SelectedRoot = root;
     }
 
     [RelayCommand]

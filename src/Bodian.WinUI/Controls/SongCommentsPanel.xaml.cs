@@ -23,6 +23,19 @@ public sealed partial class SongCommentsPanel : UserControl
     public void FocusCloseButton() => CloseButton.Focus(FocusState.Keyboard);
     private void OnCloseClick(object sender, RoutedEventArgs args) => CloseRequested?.Invoke(this, EventArgs.Empty);
 
+    /// <summary>
+    /// 把「正文是否被行数上限截断」从模板回写到行上，供「更多」按钮决定是否露面。
+    /// </summary>
+    /// <remarks>
+    /// 只在 <c>TextBlock</c> 自己量完之后才知道结果，所以挂 SizeChanged 而不是绑属性。
+    /// 容器回收复用时若新旧内容尺寸恰好一致、这个事件不触发，行上留的会是上一次的值 ——
+    /// 那种情况下「更多」的显隐可能与内容不符，点开一次就会借布局刷新纠正。
+    /// </remarks>
+    private void OnCommentContentSizeChanged(object sender, SizeChangedEventArgs args)
+    {
+        if (sender is TextBlock { DataContext: SongCommentRow row } block) row.IsContentTrimmed = block.IsTextTrimmed;
+    }
+
     private async void OnRecommendedClick(object sender, RoutedEventArgs args)
     {
         // ToggleButton 会自行反转 IsChecked；同一排序再点一次时保持选中。
