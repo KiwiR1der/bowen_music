@@ -240,6 +240,8 @@ public sealed class NavigationService : INavigationService
 
         // 先通知离场，再换内容，最后通知进场 —— 顺序固定，页面可以放心在
         // OnNavigatedFrom 里释放、在 OnNavigatedTo 里重建。
+        // 滚动位置要在离场之前读：页面可能在自己的 OnNavigatedFrom 里改列表。
+        ScrollMemory.Capture(_shown);
         if (_shown is not null) AppMotion.Reset(_shown);
         Notify(_shown, leaving: true);
 
@@ -254,13 +256,27 @@ public sealed class NavigationService : INavigationService
         _shownHost = nextHost;
         _shownHost.Content = next;
         _shown = next;
+        // 换页会让列表从顶上重来；把上一轮的滚动位置放回去，返回才有「原位置」。
+        var scrollRestore = ScrollMemory.RestoreAsync(next);
         if (ReferenceEquals(_shownHost, _host))
             _ = AppMotion.EnterAsync(next, sharedCover is null ? x : 0, sharedCover is null ? y : 0);
 
         Notify(next, leaving: false);
         Navigated?.Invoke(this, next);
-        if (sharedCover is not null) _ = CoverTransitionAnimator.Current?.PlayNavigationAsync(sharedCover);
+        if (sharedCover is not null) _ = PlaySharedCoverAsync(scrollRestore, sharedCover);
         if (_diagnostics) _logger.LogInformation("页面切换 {Page}：UI 处理 {Elapsed:F2} ms", next.GetType().Name, Stopwatch.GetElapsedTime(started).TotalMilliseconds);
+    }
+
+    /// <summary>播放共享封面的往返动画。</summary>
+    /// <remarks>
+    /// <b>必须先等滚动位置落位。</b> 返回的落点是原来那张卡片，
+    /// 列表还在顶上时那张卡片不在视口里：要么等不到（整段动画被跳过），
+    /// 要么量到的是列表顶部对应的坐标（封面飞到半路停下）。
+    /// </remarks>
+    private static async Task PlaySharedCoverAsync(Task scrollRestore, CoverTransitionAnimator.NavigationCover cover)
+    {
+        await scrollRestore;
+        if (CoverTransitionAnimator.Current is { } animator) await animator.PlayNavigationAsync(cover);
     }
 
     private static void Notify(Page? page, bool leaving)

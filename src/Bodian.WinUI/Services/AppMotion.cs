@@ -14,6 +14,9 @@ internal static class AppMotion
     private static readonly ConditionalWeakTable<FrameworkElement, MotionState> States = new();
     public static bool IsEnabled => Settings.AnimationsEnabled;
     public static readonly TimeSpan Quick = TimeSpan.FromMilliseconds(150);
+
+    /// <summary>遮挡解除时的淡入。比页面入场快：它是一块内容补进来，不是整页换新。</summary>
+    public static readonly TimeSpan FadeIn = TimeSpan.FromMilliseconds(120);
     public static readonly TimeSpan Standard = TimeSpan.FromMilliseconds(260);
     public static readonly TimeSpan Expand = TimeSpan.FromMilliseconds(440);
     public static readonly TimeSpan Collapse = TimeSpan.FromMilliseconds(340);
@@ -45,6 +48,22 @@ internal static class AppMotion
         visual.Scale = Vector3.One;
         visual.Opacity = 1;
     }
+
+    /// <summary>
+    /// 定位落位前的遮挡：不参与动画地把元素藏起来（或放出来）。
+    /// </summary>
+    /// <remarks>
+    /// 用于「先按初始位置画了一帧、随后才滑到目标位置」这类中间态：
+    /// 遮挡期间元素照常参与布局（不占位变化），只是不画出来，落位后再 <see cref="RevealAsync"/> 淡入。
+    /// 元素卸载时 <see cref="Reset"/> 会把透明度还原，所以不存在一直藏着的元素。
+    /// </remarks>
+    public static void Hide(FrameworkElement element) =>
+        ElementCompositionPreview.GetElementVisual(element).Opacity = 0;
+
+    /// <summary>解除 <see cref="Hide"/>，淡入显示；动画关闭时直接显示。</summary>
+    public static Task<bool> RevealAsync(FrameworkElement element, TimeSpan? duration = null) =>
+        PlayAsync(element, Vector3.Zero, Vector3.Zero, 0, 1, Vector3.One, Vector3.One,
+            duration ?? FadeIn);
 
     public static Task<bool> EnterAsync(FrameworkElement element, float x = 0, float y = 18,
         TimeSpan? duration = null, float scale = 1, bool bottomOrigin = false)
