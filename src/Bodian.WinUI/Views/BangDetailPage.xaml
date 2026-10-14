@@ -28,7 +28,16 @@
                 VerticalAlignment="Center"
                 Background="{ThemeResource ControlFillColorDefaultBrush}"
                 CornerRadius="8">
-                <Image Source="{x:Bind local:Formats.CoverSource(ViewModel.CoverImage)}" Stretch="UniformToFill" />
+                <!--
+                    页头封面：共享封面动画的落点。名字必须是 DetailCover ——
+                    CoverTransitionAnimator 按这个名字找目标元素（见 DetailKey）。
+                    这里**不挂 CoverFadeIn**：那是给列表卡片的，页头这层由飞行动画接管。
+                -->
+                <Image
+                    x:Name="DetailCover"
+                    controls:Motion.SharedCoverKey="{x:Bind local:Formats.BangCoverKey(ViewModel.Bang.Id)}"
+                    Source="{x:Bind local:Formats.CoverSource(ViewModel.CoverImage)}"
+                    Stretch="UniformToFill" />
             </Border>
 
             <StackPanel

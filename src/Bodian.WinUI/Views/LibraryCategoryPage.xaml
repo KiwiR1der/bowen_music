@@ -37,7 +37,16 @@
                 VerticalAlignment="Top"
                 Background="{ThemeResource ControlFillColorDefaultBrush}"
                 CornerRadius="{StaticResource RadiusMd}">
-                <Image Source="{x:Bind local:Formats.CoverSource(ViewModel.Group.CoverImage)}" Stretch="UniformToFill" />
+                <!--
+                    页头封面：共享封面动画的落点，名字必须是 DetailCover。
+                    与乐库首页那张大类卡片用的是同一个字段，所以从首页点进来能接上。
+                    这里不挂 CoverFadeIn：页头这层由飞行动画接管。
+                -->
+                <Image
+                    x:Name="DetailCover"
+                    controls:Motion.SharedCoverKey="{x:Bind local:Formats.CategoryCoverKey(ViewModel.Group.Id)}"
+                    Source="{x:Bind local:Formats.CoverSource(ViewModel.Group.CoverImage)}"
+                    Stretch="UniformToFill" />
             </Border>
 
             <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="2">
@@ -120,7 +129,11 @@
                             Background="{ThemeResource ControlFillColorDefaultBrush}"
                             CornerRadius="{StaticResource RadiusMd}">
                             <Grid>
-                                <Image controls:Motion.SharedCoverKey="{x:Bind local:Formats.AlbumCoverKey(Id)}" Source="{x:Bind local:Formats.CoverSource(CoverImage)}" Stretch="UniformToFill" />
+                                <Image
+                                    controls:Motion.CoverFadeIn="True"
+                                    controls:Motion.SharedCoverKey="{x:Bind local:Formats.AlbumCoverKey(Id)}"
+                                    Source="{x:Bind local:Formats.CoverSource(CoverImage)}"
+                                    Stretch="UniformToFill" />
 
                                 <Border
                                     Margin="0,0,8,8"

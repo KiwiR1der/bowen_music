@@ -14,6 +14,9 @@
 | 发现页横向卡片 | 旧内容沿翻页方向滑出、淡出，再替换当前页；新内容从对应方向进入，移动范围由视口裁剪 |
 | 点击单曲 | 播放确认后，点击位置的封面沿加速下坠轨迹缩入播放条；首播等待播放条封面完成有效布局 |
 | 歌手 / 歌单 / 专辑详情 | 来源头像或封面移动、缩放到页头，返回时缩回原页面对应的可见卡片 |
+| 排行榜 / 乐库 | 与上一条同一套：点榜卡片进榜详情、点乐库大类进分类页，封面放大到页头，返回时缩回原卡片 |
+| 排行榜展开分组 | 装回来的卡片淡入并小幅上移（120 ms）；**收起不做** —— 收起要让下一组立刻上移，再给旧卡片做退场会和重排叠在一起 |
+| 封面图解码 | 封面解码完成时淡入（120 ms），代替「先露底色、图到了硬切」。已缓存、容器复用同一张已解码的图、以及源为 `null` 三种情况都直接落位，不淡入 |
 | 多歌手选择框 | 在弹窗关闭前捕获选中的头像，再移动、放大到歌手详情页头部 |
 | 播放条进入歌词页 | 播放条小封面放大到歌词页大封面，歌词内容和背景配合淡入 |
 | 歌词页收起 | 大封面缩回播放条，歌词内容和背景淡出；封面交接结束后卸载页面 |
@@ -30,7 +33,7 @@
 | 文件 | 职责 |
 | --- | --- |
 | `src/Bodian.WinUI/Services/AppMotion.cs` | 通用淡入、位移、缩放和卡片换页；取消旧任务，卸载时恢复视觉状态；`Hide` / `RevealAsync` 是「定位落位前先别露出来」的遮挡 |
-| `src/Bodian.WinUI/Controls/Motion.cs` | 标记 Tab 内容、共享封面身份和宿主裁剪；只动画内容根节点 |
+| `src/Bodian.WinUI/Controls/Motion.cs` | 标记 Tab 内容、共享封面身份、封面淡入（`CoverFadeIn`）和宿主裁剪；只动画内容根节点 |
 | `src/Bodian.WinUI/Controls/PillTabBar.xaml.cs` | 选中指示块的位置、宽度与方向过渡 |
 | `src/Bodian.WinUI/Controls/SelectionPill.cs` | 通用「选中底滑动块」：侧栏分类与设置页分类栏共用，按选中项自己那块底色的矩形（容器内缩一圈）量位置并滑动 |
 | `src/Bodian.WinUI/Services/CoverTransitionAnimator.cs` | 统一的封面飞行层、详情往返、歌词封面交接；复用现有图像源 |
@@ -47,6 +50,8 @@
 ## 共享封面与首次布局
 
 `Motion.SharedCoverKey` 用模型类型和 id 关联同一元素，例如 `artist:10208`、`playlist:100169846`、`track:125609`。详情页页头元素命名为 `DetailCover`。圆形头像和圆角封面分别保留对应裁剪，裁剪尺寸考虑宿主缩放。
+
+**给一个新页面接上共享封面要同时做三件事，缺一不可**：来源卡片挂 `SharedCoverKey`、目标页页头命名为 `DetailCover` 并挂同一个 key、`CoverTransitionAnimator.DetailKey` 里登记这个页面类型怎么算出 key。第三件最容易漏 —— 目标页刚构造、`x:Bind` 还没求值，那一刻只能从页面的 ViewModel 直接取 key，漏了就是「卡片和页头都配好了却什么都不发生」。key 本身写在 `Formats` 里，字符串形如 `<类型>:<id>`；id 是字符串的场合（乐库分类）不能沿用 `id > 0` 判空。
 
 首次进入时，目标页面尚未触发 XAML 的 `Loading`，导航直接从页面模型取得封面标识；等 `Loaded` 后**再等目标完成布局**才测量位置。`Loaded` 早于首次 arrange 是常态，此刻页头封面还没有尺寸，直接按「不可见」判会让整段交接被静默跳过（曾表现为「有时候点歌单没有封面放大的动画，过一会再点又有了」），所以导航与下坠两条路径都等待目标可见：三条通道（页面 `Loaded`/`SizeChanged`、外壳 `LayoutUpdated`）加一次低优先级入队检查，目标两秒内仍未就绪时跳过动画、只保留内容过渡。下坠那条路径还额外要求首播的播放条曲目信息已完成布局（`Started` 通知早于有效布局），因此保留点击快照再等。这两项等待都不阻塞音频播放。
 
@@ -108,6 +113,12 @@ MV 的“退出 MV”调用 `ExitImmersiveToShell`，使用 `GoBackTo` 跳过栈
 - `dotnet build src/Bodian.WinUI/Bodian.WinUI.csproj --no-restore -v minimal` 成功，0 错误 0 警告。
 - `dotnet test --project tests/Bodian.Core.Tests/Bodian.Core.Tests.csproj --no-restore`：1594 项通过，0 失败、0 跳过。
 - **界面行为尚未实测**（合成与布局时序只有跑起来才看得出来）：详情返回后列表停在原处、封面照常缩回原卡片，且返回时看不到「先顶部再跳」；播放队列抽屉打开时同样不闪；侧栏换根后回到原位置；定位窗口内手动滚动不被拉回。这些留给用户实机确认。
+
+2026-10-14 的排行榜 / 乐库封面动画：
+
+- `dotnet build src/Bodian.WinUI/Bodian.WinUI.csproj --no-restore -v minimal` 成功，0 错误；保留 `AiPlaylistPage.xaml:28` 原有的 `WMC1506` 绑定警告。
+- `dotnet test --project tests/Bodian.Core.Tests/Bodian.Core.Tests.csproj --no-restore`：1594 项通过，0 失败、0 跳过。Core 未改动。
+- 2026-10-14 实机确认：点榜卡片 / 乐库大类时封面飞入页头、返回时缩回原卡片；排行榜展开一组时卡片淡入、收起时直接重排不抖；乐库首页与分类页的卡片封面、以及乐库分类页的专辑封面，都在图解码完成时淡入而不是硬切。
 
 ## 诊断
 

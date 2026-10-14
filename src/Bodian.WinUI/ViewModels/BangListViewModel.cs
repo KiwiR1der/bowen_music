@@ -110,6 +110,9 @@ public sealed partial class BangItemViewModel : ObservableObject
 
     public Uri? CoverImage => Bang.CoverImage;
 
+    /// <summary>榜 id，供卡片模板拼共享封面的身份（见 <see cref="Formats.BangCoverKey"/>）。</summary>
+    public long Id => Bang.Id;
+
     /// <summary><c>09-30更新</c> 这类。缺了就不显示。</summary>
     public string UpdateText => Bang.UpdateText;
 }

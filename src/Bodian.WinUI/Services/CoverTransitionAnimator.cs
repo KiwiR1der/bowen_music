@@ -140,6 +140,10 @@ internal sealed class CoverTransitionAnimator : IDisposable
         Views.ArtistDetailPage artist => Formats.ArtistCoverKey(artist.ViewModel.Artist.Id),
         Views.PlaylistDetailPage playlist => Formats.PlaylistCoverKey(playlist.ViewModel.Playlist.Id),
         Views.AlbumDetailPage album => Formats.AlbumCoverKey(album.ViewModel.Album.Id),
+        // 排行榜页 → 榜详情、乐库首页 → 分类页这两条链。目标页都是「每次新建」（见
+        // NavigationService.GetDetail），所以这里读到的 ViewModel 一定就是这次要展示的那个。
+        Views.BangDetailPage bang => Formats.BangCoverKey(bang.ViewModel.Bang.Id),
+        Views.LibraryCategoryPage category => Formats.CategoryCoverKey(category.ViewModel.Group.Id),
         _ => ""
     };
 

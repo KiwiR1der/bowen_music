@@ -2,6 +2,7 @@ using Bodian.Core.Models;
 using Bodian.WinUI.Playback;
 using Bodian.WinUI.Services;
 using Bodian.WinUI.ViewModels;
+using Microsoft.UI.Dispatching;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Input;
@@ -146,8 +147,45 @@ public sealed partial class BangListPage : Page, INavigationAware
             return;
         }
 
+        var expanding = !section.IsExpanded;
         section.Toggle();
         SyncCurrent();
+
+        if (expanding)
+        {
+            FadeInSectionCards(section);
+        }
+    }
+
+    /// <summary>
+    /// 展开一组时让刚装回去的卡片淡入，而不是瞬间出现在新位置上。
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <b>只在展开时做，收起不做。</b> 收起是让卡片腾出空间，下一组立刻上移；
+    /// 这时再给旧卡片做退场，会和同时发生的重排叠在一起，看起来是整页在抖。
+    /// </para>
+    /// <para>
+    /// <b>要低优先级入队再取容器。</b> <see cref="BangSectionViewModel.Toggle"/> 刚把条目加回集合，
+    /// 布局还没跑，这一刻 <c>ContainerFromItem</c> 什么都拿不到。等布局跑完再取；
+    /// 那时 <paramref name="section"/> 若又被收起，它已经是空的，循环自然不执行。
+    /// </para>
+    /// <para>
+    /// 取不到容器的卡片（还在视口外、虚拟化没实现）直接跳过 —— 不为了实现它们去滚动用户的列表。
+    /// </para>
+    /// </remarks>
+    private void FadeInSectionCards(BangSectionViewModel section)
+    {
+        DispatcherQueue.TryEnqueue(DispatcherQueuePriority.Low, () =>
+        {
+            foreach (var item in section)
+            {
+                if (SectionList.ContainerFromItem(item) is FrameworkElement container)
+                {
+                    _ = AppMotion.EnterAsync(container, 0, 8, AppMotion.FadeIn);
+                }
+            }
+        });
     }
 
     /// <summary>

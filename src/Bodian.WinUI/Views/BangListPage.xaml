@@ -215,7 +215,15 @@
                             VerticalAlignment="Top"
                             Background="{ThemeResource ControlFillColorDefaultBrush}"
                             CornerRadius="{StaticResource RadiusSm}">
-                            <Image Source="{x:Bind local:Formats.CoverSource(CoverImage)}" Stretch="UniformToFill" />
+                            <!--
+                                共享封面身份：点这张卡进详情时，封面从这里放大飞到页头，返回时缩回。
+                                CoverFadeIn：图解码完成时淡入，代替「先露底色、图到了硬切」。
+                            -->
+                            <Image
+                                controls:Motion.CoverFadeIn="True"
+                                controls:Motion.SharedCoverKey="{x:Bind local:Formats.BangCoverKey(Id)}"
+                                Source="{x:Bind local:Formats.CoverSource(CoverImage)}"
+                                Stretch="UniformToFill" />
                         </Border>
 
                         <!--

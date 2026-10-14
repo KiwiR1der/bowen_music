@@ -280,6 +280,19 @@ public static class Formats
     public static string TrackCoverKey(long? id) => id is > 0 ? $"track:{id}" : "";
     public static string HomePlaylistCoverKey(Playlist? playlist) => PlaylistCoverKey(playlist?.Id ?? 0);
 
+    /// <summary>一个榜的封面身份，用于排行榜页到榜详情页的共享封面往返。</summary>
+    public static string BangCoverKey(long id) => id > 0 ? $"bang:{id}" : "";
+
+    /// <summary>
+    /// 乐库一个大类的封面身份，用于乐库首页到分类页的共享封面往返。
+    /// </summary>
+    /// <remarks>
+    /// 分类 id 是字符串（形如 <c>"2005"</c>），不是数字，所以不能沿用其他 Key 的
+    /// <c>id &gt; 0</c> 判空。两处用的是同一个模型字段（<c>MusicCategoryGroup.CoverImage</c>），
+    /// 因此首页卡片与分类页页头能对上同一张封面。
+    /// </remarks>
+    public static string CategoryCoverKey(string? id) => string.IsNullOrEmpty(id) ? "" : $"category:{id}";
+
     public static Visibility CommentImageVisibility(Uri? uri) => Visible(uri is not null);
     public static Visibility CommentRepliesVisibility(long count) => Visible(count > 0);
     public static string CommentCount(long count) => count.ToString("N0", CultureInfo.CurrentCulture);

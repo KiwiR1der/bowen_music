@@ -61,7 +61,15 @@
                             Background="{ThemeResource ControlFillColorDefaultBrush}"
                             CornerRadius="{StaticResource RadiusMd}">
                             <Grid>
-                                <Image Source="{x:Bind local:Formats.CoverSource(CoverImage)}" Stretch="UniformToFill" />
+                                <!--
+                                    共享封面身份：点这个大类进分类页时，封面从这里放大飞到那边的页头。
+                                    两处用的是同一个字段（MusicCategoryGroup.CoverImage），所以对得上同一张图。
+                                -->
+                                <Image
+                                    controls:Motion.CoverFadeIn="True"
+                                    controls:Motion.SharedCoverKey="{x:Bind local:Formats.CategoryCoverKey(Id)}"
+                                    Source="{x:Bind local:Formats.CoverSource(CoverImage)}"
+                                    Stretch="UniformToFill" />
 
                                 <Border
                                     Margin="0,0,8,8"
