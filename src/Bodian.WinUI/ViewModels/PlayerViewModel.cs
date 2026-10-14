@@ -91,6 +91,7 @@ public sealed partial class PlayerViewModel : ObservableObject, IVolumeSource
         _coordinator.AuditionEnded += OnAuditionEnded;
         _coordinator.QueueExhausted += OnQueueExhausted;
         _coordinator.Queue.Changed += OnQueueChanged;
+        _coordinator.ScopeSwitched += OnScopeSwitched;
         Mode = _coordinator.Mode;
 
         _engine.PositionChanged += OnPositionChanged;
@@ -560,6 +561,26 @@ public sealed partial class PlayerViewModel : ObservableObject, IVolumeSource
         IsPlaying = _engine.State == PlaybackState.Playing;
         RefreshQualityOptions();
         UpdateQueueButtons();
+    }
+
+    /// <summary>
+    /// 换了账号、队列跟着换了一份：播放条上那一首也要跟着换。
+    /// </summary>
+    /// <remarks>
+    /// <b>少了这一下，条上停的还是上一个账号那一首。</b> 协调器换号时先把当前曲目清掉
+    /// （它属于上一个账号），再装上从新作用域恢复出来的那首，而播放条只在构造时读过一次
+    /// <see cref="PlaybackCoordinator.RestoredState"/>，于是显示与「按下播放会放哪一首」对不上。
+    /// <para>
+    /// <b>新账号队列为空时保持原样</b>：与「清空队列后播放条仍留着最后一首」是同一套约定，
+    /// 这里不额外造一个「什么都没有」的状态。
+    /// </para>
+    /// </remarks>
+    private void OnScopeSwitched(object? sender, QueueScopeSwitchedEventArgs e)
+    {
+        if (_coordinator.RestoredState is { } restored)
+        {
+            ApplyRestoredTrack(restored.Track, restored.Position.TotalSeconds);
+        }
     }
 
     private void OnBlocked(object? sender, PlaybackBlockedEventArgs e)

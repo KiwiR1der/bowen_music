@@ -438,10 +438,19 @@ public partial class App : Application
 
         // ★ 必须排在解析 MainWindow 之前：主窗口一构造，播放队列就已经从盘上读进内存了，
         //   而旧布局的数据这时候还平铺在根目录下 —— 晚一步就什么都读不到（看着像「数据丢了」）。
-        //   它自己读 session.dat 定归属，所以不需要等会话恢复（那一步在主窗口首次布局之后）。
+        //   它自己读 session.dat 定归属，不等会话恢复也能算对。
         AccountDataMigration.Run(
             _host.Services.GetRequiredService<ICredentialStore>(),
             _host.Services.GetRequiredService<ILogger<App>>());
+
+        // ★ 会话恢复也必须排在解析 MainWindow 之前，与上面那条是同一个理由：队列归哪个账号，
+        //   决定了主窗口构造时从哪个目录读队列。晚一步，协调器会先按未登录去读
+        //   accounts\anonymous\queue.json（匿名桶里可能留着上次未登录时的旧队列），等会话恢复
+        //   —— 那一步在主窗口首次布局之后 —— 再换一次；表现是播放条铺着匿名桶遗留的那一首，
+        //   还弹一条「播放队列已切换」，而那根本不是切号。
+        //   窗口出现的时机不受影响：外壳仍在主窗口首次布局之后才立起来（见 MainWindow.OnHostLoaded）。
+        //   没有存档会话时这里是空操作，那时协调器按匿名读队列，正是该有的行为。
+        _host.Services.GetRequiredService<IBodianLogin>().TryRestorePersistedSession();
 
         try
         {

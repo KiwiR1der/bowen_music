@@ -1177,17 +1177,19 @@ public sealed partial class MainWindow : Window, IPlaylistLibrarySink, IWindowHa
     /// 第一次布局完成后决定去哪一页。
     /// </summary>
     /// <remarks>
-    /// <b>这里不拉侧栏。</b> 恢复会话会同步触发 <see cref="OnAccountChanged"/>，
-    /// 而侧栏（放出来 + 拉歌单）是那件事的职责 —— 两边各拉一次的话，
-    /// 每次启动都会把 <c>userCreate</c> 发两遍（实测日志里能直接看到同一秒两条「自建歌单 0 个」）。
-    /// 所以这里只决定「落在哪一页」：恢复成功去我喜欢的，否则回登录页。
+    /// <b>会话不在这里恢复</b>：它在解析主窗口之前就恢复了（见 <c>App.OnLaunched</c>），
+    /// 因为队列归属哪个账号，决定了主窗口构造时读哪个目录的队列。那次恢复发生时本窗口还没订阅
+    /// <c>AccountChanged</c>，所以「已经登录」这一支得在这里自己把外壳立起来 ——
+    /// 走的是 <see cref="OnAccountChanged"/> 那一条用的同一个方法。两条路都只拉一次侧栏，
+    /// 不会把 <c>userCreate</c> 发两遍。
     /// </remarks>
     private void OnHostLoaded(object sender, RoutedEventArgs e)
     {
         PageHost.Loaded -= OnHostLoaded;
 
-        if (_login.TryRestorePersistedSession())
+        if (_login.IsAuthenticated)
         {
+            EnterAuthenticatedShell();
             _navigation.NavigateRoot<FavoritesPage>();
             return;
         }
@@ -1195,7 +1197,7 @@ public sealed partial class MainWindow : Window, IPlaylistLibrarySink, IWindowHa
         // 没有会话：进匿名外壳（发现页），并弹一次登录框。
         // ★ 关掉之后本次运行不再自动弹 —— 未登录也能搜索与浏览，登录只影响播放与账号数据。
         //   这也是「登录框能关掉」的前提：关掉之后有一块能用的界面，而不是一个死胡同。
-        // ★ 必须显式进外壳：恢复会话那条路是靠 OnAccountChanged 把外壳立起来的，
+        // ★ 必须显式进外壳：已登录那条路是靠 EnterAuthenticatedShell 把外壳立起来的，
         //   而匿名**不会触发那个事件**，不叫这一次的话搜索框与账号入口还停在 XAML 的初始态。
         EnterAnonymousShell();
         _navigation.NavigateRoot<DiscoverPage>();
@@ -1262,6 +1264,19 @@ public sealed partial class MainWindow : Window, IPlaylistLibrarySink, IWindowHa
             return;
         }
 
+        EnterAuthenticatedShell();
+    }
+
+    /// <summary>
+    /// 把外壳带进「已登录」的样子：放出来、拉侧栏、丢掉上一个账号留下的页面缓存与数据。
+    /// </summary>
+    /// <remarks>
+    /// <b>两个入口共用一份。</b> 运行中登录 / 切号走 <see cref="OnAccountChanged"/>；
+    /// 启动时那一次恢复排在主窗口构造之前（见 <c>App.OnLaunched</c>），事件发出来时本窗口
+    /// 还没订阅，于是由 <see cref="OnHostLoaded"/> 直接调这里 —— 两处各写一遍迟早会漏掉其中一步。
+    /// </remarks>
+    private void EnterAuthenticatedShell()
+    {
         ShowShell();
 
         // 换号之后「创建的歌单」是另一份：先清空再重拉。
