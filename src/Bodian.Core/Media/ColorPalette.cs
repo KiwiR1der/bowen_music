@@ -66,6 +66,42 @@ public static class ColorPalette
         return result;
     }
 
+    /// <summary>
+    /// 在两个调色板之间线性插值，供切换封面时的颜色过渡使用。
+    /// </summary>
+    /// <param name="from">起始调色板。</param>
+    /// <param name="to">目标调色板，长度必须与 <paramref name="from"/> 相同。</param>
+    /// <param name="amount">0 返回起点，1 返回终点，中间值按通道线性混合。</param>
+    public static IReadOnlyList<RgbColor> Blend(
+        IReadOnlyList<RgbColor> from,
+        IReadOnlyList<RgbColor> to,
+        double amount)
+    {
+        ArgumentNullException.ThrowIfNull(from);
+        ArgumentNullException.ThrowIfNull(to);
+
+        if (from.Count != to.Count)
+        {
+            throw new ArgumentException("Palettes must have the same length.", nameof(to));
+        }
+
+        var t = Math.Clamp(amount, 0, 1);
+        var result = new RgbColor[from.Count];
+
+        for (var i = 0; i < result.Length; i++)
+        {
+            result[i] = new RgbColor(
+                Mix(from[i].R, to[i].R, t),
+                Mix(from[i].G, to[i].G, t),
+                Mix(from[i].B, to[i].B, t));
+        }
+
+        return result;
+    }
+
+    private static byte Mix(byte from, byte to, double amount)
+        => (byte)Math.Round(from + ((to - from) * amount));
+
     /// <summary>RGB → HSV。<c>H</c> 单位是度（0..360），<c>S</c>/<c>V</c> 是 0..1。</summary>
     private static (double Hue, double Saturation, double Value) ToHsv(RgbColor color)
     {

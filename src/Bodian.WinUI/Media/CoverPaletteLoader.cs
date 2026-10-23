@@ -15,16 +15,17 @@ namespace Bodian.WinUI.Media;
 /// <b>必须走 <see cref="CoverArtUrl.Jpeg"/> 改写的地址，不能直接用原始封面地址。</b>
 /// 原始地址多半是 WebP，而 <b>Win10 不预装 WebP 编解码器</b>（要另外装商店的扩展）。
 /// 解码依赖系统编解码器；改写地址避免依赖可选的 WebP 扩展。
-/// 改写成 <c>.jpg</c> 顺带把图缩到 60px，代价可以忽略。
+/// 改写成 <c>.jpg</c> 顺带把图缩到 96px，代价可以忽略。
 /// </para>
 /// <para>
-/// <b>只在小图上取色。</b> 60×60 已经足够算主色，解码与统计都在毫秒级。
+/// <b>只在小图上取色。</b> 96×96 已经足够算主色，解码与统计都在毫秒级。
+/// 60×60 时白底封面上的彩色主体常常只有几十个像素，分桶统计容易被噪声影响。
 /// </para>
 /// </remarks>
 public sealed class CoverPaletteLoader
 {
     /// <summary>取色用的缩略图边长。</summary>
-    private const int SampleSize = 60;
+    private const int SampleSize = 96;
 
     /// <summary>缓存上限。超了就整体清空 —— 封面颜色不值得为它做 LRU。</summary>
     private const int CacheLimit = 256;
@@ -80,7 +81,7 @@ public sealed class CoverPaletteLoader
 
         try
         {
-            // 小图取色只需 CPU 像素；不为 60×60 的图片创建并常驻 D3D 共享设备。
+            // 小图取色只需 CPU 像素；不为 96×96 的图片创建并常驻 D3D 共享设备。
             using var stream = await RandomAccessStreamReference.CreateFromUri(url).OpenReadAsync()
                 .AsTask(token).ConfigureAwait(false);
             var decoder = await BitmapDecoder.CreateAsync(stream).AsTask(token).ConfigureAwait(false);

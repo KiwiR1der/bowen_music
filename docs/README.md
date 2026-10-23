@@ -60,6 +60,7 @@
 | [`ui-refresh.md`](ui-refresh.md) | UI 设计与实施记录：主题、渐变与外壳；§10 底部播放器，§11 标题栏与登录，§12 侧栏与列表间距 |
 | [`icons.md`](icons.md) | 图标来源与许可（Fluent System Icons） |
 | [`animations.md`](animations.md) | 页面 / Tab / 卡片切换、共享封面、歌词展开回位、主题资源保护与验证 |
+| [`ambient-color.md`](ambient-color.md) | 封面驱动的动态取色：当前规则、白底封面取色失效的实测、900ms 颜色过渡与验收 |
 | [`lyrics-ui.md`](lyrics-ui.md) | 歌词界面方案与第三方代码的许可边界 |
 | [`fullscreen-lyrics.md`](fullscreen-lyrics.md) | 全屏歌词实现、滚动选句与点击跳转、验证及性能待办 |
 | [`desktop-lyrics.md`](desktop-lyrics.md) | 桌面歌词：悬停控制、固定字形扫色、穿透、拉伸、吸附与验收 |

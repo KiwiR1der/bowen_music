@@ -31,6 +31,32 @@ public static class ColorQuantizer
     private const byte AlphaThreshold = 128;
 
     /// <summary>
+    /// 彩色候选桶的最小面积占比。
+    /// </summary>
+    /// <remarks>
+    /// 白底封面上的彩色主体常常只占几十个像素。没有面积下限时，单个饱和噪点也能靠
+    /// 「饱和度满分」胜出；0.5% 在 96×96 上约 46 个像素，足够挡住噪点，又不会漏掉小主体。
+    /// </remarks>
+    private const double MinimumCandidateFraction = 0.005;
+
+    /// <summary>彩色候选桶的最小像素数；小图上按比例算出来可能只有几个像素。</summary>
+    private const int MinimumCandidatePixels = 18;
+
+    /// <summary>低于这个饱和度就不算「彩色候选」。</summary>
+    private const double CandidateSaturation = 0.18;
+
+    /// <summary>亮度低于这个值按黑边处理，高于上限按白边处理。</summary>
+    private const double CandidateMinimumLuminance = 0.10;
+
+    private const double CandidateMaximumLuminance = 0.92;
+
+    /// <summary>彩色候选里饱和度的权重；比兜底那条高，避免大面积的近灰再次取胜。</summary>
+    private const double CandidateSaturationWeight = 0.10;
+
+    /// <summary>没有任何彩色候选时，沿用原来的低饱和度基数，让灰阶封面仍能稳定选出主色。</summary>
+    private const double FallbackSaturationWeight = 0.35;
+
+    /// <summary>
     /// 挑出主色。
     /// </summary>
     /// <param name="bgra">
@@ -40,6 +66,12 @@ public static class ColorQuantizer
     /// <returns>
     /// 主色。输入为空、或全部像素都透明时返回 <c>null</c>，由调用方决定兜底。
     /// </returns>
+    /// <remarks>
+    /// <b>先找彩色候选，找不到才退回面积主色。</b> 只按「面积开平方 × 适合度」排序时，
+    /// 白底封面上的白色桶经常赢过小面积彩色主体（30% 白底可以压过 0.8% 的棕色），
+    /// 主色变成白色后，<see cref="ColorPalette.Ambient"/> 会直接退回默认配色，表现为「没变色」。
+    /// 两段式先把近白、近黑和低饱和的桶排除，再在剩下的桶里按面积与饱和度排序。
+    /// </remarks>
     public static RgbColor? Dominant(ReadOnlySpan<byte> bgra)
     {
         if (bgra.Length < 4)
@@ -53,6 +85,7 @@ public static class ColorQuantizer
         var sumB = new int[BucketCount];
 
         var pixels = bgra.Length / 4;
+        var visiblePixels = 0;
 
         for (var i = 0; i < pixels; i++)
         {
@@ -62,6 +95,8 @@ public static class ColorQuantizer
             {
                 continue;
             }
+
+            visiblePixels++;
 
             byte b = bgra[offset];
             byte g = bgra[offset + 1];
@@ -77,8 +112,15 @@ public static class ColorQuantizer
             sumB[index] += b;
         }
 
-        var bestWeight = 0.0;
-        RgbColor? best = null;
+        var minimumCandidateCount = Math.Max(
+            MinimumCandidatePixels,
+            (int)Math.Ceiling(visiblePixels * MinimumCandidateFraction));
+
+        var bestCandidateWeight = 0.0;
+        RgbColor? bestCandidate = null;
+
+        var bestFallbackWeight = 0.0;
+        RgbColor? bestFallback = null;
 
         for (var index = 0; index < BucketCount; index++)
         {
@@ -93,34 +135,40 @@ public static class ColorQuantizer
             var g = (byte)(sumG[index] / count);
             var b = (byte)(sumB[index] / count);
 
-            var weight = Math.Sqrt(count) * Suitability(r, g, b);
+            var (saturation, luminance) = Chroma(r, g, b);
 
-            if (weight <= bestWeight)
+            var fallbackWeight = Math.Sqrt(count) * Suitability(saturation, luminance, FallbackSaturationWeight);
+
+            if (fallbackWeight > bestFallbackWeight)
+            {
+                bestFallbackWeight = fallbackWeight;
+                bestFallback = new RgbColor(r, g, b);
+            }
+
+            if (count < minimumCandidateCount
+                || saturation < CandidateSaturation
+                || luminance < CandidateMinimumLuminance
+                || luminance > CandidateMaximumLuminance)
             {
                 continue;
             }
 
-            bestWeight = weight;
-            best = new RgbColor(r, g, b);
+            var candidateWeight = Math.Sqrt(count) * Suitability(saturation, luminance, CandidateSaturationWeight);
+
+            if (candidateWeight <= bestCandidateWeight)
+            {
+                continue;
+            }
+
+            bestCandidateWeight = candidateWeight;
+            bestCandidate = new RgbColor(r, g, b);
         }
 
-        return best;
+        return bestCandidate ?? bestFallback;
     }
 
-    /// <summary>
-    /// 这个颜色有多「适合当氛围背景」。
-    /// </summary>
-    /// <remarks>
-    /// <para>
-    /// 系数是调出来的：<b>饱和度权重低（0.35 起步）而不是从 0 起步</b>，
-    /// 否则灰阶封面会被压到只剩一点点分数，稍有噪点就被别的桶盖过去。
-    /// </para>
-    /// <para>
-    /// 亮度惩罚以 0.55 为中心 —— 那是「中间调」。纯白（1.0）与纯黑（0.0）
-    /// 都会被压到三成以下，避免取出封面的白边或黑边。
-    /// </para>
-    /// </remarks>
-    private static double Suitability(byte r, byte g, byte b)
+    /// <summary>饱和度和亮度；亮度用来排除封面的白边与黑边。</summary>
+    private static (double Saturation, double Luminance) Chroma(byte r, byte g, byte b)
     {
         var max = Math.Max(r, Math.Max(g, b));
         var min = Math.Min(r, Math.Min(g, b));
@@ -130,6 +178,23 @@ public static class ColorQuantizer
         // 线性化之前先归一化即可 —— 这里只是排序用，不需要严格的光度学精度。
         var luminance = ((0.2126 * r) + (0.7152 * g) + (0.0722 * b)) / 255.0;
 
-        return (0.35 + (0.65 * saturation)) * (1 - (0.9 * Math.Abs(luminance - 0.55) / 0.55));
+        return (saturation, luminance);
     }
+
+    /// <summary>
+    /// 这个颜色有多「适合当氛围背景」。
+    /// </summary>
+    /// <param name="saturation">0..1。</param>
+    /// <param name="luminance">0..1。</param>
+    /// <param name="saturationWeight">
+    /// 饱和度为零时的基础分。彩色候选用低值（0.10），让近灰大色块不容易再赢；
+    /// 没有任何彩色候选时用 0.35，保证灰阶封面仍能稳定选出主色。
+    /// </param>
+    /// <remarks>
+    /// 亮度惩罚以 0.55 为中心 —— 那是「中间调」。纯白（1.0）与纯黑（0.0）
+    /// 都会被压到三成以下，避免取出封面的白边或黑边。
+    /// </remarks>
+    private static double Suitability(double saturation, double luminance, double saturationWeight)
+        => ((saturationWeight + ((1 - saturationWeight) * saturation))
+            * (1 - (0.9 * Math.Abs(luminance - 0.55) / 0.55)));
 }

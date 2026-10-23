@@ -95,6 +95,59 @@ public sealed class CoverPaletteTests
             $"期望取到饱和的红色块，实际取到 {dominant.Value}");
     }
 
+    /// <summary>
+    /// 大片白底 + 小面积、低饱和的彩色主体，也应该取到主体。
+    /// </summary>
+    /// <remarks>
+    /// <b>这条守的是「先找彩色候选」那段。</b> 只按面积开平方排序时，30% 的白底
+    /// （`sqrt(1080) × 0.095 ≈ 3.11`）会赢过 0.8% 的棕色
+    /// （`sqrt(30) × 0.50 ≈ 2.74`），主色变成白色后氛围色直接退回默认配色。
+    /// </remarks>
+    [Fact]
+    public void LargeWhiteFieldWithSmallDullPatch_PicksThePatch()
+    {
+        var white = new (byte, byte, byte)[1080];
+        var brown = new (byte, byte, byte)[30];
+
+        for (var i = 0; i < white.Length; i++)
+        {
+            white[i] = (254, 254, 254);
+        }
+
+        for (var i = 0; i < brown.Length; i++)
+        {
+            brown[i] = (134, 104, 72);
+        }
+
+        var dominant = ColorQuantizer.Dominant(Bgra([.. white, .. brown]));
+
+        Assert.NotNull(dominant);
+        Assert.True(
+            dominant.Value.R > dominant.Value.B + 20,
+            $"期望取到棕色主体，实际取到 {dominant.Value}");
+    }
+
+    /// <summary>单个饱和像素不能靠「饱和度满分」压过整片白底。</summary>
+    [Fact]
+    public void SingleSaturatedPixel_DoesNotOverrideLargeWhiteField()
+    {
+        var white = new (byte, byte, byte)[1000];
+        var red = new (byte, byte, byte)[1];
+
+        for (var i = 0; i < white.Length; i++)
+        {
+            white[i] = (254, 254, 254);
+        }
+
+        red[0] = (220, 40, 60);
+        var dominant = ColorQuantizer.Dominant(Bgra([.. white, .. red]));
+
+        Assert.NotNull(dominant);
+        Assert.True(
+            dominant.Value.G > 200 && dominant.Value.B > 200,
+            $"期望仍取到白底，实际取到 {dominant.Value}");
+    }
+
     [Fact]
     public void IsDeterministic()
     {
@@ -167,5 +220,47 @@ public sealed class CoverPaletteTests
         var seed = new RgbColor(90, 140, 210);
 
         Assert.Equal(ColorPalette.Ambient(seed), ColorPalette.Ambient(seed));
+    }
+
+    // ── ColorPalette.Blend ──────────────────────────────────────────────────
+
+    [Fact]
+    public void Blend_EndpointsReturnExactPalettes()
+    {
+        RgbColor[] from = [new(10, 20, 30), new(40, 50, 60), new(70, 80, 90)];
+        RgbColor[] to = [new(200, 210, 220), new(230, 240, 250), new(5, 15, 25)];
+
+        Assert.Equal(from, ColorPalette.Blend(from, to, 0));
+        Assert.Equal(to, ColorPalette.Blend(from, to, 1));
+    }
+
+    [Fact]
+    public void Blend_MidpointAveragesEachChannel()
+    {
+        RgbColor[] from = [new(0, 100, 200)];
+        RgbColor[] to = [new(100, 200, 0)];
+
+        var middle = ColorPalette.Blend(from, to, 0.5);
+
+        Assert.Equal(new RgbColor(50, 150, 100), middle[0]);
+    }
+
+    [Fact]
+    public void Blend_ClampsAmount()
+    {
+        RgbColor[] from = [new(0, 0, 0)];
+        RgbColor[] to = [new(255, 255, 255)];
+
+        Assert.Equal(from, ColorPalette.Blend(from, to, -1));
+        Assert.Equal(to, ColorPalette.Blend(from, to, 2));
+    }
+
+    [Fact]
+    public void Blend_LengthMismatch_Throws()
+    {
+        RgbColor[] from = [new(0, 0, 0)];
+        RgbColor[] to = [new(0, 0, 0), new(1, 1, 1)];
+
+        Assert.Throws<ArgumentException>(() => ColorPalette.Blend(from, to, 0.5));
     }
 }

@@ -14,11 +14,34 @@ public static class AmbientBackground
 
     public static byte[] Render(IReadOnlyList<RgbColor> palette, int width, int height)
     {
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(width);
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(height);
+
+        var pixels = new byte[checked(width * height * 4)];
+        Render(palette, width, height, pixels);
+        return pixels;
+    }
+
+    /// <summary>
+    /// 把光晕画进调用方提供的缓冲区；颜色过渡时逐帧复用同一块内存，避免反复分配大数组。
+    /// </summary>
+    /// <param name="destination">
+    /// 至少 <c>width * height * 4</c> 字节的 BGRA 缓冲区。
+    /// </param>
+    public static void Render(IReadOnlyList<RgbColor> palette, int width, int height, Span<byte> destination)
+    {
         ArgumentNullException.ThrowIfNull(palette);
         if (palette.Count < Blobs.Length) throw new ArgumentException("Three ambient colors are required.", nameof(palette));
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(width);
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(height);
-        var pixels = new byte[checked(width * height * 4)];
+
+        var length = checked(width * height * 4);
+        if (destination.Length < length)
+        {
+            throw new ArgumentException("Destination buffer is too small.", nameof(destination));
+        }
+
+        var pixels = destination;
         for (var y = 0; y < height; y++)
         for (var x = 0; x < width; x++)
         {
@@ -49,6 +72,5 @@ public static class AmbientBackground
             pixels[offset + 2] = (byte)Math.Clamp(Math.Round(red), 0, 255);
             pixels[offset + 3] = (byte)Math.Clamp(Math.Round(alpha * 255), 0, 255);
         }
-        return pixels;
     }
 }

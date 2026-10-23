@@ -321,6 +321,12 @@ Application.Current.Resources["AccentTextFillColorPrimaryBrush"]
 
 **灰阶封面**没有可用色相，退回 `ColorPalette.DefaultAmbient` 的青绿、亮蓝与紫色网格配色。启动、无封面与取色失败也共用这一份默认配色，避免从中灰派生出灰青色背景。
 
+**2026-10-23 修正**：只按面积开平方排序时，白底封面的白色桶经常赢过小面积彩色主体，
+主色变成 `#FEFEFE` 后直接走默认配色，表现为「没变色」。现在 `ColorQuantizer.Dominant`
+改成两段式：先筛出面积 ≥ 0.5%、饱和度 ≥ 0.18、亮度在 0.10–0.92 的彩色桶，没有候选才退回原主色。
+采样边长同时从 60 提到 96。颜色切换也改成 650ms 的调色板插值，不再硬切；
+原因、实测数据与测试见 [`ambient-color.md`](ambient-color.md)。
+
 **取色必须走 `.jpg` 改写地址**：原始地址多半是 WebP，而 **Win10 不预装 WebP 编解码器**，
 Win2D 走 WIC 在干净的 Win10 上会**静默失败**（开发机装过扩展，所以看不出来）。
 

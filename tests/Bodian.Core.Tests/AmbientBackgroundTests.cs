@@ -35,4 +35,24 @@ public sealed class AmbientBackgroundTests
     public void RepeatedRenderingHasStableColors()
         => Assert.Equal(AmbientBackground.Render(ColorPalette.DefaultAmbient, 32, 32),
             AmbientBackground.Render(ColorPalette.DefaultAmbient, 32, 32));
+
+    [Fact]
+    public void RenderingIntoCallerBufferMatchesAllocatingOverload()
+    {
+        var expected = AmbientBackground.Render(ColorPalette.DefaultAmbient, 32, 32);
+        var buffer = new byte[32 * 32 * 4];
+
+        AmbientBackground.Render(ColorPalette.DefaultAmbient, 32, 32, buffer);
+
+        Assert.Equal(expected, buffer);
+    }
+
+    [Fact]
+    public void BufferTooSmall_Throws()
+    {
+        var buffer = new byte[32 * 32 * 4 - 1];
+
+        Assert.Throws<ArgumentException>(() =>
+            AmbientBackground.Render(ColorPalette.DefaultAmbient, 32, 32, buffer));
+    }
 }
