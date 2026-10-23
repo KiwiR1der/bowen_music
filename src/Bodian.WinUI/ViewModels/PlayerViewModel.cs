@@ -327,14 +327,17 @@ public sealed partial class PlayerViewModel : ObservableObject, IVolumeSource
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(IsSequentialMode))]
     [NotifyPropertyChangedFor(nameof(IsListLoopMode))]
+    [NotifyPropertyChangedFor(nameof(IsSingleLoopMode))]
     [NotifyPropertyChangedFor(nameof(IsShuffleMode))]
     [NotifyPropertyChangedFor(nameof(PlayModeText))]
     public partial PlayMode Mode { get; set; }
 
-    /// <summary>三个模式图标是叠在同一个按钮里的，靠这三个开关选一个显示。</summary>
+    /// <summary>四个模式图标是叠在同一个按钮里的，靠这四个开关选一个显示。</summary>
     public bool IsSequentialMode => Mode == PlayMode.Sequential;
 
     public bool IsListLoopMode => Mode == PlayMode.ListLoop;
+
+    public bool IsSingleLoopMode => Mode == PlayMode.SingleLoop;
 
     public bool IsShuffleMode => Mode == PlayMode.Shuffle;
 
@@ -578,8 +581,8 @@ public sealed partial class PlayerViewModel : ObservableObject, IVolumeSource
     /// （它属于上一个账号），再装上从新作用域恢复出来的那首，而播放条只在构造时读过一次
     /// <see cref="PlaybackCoordinator.RestoredState"/>，于是显示与「按下播放会放哪一首」对不上。
     /// <para>
-    /// <b>新账号队列为空时保持原样</b>：与「清空队列后播放条仍留着最后一首」是同一套约定，
-    /// 这里不额外造一个「什么都没有」的状态。
+    /// <b>新账号队列为空时必须清空播放条。</b> 旧实现保留上一首，结果切到一个空队列后，
+    /// 条上还挂着不属于当前账号的歌；虽然引擎已经停了，用户仍会以为还能接着播。
     /// </para>
     /// </remarks>
     private void OnScopeSwitched(object? sender, QueueScopeSwitchedEventArgs e)
@@ -587,7 +590,35 @@ public sealed partial class PlayerViewModel : ObservableObject, IVolumeSource
         if (_coordinator.RestoredState is { } restored)
         {
             ApplyRestoredTrack(restored.Track, restored.Position.TotalSeconds);
+            return;
         }
+
+        ClearCurrentTrack();
+    }
+
+    /// <summary>把播放条恢复成「没有曲目」的空白状态。</summary>
+    private void ClearCurrentTrack()
+    {
+        HasTrack = false;
+        HasMv = false;
+        CurrentTrack = null;
+        Title = "";
+        ArtistText = "";
+        AlbumText = "";
+        CoverImage = null;
+        CurrentCoverUri = null;
+        PayLabel = "";
+        QualityText = "";
+        IsPlaying = false;
+        IsAudition = false;
+        CurrentTrackId = null;
+        PositionSeconds = 0;
+        DurationSeconds = 0;
+
+        // 统计角标也属于上一首 / 上一个账号，不清会留着一颗心形和旧计数。
+        Statistics.Reset();
+        RefreshQualityOptions();
+        UpdateQueueButtons();
     }
 
     private void OnBlocked(object? sender, PlaybackBlockedEventArgs e)

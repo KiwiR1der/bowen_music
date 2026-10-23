@@ -13,9 +13,9 @@ namespace Bodian.WinUI.ViewModels;
 /// 而增量同步要自己维护一套「哪一行对应哪个下标」的影子状态 ——
 /// 队列那边刚因为下标重映射踩过一遍，这里没必要再来一次。
 /// <para>
-/// <b>唯一例外是「只动了游标」</b>：点行切歌、一首放完自动续播都不改条目，这时只把
-/// <c>IsCurrent</c> 挪过去。整表重建会清空集合，而 ListView 的滚动位置跟着弹回顶部 ——
-/// 点一首歌就跳一次，那是可见的破绽。
+/// <b>例外是「条目没动」的变更</b>：点行切歌、一首放完自动续播只挪游标，切播放模式只改
+/// 「能不能拖」。这时就地更新行上的 <c>IsCurrent</c> / <c>CanReorder</c>，不重建集合 ——
+/// 整表重建会让 ListView 的滚动位置弹回顶部，用户看到的是「没动列表却刷了一下」。
 /// </para>
 /// </remarks>
 public sealed partial class PlayQueueViewModel : ObservableObject
@@ -87,7 +87,10 @@ public sealed partial class PlayQueueViewModel : ObservableObject
     public void Play(int position) => _ = _coordinator.PlayQueueItemAsync(position);
 
     /// <summary>从队列里删掉第 <paramref name="position"/> 首。</summary>
-    public void Remove(int position) => _ = _coordinator.RemoveQueueItemAsync(position);
+    public Task RemoveAsync(int position) => _coordinator.RemoveQueueItemAsync(position);
+
+    /// <summary>删除入口的同步包装；界面要等退场动画时直接调 <see cref="RemoveAsync"/>。</summary>
+    public void Remove(int position) => _ = RemoveAsync(position);
 
     /// <summary>清空队列。确认框由界面负责，这里只管执行。</summary>
     public void Clear() => _coordinator.ClearQueue();
@@ -117,26 +120,28 @@ public sealed partial class PlayQueueViewModel : ObservableObject
         }
     }
 
-    /// <summary>
-    /// 上次建表时用的「能不能拖」。模式一变就得整表重建 —— <c>CanReorder</c> 是建行那一刻的快照，
-    /// 而它驱动的手柄显隐没有绑定通知，见 <see cref="PlayQueueRow.CanReorder"/>。
-    /// </summary>
-    private bool _builtCanReorder;
-
     private void Refresh()
     {
         var queue = _coordinator.Queue;
         var current = queue.CurrentIndex;
         var canReorder = _coordinator.CanReorderQueue;
 
-        // 队列本体没动、只有游标动了（点行切歌、一首放完自动续播）就地改「哪一行是当前行」。
-        // ★ 不能顺手整表重建：集合一清空，ListView 的滚动位置就弹回顶部 ——
-        //   而「点一首歌」正是最常走到这里的一步，用户看到的是「每点一次就刷一下、回到最上面」。
-        if (CanReuseRows(queue, canReorder))
+        // 只删了一行时也只删对应的行，保留其余容器与滚动位置。
+        if (TryApplyRemoval(queue, current, canReorder))
+        {
+            return;
+        }
+
+        // 队列条目没动时只改行上的状态，不重建。
+        // ★ 不能随手整表重建：集合一清空，ListView 的滚动位置就弹回顶部 ——
+        //   点行切歌、一首放完自动续播、以及只切播放模式都会走到这里。
+        //   切模式只影响 CanReorder（拖动条显隐），它现在是可通知属性，就地改就行。
+        if (CanReuseRows(queue))
         {
             for (var i = 0; i < Rows.Count; i++)
             {
                 Rows[i].IsCurrent = i == current;
+                Rows[i].CanReorder = canReorder;
             }
 
             return;
@@ -155,22 +160,74 @@ public sealed partial class PlayQueueViewModel : ObservableObject
             });
         }
 
-        _builtCanReorder = canReorder;
         IsEmpty = Rows.Count == 0;
         CountText = Rows.Count == 0 ? "" : $"共 {Rows.Count} 首";
+    }
+
+    /// <summary>
+    /// 队列只少了一首时，就地删掉对应那一行并更新后面的行号。
+    /// </summary>
+    /// <remarks>
+    /// <b>不整表重建的原因与切歌相同：</b> 清空集合会让 ListView 的滚动位置弹回顶部，
+    /// 用户删中间某首时会被直接甩回队首。这里先确认除这一行外其余引用都能按位移对上；
+    /// 对不上（同时发生重排、清空等）才让 <see cref="Refresh"/> 走整表重建。
+    /// </remarks>
+    private bool TryApplyRemoval(PlayQueue queue, int current, bool canReorder)
+    {
+        if (Rows.Count != queue.Count + 1)
+        {
+            return false;
+        }
+
+        var removed = -1;
+
+        for (var i = 0; i < queue.Count; i++)
+        {
+            if (!ReferenceEquals(Rows[i].Source, queue.Items[i]))
+            {
+                removed = i;
+                break;
+            }
+        }
+
+        if (removed < 0)
+        {
+            removed = Rows.Count - 1;
+        }
+
+        for (var i = removed; i < queue.Count; i++)
+        {
+            if (!ReferenceEquals(Rows[i + 1].Source, queue.Items[i]))
+            {
+                return false;
+            }
+        }
+
+        Rows.RemoveAt(removed);
+
+        for (var i = 0; i < Rows.Count; i++)
+        {
+            Rows[i].Position = i;
+            Rows[i].IsCurrent = i == current;
+            Rows[i].CanReorder = canReorder;
+        }
+
+        IsEmpty = Rows.Count == 0;
+        CountText = Rows.Count == 0 ? "" : $"共 {Rows.Count} 首";
+        return true;
     }
 
     /// <summary>
     /// 现有这些行还能不能接着用，不必重建。
     /// </summary>
     /// <remarks>
-    /// <b>按下标逐个比引用。</b> 增删、拖动重排、随机模式重洗都会让某一格对不上，于是整表重建；
-    /// 只动游标的变更则每一格都对得上，行号（<see cref="PlayQueueRow.Position"/>）也就还是对的 ——
-    /// 它是建行时定下的，只有位置真的变了才需要重建。
+    /// <b>按下标逐个比引用。</b> 增删、拖动重排会让某一格对不上，于是整表重建；
+    /// 只动游标或只切播放模式的变更则每一格都对得上 —— 行号
+    /// （<see cref="PlayQueueRow.Position"/>）没变，<c>CanReorder</c> 就地更新。
     /// </remarks>
-    private bool CanReuseRows(PlayQueue queue, bool canReorder)
+    private bool CanReuseRows(PlayQueue queue)
     {
-        if (Rows.Count != queue.Count || _builtCanReorder != canReorder)
+        if (Rows.Count != queue.Count)
         {
             return false;
         }

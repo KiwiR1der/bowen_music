@@ -308,7 +308,7 @@ public sealed class PlayQueueTests
     }
 
     [Fact]
-    public void SingleTrack_SequentialStopsButListLoopRepeats()
+    public void SingleTrack_SequentialAndSingleLoopStopButListLoopRepeats()
     {
         var queue = Queue(1);
 
@@ -316,12 +316,38 @@ public sealed class PlayQueueTests
         Assert.False(queue.HasPrevious);
         Assert.False(queue.MoveNext());
 
+        // 单曲循环只接管「自然放完」；手动下一首仍按队列判断，单曲队列没有下一首。
+        queue.Mode = PlayMode.SingleLoop;
+        Assert.False(queue.HasNext);
+        Assert.False(queue.HasPrevious);
+        Assert.False(queue.MoveNext());
+        Assert.Equal(1, queue.Current!.Id);
+
         queue.Mode = PlayMode.ListLoop;
 
         Assert.True(queue.HasNext);
         Assert.True(queue.HasPrevious);
         Assert.True(queue.MoveNext());
         Assert.Equal(1, queue.Current!.Id);
+    }
+
+    [Fact]
+    public void SingleLoop_ManualNextMovesForwardAndStopsAtTheEnd()
+    {
+        var queue = Queue(1, 2, 3);
+        queue.Mode = PlayMode.SingleLoop;
+
+        Assert.True(queue.HasNext);
+        Assert.True(queue.MoveNext());
+        Assert.Equal(2, queue.Current!.Id);
+
+        Assert.True(queue.MoveNext());
+        Assert.Equal(3, queue.Current!.Id);
+
+        // 不环绕：单曲循环不是列表循环。
+        Assert.False(queue.HasNext);
+        Assert.False(queue.MoveNext());
+        Assert.Equal(3, queue.Current!.Id);
     }
 
     [Fact]

@@ -43,6 +43,9 @@ public sealed partial class PlayQueuePanel : UserControl
     /// <summary>让位的行滑到新位置用的时长。</summary>
     private static readonly TimeSpan ShiftDuration = TimeSpan.FromMilliseconds(140);
 
+    /// <summary>删除一行时，淡出再移除的时长。</summary>
+    private static readonly TimeSpan RemoveDuration = TimeSpan.FromMilliseconds(170);
+
     /// <summary>
     /// 打开时定位最多重试几轮。
     /// </summary>
@@ -385,11 +388,43 @@ public sealed partial class PlayQueuePanel : UserControl
         }
     }
 
-    private void OnRemoveClick(object sender, RoutedEventArgs e)
+    /// <remarks>
+    /// <b>先播退场再删。</b> 行立即消失会让下面的行硬跳一格；淡出加轻微上移之后，
+    /// 删除动作看起来是「这一行退出去」，而不是列表被刷新了一次。
+    /// 动画期间队列可能已被别的入口改动，所以删之前重新读一次 <c>row.Position</c>。
+    /// </remarks>
+    private async void OnRemoveClick(object sender, RoutedEventArgs e)
     {
-        if (sender is FrameworkElement { DataContext: PlayQueueRow row })
+        if (sender is not FrameworkElement { DataContext: PlayQueueRow row })
         {
-            ViewModel.Remove(row.Position);
+            return;
+        }
+
+        var container = RowList.ContainerFromItem(row) as ListViewItem;
+
+        if (container is not null)
+        {
+            await AppMotion.ExitAsync(container, 0, -6, RemoveDuration);
+        }
+
+        if (!RowList.Items.Contains(row))
+        {
+            return;
+        }
+
+        await ViewModel.RemoveAsync(row.Position);
+
+        // 队列拒绝这次删除（例如它已经是当前曲目）时，行还在，把视觉状态还回去。
+        // 排到下一轮再查：增量删行本身也是排到 dispatcher 里执行的，同步检查会误判「还在」。
+        if (container is not null)
+        {
+            DispatcherQueue.TryEnqueue(() =>
+            {
+                if (RowList.Items.Contains(row))
+                {
+                    AppMotion.Reset(container);
+                }
+            });
         }
     }
 

@@ -152,6 +152,22 @@ public sealed partial class TrackStatisticsViewModel : ObservableObject, IDispos
         }
     }
 
+    /// <summary>
+    /// 清空当前曲目的统计与喜欢态。切号后新队列为空、播放条要一起清空时用。
+    /// </summary>
+    public void Reset()
+    {
+        _generation++;
+        _request?.Cancel();
+        _request = null;
+        _details = null;
+        _track = null;
+        FavoriteCount = null;
+        ShareCount = null;
+        IsFavorite = false;
+        IsFavoriteBusy = false;
+    }
+
     /// <summary>优先显示曲目已带的数量，缺项时补读详情；同一首歌复用完成或进行中的请求。</summary>
     public Task LoadAsync(Track track)
     {

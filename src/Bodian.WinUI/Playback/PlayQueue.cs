@@ -58,11 +58,15 @@ public sealed class PlayQueue
     /// <remarks>
     /// <b>模式判断收在这里，不要在调用方各写一遍</b>：<c>SmtcManager</c> 与播放条都直接读这两个属性，
     /// 放在这里，系统媒体控件的上一首/下一首按钮就自动跟着模式变灰或变亮。
+    /// <para>
+    /// <b>单曲循环按顺序播放判断「下一首」。</b> 单曲循环只接管自然放完后的行为；
+    /// 用户主动点下一首时仍然往队列后面走，走到最后一首就停。
+    /// </para>
     /// </remarks>
     public bool HasNext => _cursor >= 0 && _order.Count > 0
-        && (_mode != PlayMode.Sequential || _cursor < _order.Count - 1);
+        && (_mode is PlayMode.ListLoop or PlayMode.Shuffle || _cursor < _order.Count - 1);
 
-    /// <summary>还能不能往回走。列表循环里第一首的上一首是最后一首，所以恒为真。</summary>
+    /// <summary>还能不能往回走。列表循环里第一首的上一首是最后一首，所以恒为真；单曲循环按顺序播放判断。</summary>
     public bool HasPrevious => _order.Count > 0
         && (_mode == PlayMode.ListLoop ? _cursor >= 0 : _cursor > 0);
 

@@ -127,7 +127,7 @@
                                     VerticalAlignment="Center"
                                     FontSize="11"
                                     Foreground="{ThemeResource TextFillColorTertiaryBrush}"
-                                    Text="{x:Bind OrdinalText}"
+                                    Text="{x:Bind OrdinalText, Mode=OneWay}"
                                     Visibility="{x:Bind OrdinalVisibility, Mode=OneWay}" />
                                 <controls:PlayingBars
                                     HorizontalAlignment="Center"

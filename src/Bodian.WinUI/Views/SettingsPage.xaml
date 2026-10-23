@@ -249,7 +249,7 @@
                                     </controls:SettingsRow.RightContent>
                                 </controls:SettingsRow>
                                 <Border Style="{StaticResource BodianSettingsRowDivider}" />
-                                <controls:SettingsRow Description="顺序播完即停、列表循环或列表随机" Header="播放模式">
+                                <controls:SettingsRow Description="顺序播完即停、列表循环、单曲循环或列表随机" Header="播放模式">
                                     <controls:SettingsRow.RightContent>
                                         <ComboBox
                                             ItemsSource="{x:Bind ViewModel.PlayModeOptions}"

@@ -154,11 +154,11 @@
                 Orientation="Horizontal"
                 Spacing="24">
                 <!--
-                    播放模式：一个按钮循环切换三种模式，三个图标叠在同一格里靠 Visibility 选一个显示，
+                    播放模式：一个按钮循环切换四种模式，四个图标叠在同一格里靠 Visibility 选一个显示，
                     写法与右边那颗播放/暂停按钮一致。
 
                     几何搬去了 Themes/Icons.xaml（Fluent System Icons，MIT）。尺寸取 26 ——
-                    那三条路径的墨水只占 24 单位视框里的 17×13，缩到 20 就只有 14×11，
+                    那几条路径的墨水只占 24 单位视框里的 17×13，缩到 20 就只有 14×11，
                     比旁边 28 号的上一首/下一首小一半；26 时约 18×14，和队列那颗（22）同量级。
                 -->
                 <Button
@@ -171,6 +171,8 @@
                             Visibility="{x:Bind ViewModel.IsSequentialMode, Mode=OneWay, Converter={StaticResource BoolToVisibility}}" />
                         <controls:Icon Data="{StaticResource IconListLoop}" Size="26"
                             Visibility="{x:Bind ViewModel.IsListLoopMode, Mode=OneWay, Converter={StaticResource BoolToVisibility}}" />
+                        <controls:Icon Data="{StaticResource IconSingleLoop}" Size="26"
+                            Visibility="{x:Bind ViewModel.IsSingleLoopMode, Mode=OneWay, Converter={StaticResource BoolToVisibility}}" />
                         <controls:Icon Data="{StaticResource IconShuffle}" Size="26"
                             Visibility="{x:Bind ViewModel.IsShuffleMode, Mode=OneWay, Converter={StaticResource BoolToVisibility}}" />
                     </Grid>

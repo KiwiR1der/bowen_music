@@ -48,6 +48,14 @@ public sealed class PlaybackSettingsStoreTests : IDisposable
     }
 
     [Fact]
+    public void SingleLoop_RoundTrips()
+    {
+        NewStore().Save(new PlaybackSettings(PlayMode.SingleLoop, RestoreQueue: true));
+
+        Assert.Equal(PlayMode.SingleLoop, NewStore().Load().Mode);
+    }
+
+    [Fact]
     public void LegacyBareEnum_KeepsTheModeAndDefaultsTheSwitchToOn()
     {
         // 加「记住播放列表」之前，这份文件里只有一个裸枚举（枚举按仓库约定存数字，不是名字）。

@@ -23,17 +23,27 @@ public sealed partial class PlayQueueRow : ObservableObject
     internal Track Source { get; init; } = null!;
 
     /// <summary>在队列里的位置，从 0 起。删除、切歌与拖动都按它定位。</summary>
-    internal int Position { get; init; }
+    /// <remarks>
+    /// 删除一行后，后面的行会就地前移，所以它是可通知属性；行号文本跟着刷新，
+    /// 不必为了改几个数字重建整张表。
+    /// </remarks>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(OrdinalText))]
+    public partial int Position { get; set; }
 
     /// <summary>
     /// 这一行能不能被拖动重排。
     /// </summary>
     /// <remarks>
-    /// 快照自队列模式（<c>PlayQueue.CanReorder</c>），与 <see cref="Position"/> 一样随
-    /// <c>PlayQueueViewModel.Refresh</c> 重建。模式切换本身会抛 <c>Changed</c>，所以随机模式一开、
-    /// 手柄自动消失，不用额外订阅。**随机模式下不能拖**的理由见 <c>PlayQueue.CanReorder</c>。
+    /// 来自队列模式（<c>PlayQueue.CanReorder</c>）。切模式时由
+    /// <c>PlayQueueViewModel.Refresh</c> **就地更新**，不重建行 —— 队列条目没变，
+    /// 清空再填满只会让列表滚动位置弹回顶部。**随机模式下不能拖**的理由见
+    /// <c>PlayQueue.CanReorder</c>。
     /// </remarks>
-    internal bool CanReorder { get; init; }
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(OrdinalVisibility))]
+    [NotifyPropertyChangedFor(nameof(DragHandleVisibility))]
+    public partial bool CanReorder { get; set; }
 
     public string OrdinalText => (Position + 1).ToString("D2", System.Globalization.CultureInfo.InvariantCulture);
 

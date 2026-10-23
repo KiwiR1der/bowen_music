@@ -103,7 +103,7 @@ public sealed partial class SettingsViewModel : ObservableObject
         [AudioQuality.Standard, AudioQuality.High, AudioQuality.Lossless];
 
     private static readonly PlayMode[] PlayModes =
-        [PlayMode.Sequential, PlayMode.ListLoop, PlayMode.Shuffle];
+        [PlayMode.Sequential, PlayMode.ListLoop, PlayMode.SingleLoop, PlayMode.Shuffle];
 
     /// <summary>左侧分类栏的项。顺序即下标，与下面那六个 <c>IsXxxSelected</c> 一一对应。</summary>
     public IReadOnlyList<SettingsCategoryItem> Categories { get; }
@@ -263,7 +263,8 @@ public sealed partial class SettingsViewModel : ObservableObject
             // 读的是「默认音质」这个偏好，不是正在播的那首当前用的档位 —— 两者在切换后会不一致。
             QualityIndex = (int)Coordinator.PreferredQuality;
 
-            PlayModeIndex = (int)Player.Mode;
+            // 下标取自数组顺序，不直接转枚举值 —— 枚举的数值顺序不一定要和界面选项顺序一致。
+            PlayModeIndex = Math.Max(0, Array.IndexOf(PlayModes, Player.Mode));
             DesktopLyricsColorIndex = PaletteIndexOf(DesktopLyrics.TextColor);
             DesktopLyricsAlignmentIndex = (int)DesktopLyrics.Alignment;
 
@@ -330,12 +331,12 @@ public sealed partial class SettingsViewModel : ObservableObject
 
     partial void OnPlayModeIndexChanged(int value)
     {
-        if (_syncing || value is < 0 or > 2)
+        if (_syncing || value < 0 || value >= PlayModes.Length)
         {
             return;
         }
 
-        Player.SetPlayModeCommand.Execute((PlayMode)value);
+        Player.SetPlayModeCommand.Execute(PlayModes[value]);
     }
 
     partial void OnDesktopLyricsColorIndexChanged(int value)

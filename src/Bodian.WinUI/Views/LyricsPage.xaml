@@ -200,6 +200,8 @@
                                 Visibility="{x:Bind local:Formats.Visible(Player.IsSequentialMode), Mode=OneWay}" />
                             <controls:Icon Data="{StaticResource IconListLoop}" Size="26"
                                 Visibility="{x:Bind local:Formats.Visible(Player.IsListLoopMode), Mode=OneWay}" />
+                            <controls:Icon Data="{StaticResource IconSingleLoop}" Size="26"
+                                Visibility="{x:Bind local:Formats.Visible(Player.IsSingleLoopMode), Mode=OneWay}" />
                             <controls:Icon Data="{StaticResource IconShuffle}" Size="26"
                                 Visibility="{x:Bind local:Formats.Visible(Player.IsShuffleMode), Mode=OneWay}" />
                         </Grid>

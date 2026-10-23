@@ -1745,6 +1745,21 @@
                         <controls:TrayMenuItem
                             Style="{StaticResource TrayPlayModeItemStyle}"
                             Command="{x:Bind Player.SetPlayModeCommand}"
+                            CommandParameter="{x:Bind models:PlayMode.SingleLoop}">
+                            <controls:TrayMenuItem.Body>
+                                <Grid>
+                                    <Border
+                                        Background="{ThemeResource SubtleFillColorSecondaryBrush}"
+                                        CornerRadius="{ThemeResource ControlCornerRadius}"
+                                        Visibility="{x:Bind local:Formats.Visible(Player.IsSingleLoopMode), Mode=OneWay}" />
+                                    <TextBlock Text="单曲循环" Margin="8,6,8,6" VerticalAlignment="Center" />
+                                </Grid>
+                            </controls:TrayMenuItem.Body>
+                        </controls:TrayMenuItem>
+
+                        <controls:TrayMenuItem
+                            Style="{StaticResource TrayPlayModeItemStyle}"
+                            Command="{x:Bind Player.SetPlayModeCommand}"
                             CommandParameter="{x:Bind models:PlayMode.Shuffle}">
                             <controls:TrayMenuItem.Body>
                                 <Grid>

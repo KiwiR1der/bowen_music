@@ -1058,6 +1058,15 @@ public sealed class PlaybackCoordinator : IDisposable
     {
         try
         {
+            // 单曲循环只接管「自然放完」：重取一次当前曲目的音源，从头再放。
+            // 手动上一首 / 下一首仍然走队列，见 PlayQueue.HasNext 的说明。
+            if (Queue.Mode == PlayMode.SingleLoop)
+            {
+                _logger.LogDebug("单曲循环：重播 {Title}", CurrentTrack?.Title);
+                await ReplayCurrentAsync().ConfigureAwait(true);
+                return;
+            }
+
             await NextAsync().ConfigureAwait(true);
         }
         catch (Exception ex)

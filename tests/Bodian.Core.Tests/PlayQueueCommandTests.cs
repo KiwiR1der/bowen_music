@@ -479,7 +479,7 @@ public sealed class PlayQueueCommandTests
     }
 
     [Fact]
-    public async Task CyclePlayMode_WalksTheThreeModesInOrder()
+    public async Task CyclePlayMode_WalksTheFourModesInOrder()
     {
         var engine = new FakePlaybackEngine();
         var settings = new FakePlaybackSettingsStore();
@@ -491,12 +491,49 @@ public sealed class PlayQueueCommandTests
         Assert.Equal(PlayMode.ListLoop, coordinator.Mode);
 
         coordinator.CyclePlayMode();
+        Assert.Equal(PlayMode.SingleLoop, coordinator.Mode);
+
+        coordinator.CyclePlayMode();
         Assert.Equal(PlayMode.Shuffle, coordinator.Mode);
 
         coordinator.CyclePlayMode();
         Assert.Equal(PlayMode.Sequential, coordinator.Mode);
 
         Assert.Equal(PlayMode.Sequential, settings.Mode);
+    }
+
+    [Fact]
+    public async Task SingleLoop_AutoAdvanceReplaysTheSameTrack()
+    {
+        var engine = new FakePlaybackEngine();
+        using var coordinator = new PlaybackCoordinator(Api(), engine, new FakePlayHistoryStore());
+        await coordinator.PlayFromAsync([Track(1), Track(2)], 0, Ct);
+
+        coordinator.SetPlayMode(PlayMode.SingleLoop);
+        engine.RaiseEnded();
+
+        Assert.Equal(1, coordinator.CurrentTrack!.Id);
+        Assert.Equal(0, coordinator.Queue.CurrentIndex);
+        Assert.Equal(2, engine.LoadCount);
+    }
+
+    [Fact]
+    public async Task SingleLoop_ManualNextStillMovesThroughTheQueue()
+    {
+        var engine = new FakePlaybackEngine();
+        using var coordinator = new PlaybackCoordinator(Api(), engine, new FakePlayHistoryStore());
+        await coordinator.PlayFromAsync([Track(1), Track(2)], 0, Ct);
+
+        coordinator.SetPlayMode(PlayMode.SingleLoop);
+
+        await coordinator.NextAsync(Ct);
+        Assert.Equal(2, coordinator.CurrentTrack!.Id);
+
+        // 单曲循环不环绕：已经是最后一首，手动下一首走队列的尽头。
+        Assert.False(coordinator.Queue.HasNext);
+        await coordinator.NextAsync(Ct);
+        Assert.Equal(2, coordinator.CurrentTrack!.Id);
+        Assert.Equal(2, engine.LoadCount);
     }
 
     [Fact]
