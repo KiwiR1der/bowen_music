@@ -337,6 +337,9 @@ public sealed partial class MainWindow : Window, IPlaylistLibrarySink, IWindowHa
 
         // 关闭到托盘。**必须挂在 AppWindow 上而不是 Window 上**，理由见 OnAppWindowClosing。
         AppWindow.Closing += OnAppWindowClosing;
+
+        // 换显示器时 DPI 会变，最小尺寸是物理像素，必须跟着重算。
+        AppWindow.Changed += OnAppWindowChanged;
         WatchSessionEnd();
 
         // 歌词页与 MV 页都是全窗沉浸，进 ImmersiveHost；其余进常规的 PageHost。
@@ -1176,12 +1179,11 @@ public sealed partial class MainWindow : Window, IPlaylistLibrarySink, IWindowHa
     /// 首次运行（或记录不可用）时的默认窗口尺寸，单位是**逻辑像素**。
     /// </summary>
     /// <remarks>
-    /// 与参照项目 <c>LyciaMusic</c> 的 <c>src-tauri/tauri.conf.json</c> 对齐（1200×800、居中）。
-    /// Tauri 配的也是逻辑像素，所以两边概念一致，数值可以直接抄。
+    /// 用户指定的默认窗口尺寸，逻辑像素。换到别的 DPI 时窗口按比例缩放，布局与列数不变。
     /// </remarks>
-    private const int DefaultWidthDip = 1200;
+    private const int DefaultWidthDip = 957;
 
-    private const int DefaultHeightDip = 800;
+    private const int DefaultHeightDip = 793;
 
     /// <summary>
     /// 摆窗口：有记录就还原，没有就默认尺寸 + 居中。顺带设最小尺寸。
@@ -1189,17 +1191,22 @@ public sealed partial class MainWindow : Window, IPlaylistLibrarySink, IWindowHa
     /// <remarks>
     /// <b>最小尺寸不是可选的润色。</b> 播放条是三栏布局，窗口窄到一定程度后中间那栏会被压得
     /// 比按钮还窄，表现是「播放按钮的图标显示不全」——控件没坏，是被裁了。
-    /// 下限大约 56(封面) + 220(信息) + 控制区 + 200(音质音量) + 间距，取 800。
+    /// 下限直接取默认窗口尺寸（957×793 逻辑像素）。
+    /// <para>
+    /// <b><c>PreferredMinimumWidth/Height</c> 收的是物理像素</b>（Win32 屏幕坐标），
+    /// 与 <see cref="DefaultWidthDip"/> 差一个 DPI 比例 —— 直接传逻辑值，125% 下最小值会小一圈，
+    /// 表现为「窗口还能继续缩」。所以这里按窗口 DPI 换算。
+    /// 换显示器导致 DPI 变化时由 <see cref="OnAppWindowChanged"/> 重设。
+    /// </para>
     /// </remarks>
     private void ApplyWindowPlacement()
     {
-        if (AppWindow.Presenter is not OverlappedPresenter presenter)
+        if (AppWindow.Presenter is not OverlappedPresenter)
         {
             return;
         }
 
-        presenter.PreferredMinimumWidth = 800;
-        presenter.PreferredMinimumHeight = 560;
+        ApplyMinimumWindowSize();
 
         // 有记录、且那块屏幕还在，就原样还原。
         if (_placement.Load() is { } saved && IsOnSomeDisplay(saved))
@@ -1210,6 +1217,36 @@ public sealed partial class MainWindow : Window, IPlaylistLibrarySink, IWindowHa
         }
 
         CenterAtDefaultSize();
+    }
+
+    /// <summary>
+    /// 按当前窗口 DPI 设最小尺寸。
+    /// </summary>
+    /// <remarks>
+    /// API 收物理像素，所以逻辑尺寸要乘 <c>GetDpiForWindow / 96</c>。
+    /// 窗口被拖到另一块 DPI 不同的显示器后必须重算，否则最小值会跟新的缩放对不上。
+    /// </remarks>
+    private void ApplyMinimumWindowSize()
+    {
+        if (AppWindow.Presenter is not OverlappedPresenter presenter)
+        {
+            return;
+        }
+
+        var scale = NativeMethods.GetDpiForWindow(
+            Win32Interop.GetWindowFromWindowId(AppWindow.Id)) / 96.0;
+
+        presenter.PreferredMinimumWidth = (int)Math.Round(DefaultWidthDip * scale);
+        presenter.PreferredMinimumHeight = (int)Math.Round(DefaultHeightDip * scale);
+    }
+
+    /// <summary>窗口在显示器之间移动或缩放变化后，最小尺寸要按新的 DPI 重设。</summary>
+    private void OnAppWindowChanged(AppWindow sender, AppWindowChangedEventArgs args)
+    {
+        if (args.DidPositionChange || args.DidSizeChange)
+        {
+            ApplyMinimumWindowSize();
+        }
     }
 
     /// <summary>
