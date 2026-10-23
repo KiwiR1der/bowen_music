@@ -161,6 +161,9 @@ public static partial class BodianLyricParser
     private static void MarkTranslations(List<RawLine> raw)
     {
         var index = 0;
+        var lastGroup = (From: 0, To: 0);
+        var lastGroupTimed = false;
+        var previousGroupTimed = false;
 
         while (index < raw.Count)
         {
@@ -170,12 +173,42 @@ public static partial class BodianLyricParser
                 end++;
             }
 
+            var timed = false;
+            for (var i = index; i < end; i++)
+            {
+                if (HasWordTiming(raw[i]))
+                {
+                    timed = true;
+                    break;
+                }
+            }
+
             if (end - index >= 2)
             {
                 MarkGroup(raw, index, end);
             }
 
+            previousGroupTimed = lastGroupTimed;
+            lastGroupTimed = timed;
+            lastGroup = (index, end);
             index = end;
+        }
+
+        // 文件末尾的译文没有「下一句」可借时间戳，会独自成组，同组配对永远认不出来。
+        // 末组全无逐字时间、上一组有，且末组里有非空文本时，把末组的非空行补标为译文
+        // （实测 See You Again / Shape Of You 的结尾都是「末句译文 + 同时间戳空行」）。
+        // 「上一组有逐字时间」同时排除了逐行版：那里每组都没有逐字时间，不会误标。
+        if (raw.Count == 0 || lastGroupTimed || !previousGroupTimed)
+        {
+            return;
+        }
+
+        for (var i = lastGroup.From; i < lastGroup.To; i++)
+        {
+            if (!HasWordTiming(raw[i]) && !string.IsNullOrWhiteSpace(raw[i].Text))
+            {
+                raw[i] = raw[i] with { IsTranslation = true };
+            }
         }
     }
 

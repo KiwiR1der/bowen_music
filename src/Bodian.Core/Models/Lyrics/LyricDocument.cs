@@ -131,4 +131,33 @@ public sealed record LyricDocument(IReadOnlyList<LyricLine> Lines, LyricKind Kin
 
         return found;
     }
+
+    /// <summary>
+    /// 某一行对应的原文行下标；它本身就是原文时返回自身。
+    /// </summary>
+    /// <returns>行下标；越界时返回 <c>-1</c>。</returns>
+    /// <remarks>
+    /// <b>译文行的时间戳不属于它自己。</b> 上游把译文排在原文的下一行，时间戳却取再下一句的
+    /// 行首（见 <c>LyricTranslationTests.PairedSample</c>：1.547 的「夢ならば」下面紧跟
+    /// 2.880 的译文「如果只是一场梦」，而 2.880 也是「どれほど」的行首）。
+    /// 所以点译文行不能拿它自己的 <see cref="LyricLine.Start"/> 跳转，要回到上方最近的原文行，
+    /// 否则会跳到下一句。
+    /// </remarks>
+    public int SourceLineIndex(int lineIndex)
+    {
+        if (lineIndex < 0 || lineIndex >= Lines.Count)
+        {
+            return -1;
+        }
+
+        for (var index = lineIndex; index >= 0; index--)
+        {
+            if (!Lines[index].IsTranslation)
+            {
+                return index;
+            }
+        }
+
+        return lineIndex;
+    }
 }

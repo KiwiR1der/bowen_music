@@ -62,6 +62,27 @@ public sealed class LyricTranslationTests
         Assert.Equal("未だにあ", document.Lines[5].Text);
     }
 
+    /// <summary>
+    /// 译文行要映射回它上方那句原文。
+    /// </summary>
+    /// <remarks>
+    /// 译文显示在原文下一行，时间戳却取下一句的行首：样本里 1.547 的「夢ならば」下面是
+    /// 2.880 的「如果只是一场梦」，而 2.880 同时是「どれほど」的行首。点译文不能拿自己的
+    /// 时间戳跳，否则会跳到下一句。
+    /// </remarks>
+    [Fact]
+    public void SourceLineIndex_MapsTranslationToTheOriginalAbove()
+    {
+        var document = BodianLyricParser.Parse(PairedSample);
+
+        Assert.Equal(document.Lines[3].Start, document.Lines[2].Start);
+        Assert.Equal(1, document.SourceLineIndex(2));
+        Assert.Equal(3, document.SourceLineIndex(4));
+        Assert.Equal(1, document.SourceLineIndex(1));
+        Assert.Equal(-1, document.SourceLineIndex(-1));
+        Assert.Equal(-1, document.SourceLineIndex(document.Lines.Count));
+    }
+
     /// <summary>判据只看逐字时间，不看位置。</summary>
     [Fact]
     public void TranslationBeforeOriginal_IsStillMarked()
@@ -70,6 +91,46 @@ public sealed class LyricTranslationTests
             "[kuwo:027]\n[00:01.00]<0,0>译<0,0>文\n[00:01.00]<99,-99>原<264,-132>文");
 
         Assert.Equal([true, false], Marked(document));
+    }
+
+    /// <summary>
+    /// 文件末尾的译文要单独补标。
+    /// </summary>
+    /// <remarks>
+    /// 译文的时间戳借的是「下一句」的行首，最后一句没有下一句，于是末句译文和它后面那个
+    /// 空行组成一个全无逐字时间的组，同组配对永远认不出来。实测 See You Again 与
+    /// Shape Of You 的结尾都是这个形状；不补标的话，关掉译文后末句译文还留在文档里。
+    /// </remarks>
+    [Fact]
+    public void TrailingTranslationWithoutNextOriginal_IsMarked()
+    {
+        var document = BodianLyricParser.Parse("""
+            [kuwo:027]
+            [00:01.000]<0,0>译<0,0>文
+            [00:01.000]<100,-100>原<200,-50>文
+            [00:03.000]<0,0>末<0,0>句<0,0>译<0,0>文
+            [00:03.000]
+            """);
+
+        Assert.Equal([true, false, true, false], Marked(document));
+        Assert.True(document.HasTranslation);
+        Assert.Equal(2, document.WithoutTranslations().Lines.Count);
+    }
+
+    /// <summary>
+    /// 末尾的空白行不能被当成译文 —— 那会让没有译文的歌也亮出「译」按钮。
+    /// </summary>
+    [Fact]
+    public void TrailingBlankLine_IsNotMistakenForTranslation()
+    {
+        var document = BodianLyricParser.Parse("""
+            [kuwo:027]
+            [00:01.000]<100,-100>歌<200,-50>词
+            [00:03.000]
+            """);
+
+        Assert.False(document.HasTranslation);
+        Assert.All(document.Lines, line => Assert.False(line.IsTranslation));
     }
 
     /// <summary>中文歌没有成对行，一行都不该被标。</summary>

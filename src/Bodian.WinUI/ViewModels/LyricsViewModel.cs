@@ -238,8 +238,21 @@ public sealed partial class LyricsViewModel : ObservableObject
     private Task SeekToLineAsync(int lineIndex)
         => lineIndex >= 0 && lineIndex < Document.Lines.Count
             && _engine.State is not (PlaybackState.Idle or PlaybackState.Stopped)
-            ? _engine.SeekAsync(Document.Lines[lineIndex].Start)
+            ? _engine.SeekAsync(StartForLine(lineIndex))
             : Task.CompletedTask;
+
+    /// <summary>
+    /// 点击某一行后要跳到的位置。
+    /// </summary>
+    /// <remarks>
+    /// 译文行显示在上一句下面，自带的时间戳却是下一句的行首，所以要先映射回原文行，
+    /// 否则点译文会跳到下一句（判据见 <see cref="LyricDocument.SourceLineIndex"/>）。
+    /// </remarks>
+    public TimeSpan StartForLine(int lineIndex)
+    {
+        var source = Document.SourceLineIndex(lineIndex);
+        return source >= 0 ? Document.Lines[source].Start : TimeSpan.Zero;
+    }
 
     /// <remarks>
     /// <b>不落盘。</b> 歌词页那颗译文按钮改的是「当前这一次」，默认值只由设置页改写 ——

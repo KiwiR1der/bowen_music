@@ -286,7 +286,8 @@ public sealed partial class LyricsCanvasView : UserControl
         var line = _renderLoop?.LineIndexAt(args.GetPosition(Canvas).Y) ?? -1;
         if (line < 0 || line >= _viewModel.Document.Lines.Count) return;
         args.Handled = true;
-        var position = _viewModel.Document.Lines[line].Start;
+        // 点译文行时回到它上方的原文行：译文的时间戳属于下一句。
+        var position = _viewModel.StartForLine(line);
         await _viewModel.SeekToLineCommand.ExecuteAsync(line);
         _clock.Sync(position, force: true);
         ResumeFollowing();
