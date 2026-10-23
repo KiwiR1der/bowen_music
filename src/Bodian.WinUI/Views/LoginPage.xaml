@@ -18,7 +18,7 @@
             CornerRadius="{StaticResource RadiusMd}"
             KeyDown="OnDialogKeyDown">
             <ContentDialog.Resources>
-                <x:Double x:Key="ContentDialogMinWidth">340</x:Double>
+                <x:Double x:Key="ContentDialogMinWidth">400</x:Double>
                 <x:Double x:Key="ContentDialogMaxWidth">420</x:Double>
             </ContentDialog.Resources>
 
@@ -26,43 +26,51 @@
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto" />
                     <RowDefinition Height="Auto" />
-                    <RowDefinition Height="Auto" />
                 </Grid.RowDefinitions>
 
                 <!--
-                    MinItemWidth 让两个页签等宽（默认是按内容自适应，那样很窄）。
-                    HorizontalAlignment=Center 居中整条 —— 它管不了单个页签的宽度，
-                    所以两者要一起用。
-                -->
-                <!--
-                    ★ 关闭按钮在右上角，与页签同一行：不另开一行，弹窗高度不会因为它变高。
-                    页签是居中的，两者不会撞上。
+                    ★ 标题行分三列：左右各 40 DIP，页签只占中间。
+                    关闭按钮固定在右列，页签在中间列居中 —— 登录框收窄时两者不会挤到一起。
+                    左右等宽是为了让页签相对整个对话框仍然居中。
 
                     **不用 ContentDialog 自带的 CloseButtonText** —— 那颗固定在底部，位置压不住。
                     代价是 Esc 不再由框架处理，改由 OnDialogKeyDown 自己接。
                 -->
-                <Button
-                    Grid.Row="0"
-                    Width="28"
-                    Height="28"
-                    MinWidth="0"
-                    MinHeight="0"
-                    Padding="0"
-                    HorizontalAlignment="Right"
-                    VerticalAlignment="Top"
-                    Background="Transparent"
-                    BorderThickness="0"
-                    Click="OnCloseClick"
-                    ToolTipService.ToolTip="关闭">
-                    <controls:Icon Size="{StaticResource SizeIconSm}" Data="{StaticResource IconDismiss}" />
-                </Button>
+                <Grid Grid.Row="0">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="40" />
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="40" />
+                    </Grid.ColumnDefinitions>
 
-                <controls:PillTabBar
-                    Grid.Row="0"
-                    HorizontalAlignment="Center"
-                    ItemsSource="{x:Bind ViewModel.LoginMethods}"
-                    MinItemWidth="128"
-                    SelectedIndex="{x:Bind ViewModel.SelectedMethod, Mode=TwoWay}" />
+                    <!--
+                        MinItemWidth 让两个页签等宽（默认是按内容自适应，那样很窄）。
+                        HorizontalAlignment=Center 居中整条 —— 它管不了单个页签的宽度，
+                        所以两者要一起用。
+                    -->
+                    <controls:PillTabBar
+                        Grid.Column="1"
+                        HorizontalAlignment="Center"
+                        ItemsSource="{x:Bind ViewModel.LoginMethods}"
+                        MinItemWidth="128"
+                        SelectedIndex="{x:Bind ViewModel.SelectedMethod, Mode=TwoWay}" />
+
+                    <Button
+                        Grid.Column="2"
+                        Width="28"
+                        Height="28"
+                        MinWidth="0"
+                        MinHeight="0"
+                        Padding="0"
+                        HorizontalAlignment="Right"
+                        VerticalAlignment="Top"
+                        Background="Transparent"
+                        BorderThickness="0"
+                        Click="OnCloseClick"
+                        ToolTipService.ToolTip="关闭">
+                        <controls:Icon Size="{StaticResource SizeIconSm}" Data="{StaticResource IconDismiss}" />
+                    </Button>
+                </Grid>
 
                 <!--
                     两个面板占同一行、只切可见性：隐藏的那个不参与测量，
@@ -83,7 +91,7 @@
 
                     <TextBlock
                         Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                        Text="用波点 App 扫描下方二维码。项目为非官方第三方客户端，建议用小号。"
+                        Text="用波点 App 扫描下方二维码。不登录也能搜索、浏览；登录后才能播放与同步歌单。"
                         TextWrapping="Wrap" />
 
                     <Border
@@ -102,7 +110,9 @@
                             <ProgressRing
                                 Width="32"
                                 Height="32"
-                                IsActive="{x:Bind ViewModel.IsWaiting, Mode=OneWay}" />
+                                Foreground="{ThemeResource AccentFillColorDefaultBrush}"
+                                IsActive="{x:Bind ViewModel.IsWaiting, Mode=OneWay}"
+                                Visibility="{x:Bind local:Formats.Visible(ViewModel.IsWaiting), Mode=OneWay}" />
                         </Grid>
                     </Border>
 
@@ -138,7 +148,7 @@
 
                     <TextBlock
                         Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                        Text="用手机号接收短信验证码登录。项目为非官方第三方客户端，建议用小号。"
+                        Text="用手机号接收短信验证码登录。不登录也能搜索、浏览；登录后才能播放与同步歌单。"
                         TextWrapping="Wrap" />
 
                     <!--
@@ -190,18 +200,6 @@
                         Style="{StaticResource AccentButtonStyle}" />
                 </Grid>
 
-                <!--
-                    「关闭」是个中性词，所以这里要把「关掉之后还能用」说清楚 ——
-                    否则用户会以为关了就没事可做了，而那正是这枚按钮存在的理由。
-                -->
-                <TextBlock
-                    Grid.Row="2"
-                    HorizontalAlignment="Center"
-                    FontSize="11"
-                    Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                    Text="不登录也能搜索、浏览；登录后才能播放与同步歌单。"
-                    TextAlignment="Center"
-                    TextWrapping="Wrap" />
             </Grid>
         </ContentDialog>
     </Grid>

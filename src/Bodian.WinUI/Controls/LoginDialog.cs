@@ -1,3 +1,4 @@
+using System.Runtime.InteropServices.WindowsRuntime;
 using Bodian.WinUI.ViewModels;
 using Microsoft.UI.Xaml;
 
@@ -36,6 +37,10 @@ internal static class LoginDialog
 
         // 不设标题：页签本身就是标题，再加一行「登录」是重复的。见 AppDialogs.Create 的说明。
         var dialog = AppDialogs.Create(title: null, xamlRoot, theme, maxWidth: MaxWidth);
+
+        // 两个 128 DIP 的页签 + 右侧关闭按钮 + 两侧留白：400 是放得下且不挤的下限。
+        // AppDialogs 默认给 320，这里必须覆盖，否则关闭按钮会和右侧页签贴在一起。
+        dialog.Resources["ContentDialogMinWidth"] = 400d;
         dialog.Content = content;
 
         void RequestClose() => dialog.Hide();
@@ -47,15 +52,30 @@ internal static class LoginDialog
         content.CloseRequested += (_, _) => RequestClose();
         viewModel.LoggedIn += OnLoggedIn;
 
+        // 内容还没进可视树时就开始取码，QrImage 会在图还没布局时被赋值；
+        // 界面要等下一次可见性变化（例如切到手机号再切回来）才重画，表现为「码出不来」。
+        // 所以等内容 Loaded 之后再 Activate。
+        var loaded = new TaskCompletionSource<bool>();
+        void OnContentLoaded(object sender, RoutedEventArgs e) => loaded.TrySetResult(true);
+        content.Loaded += OnContentLoaded;
+
         try
         {
             // 先显示再取码：取码失败时用户至少看得见那个框和它的状态行。
-            // 不 await —— 轮询最长 5 分钟，等它等于永远不放框。
-            _ = viewModel.ActivateAsync();
-            await dialog.ShowAsync();
+            // 不 await 轮询 —— 它最长 5 分钟，等它等于永远不放框。
+            var dialogOperation = dialog.ShowAsync().AsTask();
+            var first = await Task.WhenAny(loaded.Task, dialogOperation);
+
+            if (first == loaded.Task)
+            {
+                _ = viewModel.ActivateAsync();
+            }
+
+            await dialogOperation;
         }
         finally
         {
+            content.Loaded -= OnContentLoaded;
             viewModel.LoggedIn -= OnLoggedIn;
             viewModel.Deactivate();
         }

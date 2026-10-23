@@ -73,6 +73,16 @@ LoginPage（一个居中 ContentDialog，顶部 PillTabBar 两个页签）
 所以 `DescribeOutcome` **返回文字而不是直接写属性**：它只负责分派与副作用（成功时触发
 `LoggedIn`），写给哪一条由调用方决定。
 
+### 首次取码要等内容 Loaded
+
+`LoginDialog` 先 `ShowAsync`、等 `LoginDialogContent.Loaded` 之后再 `ActivateAsync`。
+反过来的话，`QrImage` 会在 `Image` 还没进可视树时赋值，图已经生成但界面不重画，
+要等切一次页签触发可见性变化才显示出来 —— 表现为「二维码加载很慢 / 出不来」。
+
+`ActivateAsync` **不能因为当前已登录就跳过取码**。登录框也承担「添加账号」：已登录时打开它，
+仍要显示一张可扫的码；若在这里直接触发 `LoggedIn`，刚显示的对话框会被立刻关掉，
+看起来就是「点开就闪退」。
+
 ### 线程亲和性
 
 `LoginViewModel` 里所有 `await` 都不加 `ConfigureAwait(false)`。这些属性被 `x:Bind` 绑着，

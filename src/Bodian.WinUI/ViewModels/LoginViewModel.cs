@@ -166,17 +166,15 @@ public sealed partial class LoginViewModel : ObservableObject
 
     // ── 生命周期 ────────────────────────────────────────────────────────────
 
-    /// <summary>页面加载时调用。已经登录过就直接放行，不打扰用户。</summary>
-    public async Task ActivateAsync()
-    {
-        if (_login.IsAuthenticated)
-        {
-            LoggedIn?.Invoke(this, EventArgs.Empty);
-            return;
-        }
-
-        await StartAsync();
-    }
+    /// <summary>
+    /// 页面加载时调用。
+    /// </summary>
+    /// <remarks>
+    /// <b>不要因为「当前已登录」就跳过取码。</b> 登录框也承担「添加账号」：已登录时打开它，
+    /// 仍然要显示一张可扫的码。跳过取码会让二维码一直不出来，而且若在这里直接触发
+    /// <see cref="LoggedIn"/>，刚显示的对话框会被立刻关掉 —— 看起来就是「点开就闪退」。
+    /// </remarks>
+    public Task ActivateAsync() => StartAsync();
 
     /// <summary>页面卸载时调用：两条路径的后台动作都要停。</summary>
     public void Deactivate()
