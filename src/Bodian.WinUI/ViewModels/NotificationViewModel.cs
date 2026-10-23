@@ -48,21 +48,31 @@ public sealed partial class NotificationViewModel : ObservableObject
     private readonly List<NotificationEntry> _pending = [];
     private CancellationTokenSource? _dismissTimer;
 
-    /// <summary>当前显示中的那条；没有时是 <c>null</c>，通知条随之收起。</summary>
+    /// <summary>正在计时的那条；没有时是 <c>null</c>，通知条随之收起。队列与计时只看它。</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsOpen))]
+    public partial NotificationEntry? Current { get; set; }
+
+    /// <summary>
+    /// 通知条上留着的那一条。
+    /// </summary>
+    /// <remarks>
+    /// <b><see cref="Current"/> 清空后不清</b>：收起是淡出动画，期间文案、等级圆点还得在，
+    /// 否则会变成「字先没了、空条再淡出」。下一次通知到达时整体替换。
+    /// </remarks>
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(Message))]
     [NotifyPropertyChangedFor(nameof(Severity))]
     [NotifyPropertyChangedFor(nameof(IsInformational))]
     [NotifyPropertyChangedFor(nameof(IsSuccess))]
     [NotifyPropertyChangedFor(nameof(IsError))]
-    [NotifyPropertyChangedFor(nameof(IsOpen))]
-    public partial NotificationEntry? Current { get; set; }
+    public partial NotificationEntry? Displayed { get; set; }
 
     /// <summary>通知条的文案。空串时不显示。</summary>
-    public string Message => Current?.Message ?? "";
+    public string Message => Displayed?.Message ?? "";
 
     /// <summary>通知条的等级。空着时按中性处理，避免绑定取到 null。</summary>
-    public NoticeSeverity Severity => Current?.Severity ?? NoticeSeverity.Informational;
+    public NoticeSeverity Severity => Displayed?.Severity ?? NoticeSeverity.Informational;
 
     /// <summary>
     /// 等级的三个开关，给通知条上那颗圆点选配色用。
@@ -157,6 +167,9 @@ public sealed partial class NotificationViewModel : ObservableObject
         var timer = new CancellationTokenSource();
         _dismissTimer = timer;
         Current = entry;
+
+        // 界面那份跟着换；Current 清空时它不清，留给收起动画。
+        Displayed = entry;
 
         _ = HideAfterAsync(entry, timer.Token);
     }

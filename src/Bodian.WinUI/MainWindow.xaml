@@ -1435,6 +1435,9 @@
               SizePlayerBar 那个常量，播放条将来改高度，通知条不会跟着错位。
 
             ★ **不铺全屏透明遮罩**（QueueOverlay 那种）：通知条不该吃掉指针事件。
+
+            ★ **显隐不绑 Visibility**：出现是淡入 + 轻微上浮，消失要等淡出播完才能收起，
+              所以初始 Collapsed、由 MainWindow 的 ShowNotificationBarAsync / HideNotificationBarAsync 接管。
         -->
         <Border
             x:Name="NotificationBar"
@@ -1450,7 +1453,7 @@
             BorderThickness="1"
             CornerRadius="{StaticResource RadiusMd}"
             RequestedTheme="{x:Bind Theme.RequestedTheme, Mode=OneWay}"
-            Visibility="{x:Bind local:Formats.Visible(Notifications.IsOpen), Mode=OneWay}">
+            Visibility="Collapsed">
             <Grid ColumnSpacing="8">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="Auto" />

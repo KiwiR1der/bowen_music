@@ -11,6 +11,7 @@ using Bodian.WinUI.ViewModels;
 using Bodian.WinUI.Views;
 using Microsoft.Extensions.Logging;
 using Microsoft.UI;
+using Microsoft.UI.Dispatching;
 using Microsoft.UI.Input;
 using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
@@ -146,6 +147,19 @@ public sealed partial class MainWindow : Window, IPlaylistLibrarySink, IWindowHa
     /// </remarks>
     private bool _dismissTrayMenu;
 
+    /// <summary>通知条当前是否处于显示态（含正在播入场动画）。</summary>
+    private bool _notificationShown;
+
+    /// <summary>
+    /// 通知条的工作序号。
+    /// </summary>
+    /// <remarks>
+    /// 收起要推迟一拍再执行：排队的下一条会在同一次调用里紧跟着把 <c>Current</c> 设回来
+    /// （<see cref="NotificationViewModel.Dismiss"/> → <c>Advance</c>），
+    /// 不并掉这一对，换条时通知条会先淡出再淡入闪一下。
+    /// </remarks>
+    private int _notificationVersion;
+
     /// <summary>系统正在注销或关机。由 <see cref="OnSessionWatchMessage"/> 置位。</summary>
     private bool _sessionEnding;
 
@@ -250,6 +264,10 @@ public sealed partial class MainWindow : Window, IPlaylistLibrarySink, IWindowHa
         Theme = theme;
 
         InitializeComponent();
+
+        // 通知条的显隐由代码播动画，不走 Visibility 绑定（见 ShowNotificationBarAsync / HideNotificationBarAsync）。
+        Notifications.PropertyChanged += OnNotificationChanged;
+
         SearchBox.AddHandler(UIElement.PointerPressedEvent, new PointerEventHandler(OnSearchPointerPressed), true);
         ShellRoot.AddHandler(UIElement.PointerPressedEvent, new PointerEventHandler(OnShellPointerPressed), true);
         ShellRoot.AddHandler(UIElement.KeyDownEvent, new KeyEventHandler(OnShellKeyDown), true);
@@ -2078,10 +2096,101 @@ public sealed partial class MainWindow : Window, IPlaylistLibrarySink, IWindowHa
     /// 通知条的关闭按钮：收起当前这条，队列里排着的紧接着上。
     /// </summary>
     /// <remarks>
-    /// 关掉按钮是自绘的，显隐完全由 <c>Notifications.IsOpen</c> 驱动 ——
+    /// 关掉按钮是自绘的，显隐由 <see cref="OnNotificationChanged"/> 播动画——
     /// 这里只负责通知，不碰界面。
     /// </remarks>
     private void OnNotificationCloseClick(object sender, RoutedEventArgs e) => Notifications.Dismiss();
+
+    /// <summary>通知条浮现的位移：贴着底边轻抬一下即可，不做成大幅滑入。</summary>
+    private const float NotificationFloatDistance = 6;
+
+    /// <summary>
+    /// 通知条浮现 / 收起的时长。
+    /// </summary>
+    /// <remarks>
+    /// 比 <see cref="AppMotion.Quick"/> 慢一档：150 ms 配位移显得急，220 ms 才像“浮”出来。
+    /// </remarks>
+    private static readonly TimeSpan NotificationFloatDuration = TimeSpan.FromMilliseconds(220);
+
+    /// <summary>
+    /// 通知条的出现 / 消失动画。
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <b>不能只绑 <c>Visibility</c></b>：那样收起是瞬间消失；淡出期间还得保持可见，
+    /// 所以显隐由这里接管，元素在 XAML 里初始是 Collapsed。
+    /// </para>
+    /// <para>
+    /// <b>收起推迟一拍</b>：排队里的下一条和当前条的清除发生在同一次调用里，
+    /// 不并掉就变成「淡出 → 淡入」闪一下；推迟之后看到的才是最终状态。
+    /// </para>
+    /// <para>
+    /// 已经在显示时再收到新通知只换文案，不重播入场动画。
+    /// </para>
+    /// </remarks>
+    private void OnNotificationChanged(object? sender, PropertyChangedEventArgs args)
+    {
+        if (args.PropertyName != nameof(NotificationViewModel.Current))
+        {
+            return;
+        }
+
+        var version = ++_notificationVersion;
+        DispatcherQueue.TryEnqueue(DispatcherQueuePriority.Low, () =>
+        {
+            if (version != _notificationVersion)
+            {
+                return;
+            }
+
+            if (Notifications.Current is not null)
+            {
+                _ = ShowNotificationBarAsync();
+            }
+            else
+            {
+                _ = HideNotificationBarAsync();
+            }
+        });
+    }
+
+    private async Task ShowNotificationBarAsync()
+    {
+        if (_notificationShown)
+        {
+            return;
+        }
+
+        _notificationShown = true;
+
+        // 先可见、再由 EnterAsync 把初始透明度和位移设好 —— 两件事在同一帧之前完成，
+        // 不会先露出来再跳。
+        NotificationBar.Visibility = Visibility.Visible;
+        await AppMotion.EnterAsync(NotificationBar, 0, NotificationFloatDistance, NotificationFloatDuration);
+    }
+
+    private async Task HideNotificationBarAsync()
+    {
+        if (!_notificationShown)
+        {
+            return;
+        }
+
+        _notificationShown = false;
+
+        if (!await AppMotion.ExitAsync(NotificationBar, 0, NotificationFloatDistance, NotificationFloatDuration))
+        {
+            // 被新通知打断：入场动画已经由 ShowNotificationBarAsync 接手。
+            _notificationShown = true;
+            return;
+        }
+
+        // 动画结束前又来了新通知时，这里不收起，交给下一次 ShowNotificationBarAsync。
+        if (Notifications.Current is null)
+        {
+            NotificationBar.Visibility = Visibility.Collapsed;
+        }
+    }
 
     /// <summary>
     /// 造一个跟随应用主题、并且收紧了内边距的对话框。
