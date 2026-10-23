@@ -173,7 +173,10 @@
                                     关掉指示条与勾选标记，只留 ListView 自带的**背景高亮**。
                                     色值不覆盖，用系统默认的选中底（两套主题下都合适）。
                                 -->
-                                <Flyout Placement="Top">
+                                <Flyout
+                                    Opened="OnFitFlyoutOpened"
+                                    Opening="OnFitFlyoutOpening"
+                                    Placement="Top">
                                     <Flyout.FlyoutPresenterStyle>
                                         <Style TargetType="FlyoutPresenter">
                                             <Setter Property="MinWidth" Value="0" />
@@ -182,7 +185,10 @@
                                             <Setter Property="CornerRadius" Value="8" />
                                         </Style>
                                     </Flyout.FlyoutPresenterStyle>
-                                    <ListView Width="100" MinWidth="0"
+                                    <ListView
+                                        x:Name="FitList"
+                                        Width="100"
+                                        MinWidth="0"
                                         SelectionMode="Single" IsItemClickEnabled="True"
                                         ItemClick="OnFitOptionClick"
                                         ItemsSource="{x:Bind ViewModel.FitOptions}"
@@ -229,7 +235,10 @@
                                 Label="{x:Bind ViewModel.QualityLabel, Mode=OneWay}"
                                 Quality="{x:Bind ViewModel.Quality, Mode=OneWay}" />
                             <Button.Flyout>
-                                <Flyout Placement="Top">
+                                <Flyout
+                                    Opened="OnQualityFlyoutOpened"
+                                    Opening="OnQualityFlyoutOpening"
+                                    Placement="Top">
                                     <Flyout.FlyoutPresenterStyle>
                                         <Style TargetType="FlyoutPresenter">
                                             <Setter Property="MinWidth" Value="0" />
@@ -238,7 +247,10 @@
                                             <Setter Property="CornerRadius" Value="8" />
                                         </Style>
                                     </Flyout.FlyoutPresenterStyle>
-                                    <StackPanel Width="160" Spacing="2">
+                                    <StackPanel
+                                        x:Name="QualityPanel"
+                                        Width="160"
+                                        Spacing="2">
                                         <TextBlock Text="画质" Margin="10,4,10,4" FontSize="12" FontWeight="SemiBold" />
                                         <ListView MinWidth="0" MaxHeight="160"
                                             SelectionMode="Single" IsItemClickEnabled="True"

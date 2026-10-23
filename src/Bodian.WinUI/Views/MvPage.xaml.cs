@@ -1,5 +1,6 @@
 using System.ComponentModel;
 using Bodian.Core.Models;
+using Bodian.WinUI.Controls;
 using Bodian.WinUI.Services;
 using Bodian.WinUI.ViewModels;
 using Microsoft.Extensions.Logging;
@@ -220,6 +221,19 @@ public sealed partial class MvPage : Page, INavigationAware, IShutdownAware
             SetFitMode(option.Mode);
         }
     }
+
+    // 画面比例与画质两个 Flyout 都开在固定深色的 MV 页上，
+    // 打开时把主题改回主窗口那套，否则应用切浅色后菜单仍是深色。
+    private void OnFitFlyoutOpening(object? sender, object e) => ApplyFlyoutTheme(FitList);
+
+    private void OnFitFlyoutOpened(object? sender, object e) => ApplyFlyoutTheme(FitList);
+
+    private void OnQualityFlyoutOpening(object? sender, object e) => ApplyFlyoutTheme(QualityPanel);
+
+    private void OnQualityFlyoutOpened(object? sender, object e) => ApplyFlyoutTheme(QualityPanel);
+
+    private void ApplyFlyoutTheme(FrameworkElement content)
+        => PopupTheme.Apply(content, _window.ThemeRoot.ActualTheme);
 
     private void SetFitMode(MvFitMode mode)
     {

@@ -614,7 +614,22 @@ public sealed partial class LyricsPage : Page, INavigationAware
 
         // ShowChrome 内部会调 ScheduleChromeHide，而后者见 _moreFlyoutOpen 为真就停表返回。
         ShowChrome();
+
+        // popup 还没建出来时只能先设内容那层；presenter 的底色等 Opened 再补。
+        ApplyFlyoutTheme(MoreMenu);
     }
+
+    private void OnMoreFlyoutOpened(object? sender, object e) => ApplyFlyoutTheme(MoreMenu);
+
+    private void OnQualityFlyoutOpening(object? sender, object e) => ApplyFlyoutTheme(QualityPicker);
+
+    private void OnQualityFlyoutOpened(object? sender, object e) => ApplyFlyoutTheme(QualityPicker);
+
+    /// <summary>
+    /// 弹层跟随主窗口主题，而不是继承歌词页固定的深色（评论面板同理，见 <see cref="SyncCommentsTheme"/>）。
+    /// </summary>
+    private void ApplyFlyoutTheme(FrameworkElement content)
+        => PopupTheme.Apply(content, _window.ThemeRoot.ActualTheme);
 
     private void OnMoreFlyoutClosed(object? sender, object e)
     {

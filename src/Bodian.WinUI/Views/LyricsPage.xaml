@@ -280,6 +280,7 @@
                             <Flyout
                                 x:Name="MoreFlyout"
                                 Closed="OnMoreFlyoutClosed"
+                                Opened="OnMoreFlyoutOpened"
                                 Opening="OnMoreFlyoutOpening"
                                 Placement="Top">
                                 <Flyout.FlyoutPresenterStyle>
@@ -344,7 +345,11 @@
                             Label="{x:Bind Player.QualityLabel, Mode=OneWay}"
                             Quality="{x:Bind Player.CurrentQuality, Mode=OneWay}" />
                         <Button.Flyout>
-                            <Flyout x:Name="QualityFlyout" Placement="Top">
+                            <Flyout
+                                x:Name="QualityFlyout"
+                                Opened="OnQualityFlyoutOpened"
+                                Opening="OnQualityFlyoutOpening"
+                                Placement="Top">
                                 <Flyout.FlyoutPresenterStyle>
                                     <Style TargetType="FlyoutPresenter">
                                         <Setter Property="MinWidth" Value="0" />
@@ -353,7 +358,10 @@
                                         <Setter Property="CornerRadius" Value="8" />
                                     </Style>
                                 </Flyout.FlyoutPresenterStyle>
-                                <controls:AudioQualityPicker ViewModel="{x:Bind Player}" SelectionRequested="OnQualitySelected" />
+                                <controls:AudioQualityPicker
+                                    x:Name="QualityPicker"
+                                    ViewModel="{x:Bind Player}"
+                                    SelectionRequested="OnQualitySelected" />
                             </Flyout>
                         </Button.Flyout>
                     </Button>

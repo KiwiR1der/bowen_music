@@ -241,6 +241,9 @@ public sealed partial class VolumeButton : UserControl
             return;
         }
 
+        // 弹层是 popup，会继承宿主页（歌词页 / MV 页）的固定深色；这里改回应用主题。
+        PopupTheme.Apply(VolumePopupHost, PopupTheme.CurrentAppTheme);
+
         VolumePopupHost.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
         var origin = IconButton.TransformToVisual(null).TransformPoint(new Point());
         var hostOrigin = TransformToVisual(null).TransformPoint(new Point());

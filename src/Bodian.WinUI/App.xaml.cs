@@ -458,6 +458,10 @@ public partial class App : Application
         // 曲目列表用的是同一个通道拿 PlayerViewModel，见 MainWindow 里的说明。
         Resources["BodianLoggerFactory"] = _host.Services.GetRequiredService<ILoggerFactory>();
 
+        // 主题单例也走同一个通道：音量弹层是 XAML 实例化的控件，拿不到主窗口，
+        // 只能从这里知道应用当前是浅色还是深色，好让 popup 不跟着沉浸页的深色走。
+        Resources["BodianTheme"] = _host.Services.GetRequiredService<ThemeViewModel>();
+
         // ★ 必须排在解析 MainWindow 之前：主窗口一构造，播放队列就已经从盘上读进内存了，
         //   而旧布局的数据这时候还平铺在根目录下 —— 晚一步就什么都读不到（看着像「数据丢了」）。
         //   它自己读 session.dat 定归属，不等会话恢复也能算对。
