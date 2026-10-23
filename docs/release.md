@@ -67,7 +67,7 @@ git push origin v0.1.0
 | --- | --- |
 | 版本号对账 | tag 与 `Directory.Build.props` 必须一致，且形如 `v<主>.<次>.<修订>` |
 | 检查改动记录 | `changes.md` 里必须有该版本的段落，缺了直接失败 |
-| 离线测试 | `dotnet test`，当前 1594 项，**零真实网络请求** |
+| 离线测试 | `dotnet test`，当前 1677 项，**零真实网络请求** |
 | 发布两个变体 | 自包含 + 框架依赖，都带 `-p:DistributionBuild=true` |
 | 校验产物完整性 | 逐个确认 `libmpv-2.dll` / `exe` / `dll` / 图标在位，且没混进 `onnxruntime.dll`、没留 pdb |
 | 打便携 zip | `7z a -tzip -mx=9`，条目落在压缩包根目录（不多一层 `publish\`） |

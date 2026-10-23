@@ -15,6 +15,10 @@
 | `tests/Bodian.Core.Tests/` | xunit.v3，用 `fixtures/` 的真实响应做断言，**零真实网络请求** |
 | `docs/` | 逆向勘查记录与设计方案 |
 | `tools/Bodian.Probe/` | P0 协议探针，一次性控制台工具。**不参与 `Bodian.sln`**，但必须保持可独立构建 |
+| `tools/Bodian.AudioProbe/` | 只读音源审计：核对实际返回的码率、容器与解密结果，不输出账号标识或签名地址 |
+| `tools/Bodian.ImeProbe/` | 输入法对照探针，复核 WinUI 文本框候选框问题；见 [`ime-candidate-window.md`](ime-candidate-window.md) |
+| `tools/Measure-PlayerResources.ps1` | 按进程采样播放期间 CPU 与资源占用 |
+| `tools/Verify-WinUIResources.ps1` | 检查 WinUI 输出目录中的 PRI / 资源完整性 |
 | `tools/mpv/` | libmpv 音频精简构建的工具链锁定与构建脚本 |
 | `libmpv/` | 音频精简版原生库（7.97 MiB）。**已随仓库提供**，克隆后无需额外下载 |
 | `installer/` | NSIS 安装脚本。设计与构建方式见 [`release.md`](release.md) |

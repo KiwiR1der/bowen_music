@@ -81,7 +81,7 @@ public sealed partial class MainWindow : Window, IPlaylistLibrarySink, IWindowHa
     /// 「创建的歌单」这一段的高度下限（标题 + 两行）。
     /// </summary>
     /// <remarks>
-    /// 见 <see cref="SyncPlaylistSectionHeight"/>：窗口压到最小（800×560）时，
+    /// 见 <see cref="SyncPlaylistSectionHeight"/>：窗口压到最小（957×793）时，
     /// 面板里放不下固定项 + 这一段，此时把这一段保到下限，代价是菜单区自己出现滚动条。
     /// 这是唯一的取舍点，改这一个常量就能换。
     /// </remarks>
@@ -2233,7 +2233,7 @@ public sealed partial class MainWindow : Window, IPlaylistLibrarySink, IWindowHa
     /// 会把同一件事再做一遍。
     /// </para>
     /// <para>
-    /// 窗口压到最小（800×560）时剩余空间不够，这时保到 <see cref="MinPlaylistSectionHeight"/>，
+    /// 窗口压到最小（957×793）时剩余空间不够，这时保到 <see cref="MinPlaylistSectionHeight"/>，
     /// 代价是菜单区自己出现滚动条 —— 那种高度下没有既让固定项不滚、又看得见歌单的排法。
     /// </para>
     /// </remarks>

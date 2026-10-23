@@ -32,7 +32,7 @@ if (options.Proxy is { } proxy)      // 生产环境谁也没填，是 null
 
 ## 2. 各条网络路径的实际归属
 
-先分清谁受谁影响，不然「隔离」会做错地方：
+先分清谁受谁影响，不然「隔离」会做错地方。下表是**改动前**的归属：
 
 | 路径 | 网络栈 | 受系统代理影响 | 受 `http_proxy` 环境变量影响 |
 | --- | --- | --- | --- |
@@ -40,6 +40,9 @@ if (options.Proxy is { } proxy)      // 生产环境谁也没填，是 null
 | 封面下载 | 同上（`CoverDiskCache` 复用同一 handler） | **是** | **是** |
 | 更新检查 / 安装包下载 | 同上 | **是** | **是** |
 | 音频流 / MV | libmpv + ffmpeg | **否** | **是** |
+
+改动后：API 与封面固定直连；更新检查与安装包下载走可配置的 `UpdateProxy`（默认直连）；
+音频 / MV 仍只受 `http_proxy` 这类环境变量影响。
 
 关键的一条：**libmpv 那条路与 .NET 无关**。ffmpeg 的 http 协议不读 Windows 的 WinINET 系统设置，
 只认 `http_proxy` / `https_proxy` 环境变量。所以「开了 Clash 的系统代理，音频就跟着绕」这件事
