@@ -63,6 +63,12 @@ public sealed partial class CommentImageViewer : UserControl
         LoadingState.Visibility = ImageUri is null ? Visibility.Collapsed : Visibility.Visible;
         ErrorState.Visibility = Visibility.Collapsed;
         if (ImageUri is not { } uri) return;
+
+        // 在打开的这一刻取焦点来源：鼠标点开的原图不画焦点框；键盘打开时保留，方便继续用 Tab。
+        var focusState = FocusManager.GetFocusedElement(XamlRoot) is Control { FocusState: FocusState.Keyboard }
+            ? FocusState.Keyboard
+            : FocusState.Programmatic;
+
         DispatcherQueue.TryEnqueue(() =>
         {
             if (generation != _loadGeneration || ImageUri != uri) return;
@@ -71,7 +77,7 @@ public sealed partial class CommentImageViewer : UserControl
                 * (XamlRoot?.RasterizationScale ?? 1) * ImageViewportState.MaxZoom), 1024, 4096);
             _bitmap = new BitmapImage { DecodePixelWidth = pixels, UriSource = uri };
             FullImage.Source = _bitmap;
-            ImageCloseButton.Focus(FocusState.Keyboard);
+            ImageCloseButton.Focus(focusState);
         });
     }
 

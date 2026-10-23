@@ -545,9 +545,11 @@ public sealed partial class LyricsPage : Page, INavigationAware
         slide.InsertKeyFrame(1, 0);
         slide.Duration = TimeSpan.FromMilliseconds(220);
         visual.StartAnimation("Translation.X", slide);
+        // 在点击这一刻取焦点来源：等下一拍时焦点可能已经被面板内部接管。
+        var focusState = CurrentFocusVisualState;
         DispatcherQueue.TryEnqueue(() =>
         {
-            if (Comments.IsOpen) _commentsPanel.FocusCloseButton();
+            if (Comments.IsOpen) _commentsPanel.FocusCloseButton(focusState);
         });
         await loading;
     }
@@ -572,8 +574,20 @@ public sealed partial class LyricsPage : Page, INavigationAware
     private void OnImageCloseRequested(object? sender, EventArgs args)
     {
         Comments.CloseImage();
-        _commentsPanel.FocusCloseButton();
+        _commentsPanel.FocusCloseButton(CurrentFocusVisualState);
     }
+
+    /// <summary>
+    /// 移焦点的同时要不要画焦点框：当前交互来自键盘才画。
+    /// </summary>
+    /// <remarks>
+    /// 鼠标点击后用 <see cref="FocusState.Keyboard"/> 移焦点，按钮上会留下一圈白边
+    /// （关闭评论区那颗最明显）。Programmatic 同样转移焦点，只是不画框。
+    /// </remarks>
+    private FocusState CurrentFocusVisualState =>
+        FocusManager.GetFocusedElement(XamlRoot) is Control { FocusState: FocusState.Keyboard }
+            ? FocusState.Keyboard
+            : FocusState.Programmatic;
 
     private void OnBackClick(object sender, RoutedEventArgs args) => _window.GoBack();
 

@@ -20,7 +20,15 @@ public sealed partial class SongCommentsPanel : UserControl
     public SongCommentsViewModel ViewModel { get; }
     public event EventHandler? CloseRequested;
 
-    public void FocusCloseButton() => CloseButton.Focus(FocusState.Keyboard);
+    /// <summary>
+    /// 把焦点移到关闭按钮。
+    /// </summary>
+    /// <remarks>
+    /// <b>默认 Programmatic</b>：焦点框是给键盘用户的，鼠标点击之后也用 Keyboard 移焦点，
+    /// 关闭按钮上会留下一圈白边，看着像选中态没清掉。键盘路径由调用方显式传 Keyboard。
+    /// </remarks>
+    public void FocusCloseButton(FocusState focusState = FocusState.Programmatic)
+        => CloseButton.Focus(focusState);
     private void OnCloseClick(object sender, RoutedEventArgs args) => CloseRequested?.Invoke(this, EventArgs.Empty);
 
     /// <summary>
