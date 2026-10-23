@@ -39,6 +39,10 @@ internal sealed class LyricsRenderer(LyricsRenderSettings settings, ILogger<Lyri
     private CanvasLinearGradientBrush? _edgeBrush;
     private Color _played = Color.FromArgb(242, 255, 255, 255);
     private Color _unplayed = Color.FromArgb(80, 255, 255, 255);
+    // 选中底与侧栏一致：SelectionPillBrush 深色值 #1AFFFFFF + ControlCornerRadius 6。
+    // 歌词页固定 RequestedTheme="Dark"，所以只用深色那一档。
+    private static readonly Color SelectionPillColor = Color.FromArgb(0x1A, 255, 255, 255);
+    private const float SelectionPillCornerRadius = 6;
     public int CurrentIndex { get; private set; } = -1;
     public bool IsBrowsing => _browseTarget.HasValue;
 
@@ -176,7 +180,8 @@ internal sealed class LyricsRenderer(LyricsRenderSettings settings, ILogger<Lyri
         _scaleAnimating = false;
         for (var i = 0; i < snapshot.Count; i++)
         {
-            var active = i == _focusIndex && (IsBrowsing || _position >= snapshot.Document.Lines[i].Start);
+            // 浏览时不放大任何行：焦点只归鼠标，行本身不再承担强调。
+            var active = !IsBrowsing && i == current && _position >= snapshot.Document.Lines[i].Start;
             var scaleTarget = active ? settings.CurrentLineScale : settings.InactiveLineScale;
             var previousScale = _scales[i];
             (_scales[i], _scaleVelocities[i]) = LyricMotionMath.AdvanceSpring(
@@ -225,12 +230,11 @@ internal sealed class LyricsRenderer(LyricsRenderSettings settings, ILogger<Lyri
                 var center = new Vector2(0, (float)(top + line.Height / 2));
                 session.Transform = Matrix3x2.CreateTranslation(8, (float)top)
                     * Matrix3x2.CreateScale((float)_scales[index], center) * previousTransform;
-                if ((IsBrowsing && index == _focusIndex) || (index == hovered && !active))
-                {
-                    line.FocusedImage ??= line.GlyphMask!.Paint(_played);
-                    session.DrawImage(line.FocusedImage, (float)line.GlyphMask!.Bounds.X, (float)line.GlyphMask.Bounds.Y);
-                }
-                else if (active && !IsBrowsing)
+                // 选中底只跟鼠标：浏览时没有固定焦点，划过哪行哪行才有底。
+                // 非浏览时播放行本身有扫色，不再叠底；浏览时播放行同样按普通行处理。
+                var selected = index == hovered && (!active || IsBrowsing);
+                if (selected) DrawSelectionPill(session, line);
+                if (active && !IsBrowsing)
                 {
                     DrawActiveLine(session, snapshot, index);
                 }
@@ -247,6 +251,15 @@ internal sealed class LyricsRenderer(LyricsRenderSettings settings, ILogger<Lyri
             }
             session.Transform = previousTransform;
         }
+    }
+
+    /// <summary>整行铺底：横向占满歌词列，纵向覆盖行高加半个行距。</summary>
+    private void DrawSelectionPill(CanvasDrawingSession session, LyricsLineLayout line)
+    {
+        // 局部 x=-8 抵消绘制文字时的 8px 平移，底块左缘与歌词列对齐，右缘铺到底。
+        session.FillRoundedRectangle(
+            new Rect(-8, -settings.LineGap / 2, (float)_width, line.Height + settings.LineGap),
+            SelectionPillCornerRadius, SelectionPillCornerRadius, SelectionPillColor);
     }
 
     private void EnsurePlainImage(LyricsLineLayout line)

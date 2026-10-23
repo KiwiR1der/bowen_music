@@ -100,7 +100,6 @@ internal sealed class LyricsLineLayout : IDisposable
     public LyricsGlyph[] Glyphs { get; set; } = [];
     public bool GlyphsPrepared { get; set; }
     public CanvasRenderTarget? PlainImage { get; set; }
-    public CanvasRenderTarget? FocusedImage { get; set; }
     public LyricsLineGlyphMask? GlyphMask { get; set; }
     public GaussianBlurEffect? Blur { get; set; }
     public float BlurAmount { get; set; }
@@ -127,10 +126,9 @@ internal sealed class LyricsLineLayout : IDisposable
         ReleaseActiveResources();
         Blur?.Dispose();
         PlainImage?.Dispose();
-        FocusedImage?.Dispose();
         GlyphMask?.Dispose();
         Blur = null;
-        PlainImage = FocusedImage = null;
+        PlainImage = null;
         GlyphMask = null;
     }
 
