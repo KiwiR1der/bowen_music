@@ -98,6 +98,7 @@ public sealed partial class MvViewModel : ObservableObject, IDisposable, IVolume
     private readonly Playback.VolumeState _volumeState = new();
 
     private readonly ILogger<MvViewModel> _logger;
+    private readonly DispatcherQueue _dispatcher;
     private readonly DispatcherQueueTimer _positionTimer;
 
     /// <summary>
@@ -105,6 +106,9 @@ public sealed partial class MvViewModel : ObservableObject, IDisposable, IVolume
     /// 换档续播要等它，见 <see cref="Poll"/>。
     /// </summary>
     private volatile bool _sourceOpened;
+
+    /// <summary>首次装源后还在等 <c>MediaOpened</c>；加载浮层要留到这一刻。</summary>
+    private volatile bool _awaitingInitialOpen;
 
     /// <summary>这一页在放哪首歌。<b>换画质要按它重新取直链</b>；0 表示还没进过。</summary>
     private long _musicId;
@@ -145,10 +149,13 @@ public sealed partial class MvViewModel : ObservableObject, IDisposable, IVolume
         _audio = audio;
         _logger = logger ?? NullLogger<MvViewModel>.Instance;
 
-        Player = NewPlayer();
-        Player.MediaOpened += (_, _) => _sourceOpened = true;
+        _dispatcher = DispatcherQueue.GetForCurrentThread()
+            ?? throw new InvalidOperationException("MvViewModel 必须在 UI 线程上构造。");
 
-        _positionTimer = DispatcherQueue.GetForCurrentThread().CreateTimer();
+        Player = NewPlayer();
+        Player.MediaOpened += OnInitialMediaOpened;
+
+        _positionTimer = _dispatcher.CreateTimer();
         _positionTimer.Interval = TimeSpan.FromMilliseconds(PositionPollMilliseconds);
         _positionTimer.IsRepeating = true;
         _positionTimer.Tick += OnPositionTick;
@@ -185,15 +192,31 @@ public sealed partial class MvViewModel : ObservableObject, IDisposable, IVolume
     [ObservableProperty]
     public partial bool HasSource { get; set; }
 
+    /// <summary>正在取直链或首次打开视频源。</summary>
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsLoading))]
+    [NotifyPropertyChangedFor(nameof(ShowStatusOverlay))]
     public partial bool IsBusy { get; set; }
+
+    /// <summary>播放器正在缓冲。大 MV 首次加载与拖动进度后都可能进入这个状态。</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsLoading))]
+    [NotifyPropertyChangedFor(nameof(ShowStatusOverlay))]
+    public partial bool IsBuffering { get; set; }
+
+    /// <summary>要不要在画面上转加载圈。</summary>
+    public bool IsLoading => IsBusy || IsBuffering;
 
     /// <summary>加载中 / 失败时盖在画面上的一句话。空串表示不显示。</summary>
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(HasStatus))]
+    [NotifyPropertyChangedFor(nameof(ShowStatusOverlay))]
     public partial string StatusText { get; set; } = "";
 
     public bool HasStatus => StatusText.Length > 0;
+
+    /// <summary>加载圈或状态文案任一存在时显示浮层。</summary>
+    public bool ShowStatusOverlay => HasStatus || IsLoading;
 
     /// <summary>状态文案是不是一个错误。用来决定它的颜色与要不要给重试入口。</summary>
     [ObservableProperty]
@@ -366,9 +389,12 @@ public sealed partial class MvViewModel : ObservableObject, IDisposable, IVolume
                 // 「这首歌没有 MV」与「请求出错」是两回事：前者不该给重试入口。
                 StatusIsError = false;
                 StatusText = "这首歌没有 MV。";
+                IsBusy = false;
                 return false;
             }
 
+            // 装源成功只是「开始打开」，大文件此时还在缓冲。浮层留到 MediaOpened 再收。
+            _awaitingInitialOpen = true;
             Install(mv);
             return true;
         }
@@ -383,13 +409,19 @@ public sealed partial class MvViewModel : ObservableObject, IDisposable, IVolume
         catch (Exception ex)
         {
             _logger.LogWarning(ex, "曲目 {MusicId} 的 MV 加载失败", track.Id);
+            _awaitingInitialOpen = false;
             StatusIsError = true;
             StatusText = "MV 加载失败，请稍后再试。";
+            IsBusy = false;
             return false;
         }
         finally
         {
-            IsBusy = false;
+            // 成功装源时保持忙碌，等 MediaOpened；失败 / 无 MV 的几条分支已经各自关掉了。
+            if (!_awaitingInitialOpen)
+            {
+                IsBusy = false;
+            }
         }
     }
 
@@ -409,6 +441,33 @@ public sealed partial class MvViewModel : ObservableObject, IDisposable, IVolume
         return player;
     }
 
+    /// <summary>首次装源打开成功：收掉加载浮层。</summary>
+    /// <remarks>
+    /// <c>MediaOpened</c> 在后台线程触发，属性改动要 marshal 回 UI 线程。
+    /// 换档的备用播放器不走这里 —— 它在 <see cref="PrepareAsync"/> 里另有标志，扶正时由 <see cref="Promote"/> 收尾。
+    /// </remarks>
+    private void OnInitialMediaOpened(MediaPlayer sender, object args)
+    {
+        _sourceOpened = true;
+
+        if (!_awaitingInitialOpen)
+        {
+            return;
+        }
+
+        _awaitingInitialOpen = false;
+        Post(() =>
+        {
+            if (_disposed)
+            {
+                return;
+            }
+
+            IsBusy = false;
+            StatusText = "";
+        });
+    }
+
     /// <summary>
     /// 源没打开。<b>这是「换档后黑屏 + 进度 0」最可能的落点，所以必须留痕。</b>
     /// </summary>
@@ -423,6 +482,38 @@ public sealed partial class MvViewModel : ObservableObject, IDisposable, IVolume
             "MV 源加载失败：{Error}（HRESULT 0x{Code:X8}）{Message}",
             args.Error, args.ExtendedErrorCode.HResult, args.ErrorMessage);
 
+        // 备用播放器的失败由 PrepareAsync 的闭包处理，不要把错误盖到正在放的画面上。
+        if (!ReferenceEquals(sender, Player) || _disposed)
+        {
+            return;
+        }
+
+        _awaitingInitialOpen = false;
+        _sourceOpened = false;
+        Post(() =>
+        {
+            if (_disposed)
+            {
+                return;
+            }
+
+            IsBusy = false;
+            IsBuffering = false;
+            StatusIsError = true;
+            StatusText = "MV 加载失败，请稍后再试。";
+        });
+    }
+
+    /// <summary>把后台线程的回调送回 UI 线程；已经在 UI 线程时直接执行。</summary>
+    private void Post(Action action)
+    {
+        if (_dispatcher.HasThreadAccess)
+        {
+            action();
+            return;
+        }
+
+        _dispatcher.TryEnqueue(() => action());
     }
 
     /// <summary>把 MV 装进现役播放器并放起来。<b>只用于首次加载。</b></summary>
@@ -439,9 +530,10 @@ public sealed partial class MvViewModel : ObservableObject, IDisposable, IVolume
         _mv = mv;
         HasSource = true;
         PreviewLimit = mv.PreviewLimit;
+        StatusText = "正在加载 MV…";
+        IsBusy = true;
         Player.Source = MediaSource.CreateFromUri(mv.VideoUrl);
         Player.Volume = Volume;
-        StatusText = "";
         Player.Play();
         _positionTimer.Start();
         IsPlaying = true;
@@ -605,6 +697,8 @@ public sealed partial class MvViewModel : ObservableObject, IDisposable, IVolume
         PreviewLimit = mv.PreviewLimit;
         StatusText = "";
         StatusIsError = false;
+        _awaitingInitialOpen = false;
+        IsBusy = false;
 
         Player = prepared;
 
@@ -731,6 +825,10 @@ public sealed partial class MvViewModel : ObservableObject, IDisposable, IVolume
 
         var session = Player.PlaybackSession;
 
+        // 大 MV 首次打开、拖动进度、网络抖动都会进缓冲态。浮层由这个标志驱动，
+        // 而不是只靠「取直链」那一下 —— 直链早就回来了，画面可能还在等数据。
+        IsBuffering = session.PlaybackState is MediaPlaybackState.Buffering or MediaPlaybackState.Opening;
+
         // 换档之后把位置续回去。
         // ★ **等新源真的开了、而且会话可 seek 了再动** —— 换源后立刻设 Position 会被丢掉：
         //   位置停在 0、画面也出不来。首次加载没有这一步，所以只有换档才踩得到。
@@ -790,6 +888,9 @@ public sealed partial class MvViewModel : ObservableObject, IDisposable, IVolume
             && Environment.TickCount64 - _awaitingOpenSince > SourceOpenTimeoutMs)
         {
             _awaitingOpenSince = 0;
+            _awaitingInitialOpen = false;
+            IsBusy = false;
+            IsBuffering = false;
             _logger.LogWarning("MV 新源 {Timeout}ms 内没有打开，判定这一档加载失败", SourceOpenTimeoutMs);
             StatusIsError = true;
             StatusText = "这一档没能加载出来。点下面的重新加载，或换一档。";

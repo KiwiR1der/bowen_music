@@ -38,17 +38,19 @@
             盖在画面上而不是替代它 —— 失败时黑底比空白页更容易看出「是这里出问题」。
         -->
         <StackPanel x:Name="StatusHost" HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="14"
-            Visibility="{x:Bind local:Formats.Visible(ViewModel.HasStatus), Mode=OneWay}">
+            Visibility="{x:Bind local:Formats.Visible(ViewModel.ShowStatusOverlay), Mode=OneWay}">
             <ProgressRing Width="36" Height="36" Foreground="#CCFFFFFF"
-                IsActive="{x:Bind ViewModel.IsBusy, Mode=OneWay}" />
+                IsActive="{x:Bind ViewModel.IsLoading, Mode=OneWay}" />
             <TextBlock Text="{x:Bind ViewModel.StatusText, Mode=OneWay}" FontSize="14"
-                TextAlignment="Center" MaxWidth="420" TextWrapping="Wrap" Foreground="#CCFFFFFF" />
+                TextAlignment="Center" MaxWidth="420" TextWrapping="Wrap" Foreground="#CCFFFFFF"
+                Visibility="{x:Bind local:Formats.Visible(ViewModel.HasStatus), Mode=OneWay}" />
             <!--
                 重新加载。新源偶发打不开时（换档连切几次会碰到）的恢复入口 ——
                 没有它，那种情况只能退出去再进来。走的是同一个换档流程，会从当前进度续播。
             -->
             <Button Content="重新加载" Command="{x:Bind ViewModel.RetryCommand}"
-                HorizontalAlignment="Center" />
+                HorizontalAlignment="Center"
+                Visibility="{x:Bind local:Formats.Visible(ViewModel.StatusIsError), Mode=OneWay}" />
         </StackPanel>
 
         <Grid>
