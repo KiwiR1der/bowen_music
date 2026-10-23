@@ -15,7 +15,7 @@ namespace Bodian.WinUI.Views;
 /// <b>实现 <see cref="INavigationIdentity"/> 是必须的。</b> 每个歌单详情都是同一个类型，
 /// 按类型判等会让「点第二个歌单」被当成「已经是这个页面」而静默不切换。
 /// </remarks>
-public sealed partial class PlaylistDetailPage : Page, INavigationAware, INavigationIdentity
+public sealed partial class PlaylistDetailPage : Page, INavigationAware, INavigationIdentity, IAccountScopedView
 {
     private readonly IWindowHandleProvider _windowHandles;
 
@@ -40,6 +40,9 @@ public sealed partial class PlaylistDetailPage : Page, INavigationAware, INaviga
 
     /// <summary>曲目列表与收藏态一起拉。</summary>
     public void OnNavigatedTo() => _ = ViewModel.EnsureDetailLoadedAsync();
+
+    /// <summary>只刷新收藏态与归属，不重拉歌单内容。</summary>
+    public Task OnAccountSwitchedAsync() => ViewModel.RefreshAccountStateAsync();
 
     /// <summary>不需要收尾：取曲目是懒加载的，没有常驻订阅要摘。</summary>
     public void OnNavigatedFrom()

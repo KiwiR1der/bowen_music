@@ -140,6 +140,10 @@ public sealed partial class AlbumDetailViewModel : ObservableObject
         await LoadCollectStateAsync(cancellationToken).ConfigureAwait(true);
     }
 
+    /// <summary>换号后只重问收藏态；专辑内容与曲目列表不重拉。</summary>
+    public Task RefreshAccountStateAsync(CancellationToken cancellationToken = default)
+        => LoadCollectStateAsync(cancellationToken);
+
     /// <summary>点播：加到队尾并立即播放它。要整张专辑入队走工具栏的「全部加入播放列表」或页头的「播放全部」。</summary>
     public async Task PlayAsync(Track track)
     {

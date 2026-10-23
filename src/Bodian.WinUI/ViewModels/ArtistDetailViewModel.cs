@@ -145,6 +145,10 @@ public sealed partial class ArtistDetailViewModel : ObservableObject
         await LoadFollowStateAsync(cancellationToken).ConfigureAwait(true);
     }
 
+    /// <summary>换号后只重问关注态；歌手内容与歌曲列表不重拉。</summary>
+    public Task RefreshAccountStateAsync(CancellationToken cancellationToken = default)
+        => LoadFollowStateAsync(cancellationToken);
+
     /// <summary>点播：加到队尾并立即播放它。要一次排进整个列表，走工具栏的「全部加入播放列表」。</summary>
     public async Task PlayAsync(Track track)
     {

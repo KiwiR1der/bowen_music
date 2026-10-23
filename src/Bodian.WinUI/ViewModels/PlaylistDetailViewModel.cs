@@ -233,6 +233,10 @@ public sealed partial class PlaylistDetailViewModel : PlaylistTracksViewModel
         await LoadInfoAsync(cancellationToken).ConfigureAwait(true);
     }
 
+    /// <summary>换号后重取详情里的收藏态与归属；曲目与歌单内容不重拉。</summary>
+    public Task RefreshAccountStateAsync(CancellationToken cancellationToken = default)
+        => LoadInfoAsync(cancellationToken);
+
     /// <summary>
     /// 播放全部。
     /// </summary>

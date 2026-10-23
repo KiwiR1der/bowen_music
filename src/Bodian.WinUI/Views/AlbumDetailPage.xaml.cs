@@ -13,7 +13,7 @@ namespace Bodian.WinUI.Views;
 /// <b>压在栈上的详情页，不是根</b>：从「已购音乐」或「收藏的专辑」点进来时，
 /// 侧栏该继续高亮原来那一项。
 /// </remarks>
-public sealed partial class AlbumDetailPage : Page, INavigationAware
+public sealed partial class AlbumDetailPage : Page, INavigationAware, IAccountScopedView
 {
     private readonly INavigationService _navigation;
     private readonly Func<Artist, ArtistDetailPage> _artistFactory;
@@ -37,6 +37,9 @@ public sealed partial class AlbumDetailPage : Page, INavigationAware
     public AlbumDetailViewModel ViewModel { get; }
 
     public void OnNavigatedTo() => _ = ViewModel.EnsureLoadedAsync();
+
+    /// <summary>只刷新收藏态，不重拉专辑内容。</summary>
+    public Task OnAccountSwitchedAsync() => ViewModel.RefreshAccountStateAsync();
 
     /// <summary>不需要收尾：两次请求都是懒加载的，没有常驻订阅要摘。</summary>
     public void OnNavigatedFrom()

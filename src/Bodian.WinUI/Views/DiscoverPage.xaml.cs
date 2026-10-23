@@ -22,7 +22,7 @@ namespace Bodian.WinUI.Views;
 /// （换成滚动触发之前，那个「加载更多」按钮正是这条逃生通道）。
 /// </para>
 /// </remarks>
-public sealed partial class DiscoverPage : Page, INavigationAware
+public sealed partial class DiscoverPage : Page, INavigationAware, IAccountScopedView
 {
     private readonly PlaybackCoordinator _coordinator;
     private readonly INavigationService _navigation;
@@ -54,6 +54,19 @@ public sealed partial class DiscoverPage : Page, INavigationAware
     public DiscoverViewModel ViewModel { get; }
 
     public void OnNavigatedTo() => _ = ViewModel.EnsureLoadedAsync();
+
+    /// <summary>发现页的模块内容按账号给：换号后重新拉布局和首屏。</summary>
+    /// <remarks>
+    /// 重拉完成后重置一次 <see cref="FeedList"/> 的数据源。虚拟化列表在
+    /// <c>ObservableCollection.Clear()</c> + 重新填充时偶尔会保留旧容器；换号是低频动作，
+    /// 这里用一次显式重置保证屏幕上看到的是新账号的内容。
+    /// </remarks>
+    public async Task OnAccountSwitchedAsync()
+    {
+        await ViewModel.ReloadAsync();
+        FeedList.ItemsSource = null;
+        FeedList.ItemsSource = ViewModel.Rows;
+    }
 
     /// <summary>离开这一页时没有需要摘掉的东西：翻页订阅挂在列表自己身上。</summary>
     public void OnNavigatedFrom()

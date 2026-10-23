@@ -7,7 +7,7 @@ using Windows.Foundation.Collections;
 
 namespace Bodian.WinUI.Views;
 
-public sealed partial class ArtistDetailPage : Page, INavigationAware, INavigationIdentity
+public sealed partial class ArtistDetailPage : Page, INavigationAware, INavigationIdentity, IAccountScopedView
 {
     private readonly INavigationService _navigation;
     private readonly Func<Album, AlbumDetailPage> _albumFactory;
@@ -21,6 +21,9 @@ public sealed partial class ArtistDetailPage : Page, INavigationAware, INavigati
     public ArtistDetailViewModel ViewModel { get; }
     public object NavigationIdentity => ("artist", ViewModel.Artist.Id);
     public void OnNavigatedTo() => _ = ViewModel.EnsureLoadedAsync();
+
+    /// <summary>只刷新关注态，不重拉歌手内容。</summary>
+    public Task OnAccountSwitchedAsync() => ViewModel.RefreshAccountStateAsync();
     public void OnNavigatedFrom() { }
     private void OnTrackInvoked(object? sender, Track track) => _ = ViewModel.PlayAsync(track);
     private void OnAlbumClick(object sender, ItemClickEventArgs e)

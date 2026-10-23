@@ -44,6 +44,9 @@ public sealed partial class DiscoverViewModel : ObservableObject
     private int _consumed;
     private bool _layoutLoaded;
 
+    /// <summary>加载中又来了重载请求（常见于切号）：等当前批次结束再跑，不能直接丢掉。</summary>
+    private bool _reloadPending;
+
     /// <summary>每个标题对应的模块与内容；刷新时就地换掉用。</summary>
     private readonly Dictionary<ListSectionHeader, LoadedModule> _loaded = [];
 
@@ -130,14 +133,22 @@ public sealed partial class DiscoverViewModel : ObservableObject
     }
 
     /// <summary>重新加载：布局也重新拿。</summary>
+    /// <remarks>
+    /// <b>忙的时候不能直接丢掉。</b> 切号通知可能在自动翻页或首屏加载期间到达；直接 return
+    /// 会让发现页停在旧账号的内容上。这里记一个待办，当前批次结束再跑。
+    /// </remarks>
     [RelayCommand]
     public async Task ReloadAsync(CancellationToken cancellationToken = default)
     {
+        _logger.LogInformation("发现页重载请求：IsBusy={IsBusy}，已有 {Count} 个模块", IsBusy, Feeds.Count);
+
         if (IsBusy)
         {
+            _reloadPending = true;
             return;
         }
 
+        _reloadPending = false;
         _layoutLoaded = false;
         _consumed = 0;
         LoadFailed = false;
@@ -146,6 +157,19 @@ public sealed partial class DiscoverViewModel : ObservableObject
         _loaded.Clear();
 
         await LoadLayoutAsync(cancellationToken).ConfigureAwait(true);
+        RunPendingReload();
+    }
+
+    /// <summary>当前批次结束后补跑被推迟的重载。</summary>
+    private void RunPendingReload()
+    {
+        if (!_reloadPending || IsBusy)
+        {
+            return;
+        }
+
+        _reloadPending = false;
+        _ = ReloadAsync();
     }
 
     private async Task LoadLayoutAsync(CancellationToken cancellationToken)
@@ -234,6 +258,7 @@ public sealed partial class DiscoverViewModel : ObservableObject
         finally
         {
             IsBusy = false;
+            RunPendingReload();
         }
     }
 
