@@ -1590,7 +1590,17 @@
                         ★ MaxWidth + 省略号是为了**压住菜单宽度**：菜单按最宽的那一项撑开，
                           曲名一长，下面那些短行右边就空出一大片。限宽之后整颗菜单窄下来。
                     -->
-                    <controls:TrayMenuItem Style="{StaticResource TrayMenuItemStyle}" IsEnabled="False">
+                    <!--
+                        ★ MinHeight 不能省：H.NotifyIcon 的 SecondWindow 模式在每次弹出前
+                          会把所有非分隔项的 Height 强制设成 32（库源码
+                          PrepareSecondWindowContextMenuItem，绕 xaml#7374），两行内容会被裁掉。
+                          Height 是库每次写的，压不过；MinHeight 它不碰，布局上会顶住 Height。
+                          两行（14px 歌名 + 11px 歌手 + 1 间距 + 上下各 6 留白）约 48。
+                    -->
+                    <controls:TrayMenuItem
+                        MinHeight="50"
+                        Style="{StaticResource TrayMenuItemStyle}"
+                        IsEnabled="False">
                         <controls:TrayMenuItem.Body>
                             <Grid Margin="8,6,8,6">
                                 <Grid.ColumnDefinitions>
@@ -1608,13 +1618,23 @@
                                       无限宽，TextBlock 会按自己的需要撑开、把整行顶出去；
                                       * 列才会把剩余宽度**约束**给文字，省略号也才真的生效。
                                 -->
-                                <TextBlock
+                                <StackPanel
                                     Grid.Column="1"
                                     Margin="8,0,0,0"
-                                    Text="{x:Bind Player.NowPlayingText, Mode=OneWay}"
-                                    TextTrimming="CharacterEllipsis"
-                                    VerticalAlignment="Center"
-                                    Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                                    Spacing="1"
+                                    VerticalAlignment="Center">
+                                    <TextBlock
+                                        Text="{x:Bind Player.NowPlayingTitleText, Mode=OneWay}"
+                                        TextTrimming="CharacterEllipsis"
+                                        Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                                    <!-- 歌手单独一行：和歌名挤一行时，两段都要分那 160 的宽度。 -->
+                                    <TextBlock
+                                        FontSize="11"
+                                        Text="{x:Bind Player.NowPlayingArtistText, Mode=OneWay}"
+                                        TextTrimming="CharacterEllipsis"
+                                        Foreground="{ThemeResource TextFillColorTertiaryBrush}"
+                                        Visibility="{x:Bind local:Formats.Visible(Player.HasNowPlayingArtist), Mode=OneWay}" />
+                                </StackPanel>
                             </Grid>
                         </controls:TrayMenuItem.Body>
                     </controls:TrayMenuItem>

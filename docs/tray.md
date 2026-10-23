@@ -89,7 +89,7 @@
 
 ### 5.3 菜单内容与状态同步
 
-顶部显示 `Player.NowPlayingText`；上一首、播放 / 暂停、下一首三个按钮并排放在一个菜单项里。播放 / 暂停始终是一颗按钮，通过 `Formats.PlayPauseIcon(Player.IsPlaying)` 切换图标。
+顶部显示歌名（`Player.NowPlayingTitleText`），歌手在下一行（`Player.NowPlayingArtistText`，没有歌手时整行折叠）；上一首、播放 / 暂停、下一首三个按钮并排放在一个菜单项里。播放 / 暂停始终是一颗按钮，通过 `Formats.PlayPauseIcon(Player.IsPlaying)` 切换图标。
 
 `Controls/TrayMenuItem` 派生自 `MenuFlyoutItem`，只增加一个 `Body` 属性，用自定义模板中的 `ContentPresenter` 显示任意内容。框架原生模板只显示 `Text`，不能直接承载三个并排按钮。
 

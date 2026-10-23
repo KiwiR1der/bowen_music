@@ -170,7 +170,8 @@ public sealed partial class PlayerViewModel : ObservableObject, IVolumeSource
 
     /// <summary>播放条是否该显示。</summary>
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(NowPlayingText))]
+    [NotifyPropertyChangedFor(nameof(NowPlayingTitleText))]
+    [NotifyPropertyChangedFor(nameof(HasNowPlayingArtist))]
     public partial bool HasTrack { get; set; }
 
     /// <summary>当前这首歌有没有 MV。驱动播放条上那颗 MV 按钮的显隐（没有就折叠，不置灰）。</summary>
@@ -188,26 +189,32 @@ public sealed partial class PlayerViewModel : ObservableObject, IVolumeSource
     internal Track? CurrentTrack { get; private set; }
 
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(NowPlayingText))]
+    [NotifyPropertyChangedFor(nameof(NowPlayingTitleText))]
     public partial string Title { get; set; } = "";
 
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(NowPlayingText))]
+    [NotifyPropertyChangedFor(nameof(NowPlayingArtistText))]
+    [NotifyPropertyChangedFor(nameof(HasNowPlayingArtist))]
     public partial string ArtistText { get; set; } = "";
 
     [ObservableProperty]
     public partial string AlbumText { get; set; } = "";
 
     /// <summary>
-    /// 托盘菜单顶部那一行：「歌名 - 歌手」。
+    /// 托盘菜单顶部第一行：歌名。
     /// </summary>
     /// <remarks>
+    /// <b>歌手另起一行</b>：菜单宽度固定在 160，两段挤在一行时歌名要和歌手分宽度，
+    /// 稍微长一点的歌名就被省略号切掉了；分开之后歌名独占整行。
     /// 没有曲目时给一句占位而不是空串 —— 菜单里的空行看起来像渲染坏了。
-    /// 歌手名留空时不补那个连字符，否则会显示成「歌名 - 」。
     /// </remarks>
-    public string NowPlayingText => !HasTrack
-        ? "未在播放"
-        : ArtistText.Length == 0 ? Title : $"{Title} - {ArtistText}";
+    public string NowPlayingTitleText => HasTrack ? Title : "未在播放";
+
+    /// <summary>托盘菜单顶部第二行是否有歌手可显示。</summary>
+    public bool HasNowPlayingArtist => HasTrack && ArtistText.Length > 0;
+
+    /// <summary>托盘菜单顶部第二行：歌手。</summary>
+    public string NowPlayingArtistText => HasNowPlayingArtist ? ArtistText : "";
 
     /// <summary>封面。为 <c>null</c> 时界面显示占位底色。</summary>
     [ObservableProperty]
