@@ -349,16 +349,28 @@
         </Grid>
 
         <!-- ── 介绍 ─────────────────────────────────────────────────────── -->
-        <!-- 实测这份文案是整篇人物生平（周杰伦那条 12466 字符），必须单独滚动 -->
-        <ScrollViewer controls:Motion.TabContent="True"
+        <!--
+            ★ 必须逐行虚拟化，不能把整篇塞进一个 TextBlock。
+              介绍是整篇人物生平（周杰伦那条实测 12466 字符），一个 TextBlock 在每次
+              折叠/展开时都要重新排版整篇（实测首次切过去 565 ms、之后每次多拖一截）。
+              ItemsRepeater + StackLayout 在 ScrollViewer 里只排版视口内的几行。
+              拆分在 ViewModel 的 IntroLines 里做。
+        -->
+        <ScrollViewer
+            controls:Motion.TabContent="True"
             Grid.Row="2"
             Padding="0,0,24,0"
             VerticalScrollBarVisibility="Auto"
             Visibility="{x:Bind local:Formats.Visible(ViewModel.IsIntroTab), Mode=OneWay}">
-            <TextBlock
+            <ItemsRepeater
                 Margin="0,0,0,16"
-                Text="{x:Bind ViewModel.Artist.Description, Mode=OneWay}"
-                TextWrapping="Wrap" />
+                ItemsSource="{x:Bind ViewModel.IntroLines, Mode=OneWay}">
+                <ItemsRepeater.ItemTemplate>
+                    <DataTemplate x:DataType="x:String">
+                        <TextBlock Text="{x:Bind}" TextWrapping="Wrap" />
+                    </DataTemplate>
+                </ItemsRepeater.ItemTemplate>
+            </ItemsRepeater>
         </ScrollViewer>
     </Grid>
 </Page>

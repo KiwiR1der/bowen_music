@@ -83,7 +83,39 @@ public sealed partial class ArtistDetailViewModel : ObservableObject
     [ObservableProperty]
     public partial Artist Artist { get; set; }
 
+    /// <summary>介绍按行拆开的段落，交给虚拟化列表逐段排版。</summary>
+    /// <remarks>
+    /// <b>不要把整篇塞进一个 TextBlock</b>：介绍是整篇人物生平（周杰伦那条实测 12466 字符），
+    /// 整篇放进一个 TextBlock 时，折叠再展开要重新排版全部文字（实测首次切换 565 ms）。
+    /// 拆行后交给虚拟化列表，只有视口内的几行参与排版。
+    /// </remarks>
+    [ObservableProperty]
+    public partial IReadOnlyList<string> IntroLines { get; private set; } = [];
+
     public IReadOnlyList<string> Tabs => TabHeaders;
+
+    partial void OnArtistChanged(Artist value) => IntroLines = SplitIntroLines(value.Description);
+
+    private static IReadOnlyList<string> SplitIntroLines(string description)
+    {
+        if (string.IsNullOrEmpty(description))
+        {
+            return [];
+        }
+
+        var lines = description.ReplaceLineEndings("\n").Split('\n');
+
+        // 空行留一个空格：TextBlock 的空文本量出来高度是 0，会把原来的空行吃掉。
+        for (var index = 0; index < lines.Length; index++)
+        {
+            if (lines[index].Length == 0)
+            {
+                lines[index] = " ";
+            }
+        }
+
+        return lines;
+    }
 
     /// <summary>当前页签的下标，与 <see cref="Tabs"/> 一一对应。</summary>
     [ObservableProperty]
