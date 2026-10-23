@@ -111,24 +111,25 @@
                 Visibility="Collapsed"
                 Background="{ThemeResource CommentPanelBackgroundBrush}"
                 Padding="14,0">
-                <StackPanel
-                    HorizontalAlignment="Center"
+                <!--
+                    歌名与歌手必须放在同一个 TextBlock 里用 Run 排：
+                    两个 TextBlock 并排时各按自己的盒顶对齐，13px 与 11px 的基线会错开。
+                    Run 共享同一条基线；TextAlignment 居中，超长时整行一起截断。
+                -->
+                <TextBlock
+                    HorizontalAlignment="Stretch"
                     VerticalAlignment="Center"
-                    Orientation="Horizontal"
-                    Spacing="10">
-                    <TextBlock
-                        FontSize="13"
-                        FontWeight="SemiBold"
-                        Text="{x:Bind Player.Title, Mode=OneWay}"
-                        TextTrimming="CharacterEllipsis"
-                        TextWrapping="NoWrap" />
-                    <TextBlock
+                    FontSize="13"
+                    TextAlignment="Center"
+                    TextTrimming="CharacterEllipsis"
+                    TextWrapping="NoWrap">
+                    <Run FontWeight="SemiBold" Text="{x:Bind Player.Title, Mode=OneWay}" />
+                    <Run Text="   " />
+                    <Run
                         FontSize="11"
                         Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                        Text="{x:Bind Player.ArtistText, Mode=OneWay}"
-                        TextTrimming="CharacterEllipsis"
-                        TextWrapping="NoWrap" />
-                </StackPanel>
+                        Text="{x:Bind Player.ArtistText, Mode=OneWay}" />
+                </TextBlock>
             </Border>
 
         </Grid>

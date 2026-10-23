@@ -46,6 +46,7 @@
 | --- | --- |
 | 方向 | **永远向下**。与队列面板不同，抽屉不挑方向 |
 | 高度 | 36 DIP。**一行就够**（歌名 + 歌手并排，居中），两行那种块状抽屉在 64 DIP 的横条旁边显得很重 |
+| 基线 | 歌名与歌手必须放在同一个 `TextBlock` 里用 `Run` 排。两个 `TextBlock` 并排时各按自己的盒顶对齐，13px 与 11px 的基线会错开 |
 | 收起 | **鼠标离开立即收起**，不留宽限 —— 它是悬浮时的附加信息，不是常驻面板 |
 | 与队列面板 | 互斥。队列面板开着时不弹抽屉 |
 | 与内容条 | 中间无间隙，连成一块（同 §5） |
@@ -188,9 +189,13 @@ private bool IsActive => IsOpen || IsDesktopLyricsOpen || IsMiniPlayerOpen;
 - 没有记录时落在主屏右下角、距工作区右／下各 24 DIP（桌面歌词用的是底部居中，两者不冲突）。
 - 三个窗口几何（主窗口 / 桌面歌词 / 小窗）各占一个文件，共用会互相覆盖。
 
-✕ 只关小窗，主窗口状态完全不变。▢ 先 `SetForegroundWindow` 抢前台、再隐藏自己 ——
-`SetForegroundWindow` 要求调用进程是前台进程，反过来先隐藏，前台可能落到别的应用上、调用被拒，
-症状是「点了 ▢ 主窗口没起来」。
+✕ 只关小窗，主窗口状态完全不变。▢ 走 `IWindowHandleProvider.ShowMainWindow()`，
+与托盘图标、单实例唤醒共用主窗口自己的显示路径：`AppWindow.Show`、还原最小化、`Activate`，
+然后才隐藏小窗。
+
+**不能只调 `SetForegroundWindow`。** 主窗口关闭到托盘时是 `AppWindow.Hide()`，既不可见也不是最小化，
+只抢前台不会把它带出来，表现就是「点了 ▢ 没反应」。顺序也不能反：先显示主窗口再隐藏小窗，
+否则前台可能落到别的应用上，`SetForegroundWindow` 会被拒。
 
 主窗口关闭即退出应用，小窗一并销毁（`App.xaml.cs` 的 `Closed` 里 Dispose `MiniPlayerWindowHost`）。
 
@@ -212,7 +217,7 @@ private bool IsActive => IsOpen || IsDesktopLyricsOpen || IsMiniPlayerOpen;
 
 依赖方向：`MainWindow → MiniPlayerViewModel`；`MiniPlayerWindow → IWindowHandleProvider + MiniPlayerViewModel`；
 `MiniPlayerWindowHost → MiniPlayerViewModel + Func<MiniPlayerWindow>`。无环 ——
-▢ 拿主窗口句柄走的是 `IWindowHandleProvider` 这个既有细缝，不是注入 `MainWindow` 本体。
+▢ 显示主窗口走的是 `IWindowHandleProvider` 这个既有细缝，不是注入 `MainWindow` 本体。
 
 图标 `IconMiniPlayer` / `IconWindow` 来自 Fluent System Icons（MIT），来源与展示方式见 [`icons.md`](icons.md)。
 

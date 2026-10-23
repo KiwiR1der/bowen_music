@@ -2005,6 +2005,9 @@ public sealed partial class MainWindow : Window, IPlaylistLibrarySink, IWindowHa
     /// <summary>桌面端 WinRT 互操作（选文件等）要拿宿主窗口来初始化。</summary>
     nint IWindowHandleProvider.WindowHandle => WinRT.Interop.WindowNative.GetWindowHandle(this);
 
+    /// <summary>小窗的「回到主界面」走这里，与托盘入口共用同一套显示逻辑。</summary>
+    void IWindowHandleProvider.ShowMainWindow() => ShowMainWindow();
+
     /// <summary>
     /// 新建歌单的输入框：名字 + 一行「设置为隐私歌单」。
     /// </summary>

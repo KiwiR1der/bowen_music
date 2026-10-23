@@ -1057,20 +1057,21 @@ public sealed partial class MiniPlayerWindow : Window
     private void OnCloseClick(object sender, RoutedEventArgs e) => _settings.DismissCommand.Execute(null);
 
     /// <remarks>
-    /// <b>先抢前台再藏自己。</b> <c>SetForegroundWindow</c> 要求调用进程是前台进程 ——
+    /// <para>
+    /// <b>先显示主窗口再藏自己。</b> <c>SetForegroundWindow</c> 要求调用进程是前台进程 ——
     /// 用户刚点了 ▢，前台就是本进程的小窗。反过来先隐藏，前台可能落到别的应用上，
     /// 调用被拒，症状是「点了 ▢ 主窗口没起来」。
+    /// </para>
+    /// <para>
+    /// <b>不能只调 <c>SetForegroundWindow</c>。</b> 主窗口关闭到托盘时是
+    /// <c>AppWindow.Hide()</c>，既不可见也不是最小化；只抢前台不会把它带出来，
+    /// 表现就是这颗按钮「失效」。走 <see cref="IWindowHandleProvider.ShowMainWindow"/>，
+    /// 它会 <c>AppWindow.Show</c>、还原最小化并激活。
+    /// </para>
     /// </remarks>
     private void OnReturnToMainClick(object sender, RoutedEventArgs e)
     {
-        var main = _mainWindow.WindowHandle;
-
-        if (NativeMethods.IsIconic(main))
-        {
-            NativeMethods.ShowWindow(main, NativeMethods.SwRestore);
-        }
-
-        NativeMethods.SetForegroundWindow(main);
+        _mainWindow.ShowMainWindow();
         _settings.DismissCommand.Execute(null);
     }
 
