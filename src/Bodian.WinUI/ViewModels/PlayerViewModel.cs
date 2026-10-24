@@ -40,7 +40,10 @@ public sealed partial class PlayerViewModel : ObservableObject, IVolumeSource
     /// <summary>正在把读盘的值灌进来。<b>只挡落盘，不挡送引擎。</b></summary>
     private bool _loadingVolume;
 
-    private int _coverDecodePixels = 256;
+    /// <summary>播放条封面默认的解码尺寸。</summary>
+    private const int DefaultCoverDecodePixels = 256;
+
+    private int _coverDecodePixels = DefaultCoverDecodePixels;
 
     /// <summary>音量落盘的防抖时长。见 <see cref="OnVolumeChanged"/>。</summary>
     private static readonly TimeSpan VolumeSaveDelay = TimeSpan.FromSeconds(1);
@@ -696,6 +699,15 @@ public sealed partial class PlayerViewModel : ObservableObject, IVolumeSource
     private void OnQueueExhausted(object? sender, EventArgs e)
     {
         IsPlaying = false;
+
+        // 队列被清空之后，这一首放完就没有任何可播的了。播放条若继续挂着它，
+        // 播放键按下去只会空转（协调器没有可重播的队列项），所以整条回到空白态。
+        if (_coordinator.Queue.Count == 0)
+        {
+            ClearCurrentTrack();
+            return;
+        }
+
         _notifications.Show("已经是最后一首了");
     }
 
@@ -724,6 +736,17 @@ public sealed partial class PlayerViewModel : ObservableObject, IVolumeSource
         _coverDecodePixels = pixels;
         CoverImage = CoverImageCache.Get(CurrentCoverUri, pixels);
     }
+
+    /// <summary>
+    /// 把解码档位降回播放条的尺寸，<b>但不动当前这张图</b>。
+    /// </summary>
+    /// <remarks>
+    /// <b>不能在这里重新取图。</b> 歌词页开着的时候用户可能翻过评论、切过页面，
+    /// 那些头像与封面共用 <see cref="Media.CoverImageCache"/>，当前曲目的 256px 封面很容易
+    /// 被挤出去；这时再 <c>Get(256)</c> 会新建一张位图异步解码，播放条封面在解码完成前是空的，
+    /// 表现就是收起歌词时「封面闪一下」。保持现有位图，等下一首切歌时自然会按新档位取图。
+    /// </remarks>
+    internal void ResetCoverDecodePixels() => _coverDecodePixels = DefaultCoverDecodePixels;
 
     private void ApplyTrackDetails(Track track)
     {

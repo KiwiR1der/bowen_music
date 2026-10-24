@@ -2500,6 +2500,11 @@ public sealed partial class MainWindow : Window, IPlaylistLibrarySink, IWindowHa
     public void ExitImmersive()
     {
         _immersiveMotionVersion++;
+
+        // ★ 先收树、再复位视觉状态。退场动画结束时合成层的不透明度已经是 0，
+        //   而 Reset 会立刻把它写回 1；Visibility 的收树要等下一轮布局，
+        //   顺序反过来时中间那一帧会把整页歌词以不透明状态又画出来（收起时「闪一下」）。
+        ImmersiveHost.Visibility = Visibility.Collapsed;
         AppMotion.Reset(ImmersiveHost);
         RestoreNativeCaption();
         // 歌词与 MV 互切时宿主不换、窗口也没离开沉浸态，保留当前全屏状态；
@@ -2508,7 +2513,6 @@ public sealed partial class MainWindow : Window, IPlaylistLibrarySink, IWindowHa
         _immersiveVisible = false;
         _lyricsChromeVisible = true;
         _lyricsTitleBar = null;
-        ImmersiveHost.Visibility = Visibility.Collapsed;
         SetShellSurfaceVisible(true);
 
         // 播放条回来了，通知条也跟着回到「播放条上方」那个位置。

@@ -83,7 +83,7 @@ public sealed class DesktopLyricsCanvasView : Grid, IDisposable
         if (_loaded || _disposed || _resourcesSuspended) return;
         _loaded = true;
         _clock.SetDuration(_engine.Duration);
-        _clock.Sync(_engine.Position, force: true);
+        _clock.Sync(_lyrics.TimelinePosition, force: true);
         _clock.SetPlaying(_engine.State == PlaybackState.Playing);
         _engine.PositionChanged += OnPositionChanged;
         _engine.StateChanged += OnStateChanged;

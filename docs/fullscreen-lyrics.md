@@ -478,3 +478,28 @@ pushkine 的 MIT 实现。单行歌词（含关闭译文、中文歌）的单元
 回归：`LyricTranslationTests`（标记、顺序颠倒、空行成组、三行一组、重复时间戳不误标、
 逐行版不标、中文歌不标、`HasTranslation` 四种情形、剔除后 `Start`/`Duration`/`IndexOfLineAt` 不变）
 与 `LyricsSettingsStoreTests`。
+
+## 恢复态进歌词页：直接定位到续播位置（2026-10-24）
+
+重启后恢复出来的曲目只铺到播放条，引擎里没有加载文件，`IPlaybackService.Position` 是 0。
+此前歌词页、桌面歌词和小窗三个渲染器都直接拿这个 0 去对时钟，进页停在第一句，
+而播放条上的进度明明是上次停下的位置。
+
+现在起点统一取 `LyricsViewModel.TimelinePosition`：引擎处于 `Idle` / `Stopped` 时用
+`PlaybackCoordinator.RestoredState.Position`，真正起播后一律读引擎。三处消费方：
+
+| 消费方 | 位置 |
+| --- | --- |
+| 沉浸歌词页 | `LyricsCanvasView.OnLoaded` 用它 `Sync(force: true)` |
+| 桌面歌词 | `DesktopLyricsCanvasView.OnLoaded` |
+| 小窗歌词行 | `MiniPlayerWindow.ResumeVisualUpdates` |
+
+`LyricsViewModel` 自己的当前行（`CurrentIndex` / `CurrentLineText`）也在 `RefreshAsync` 与
+`SyncDocument` 里改用同一入口，小窗那行不会和主歌词页对不上。
+
+**不自动播放**：进页只是对齐到那一句，按播放仍从保存的位置续播。
+**起播后 `RestoredState` 置空**（`PlaybackCoordinator.StartAsync`），它只表示「还没开播的续播目标」；
+再留着它，放完之后引擎闲置时又会按旧位置对齐。
+
+验收：重启停在约 1:30 → 不点播放直接点封面 → 歌词页居中在 1:30 那一句、进度条也是 1:30；
+桌面歌词 / 小窗同样；按播放从 1:30 续播。

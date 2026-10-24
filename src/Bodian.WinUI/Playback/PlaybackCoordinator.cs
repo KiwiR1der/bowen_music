@@ -197,9 +197,13 @@ public sealed class PlaybackCoordinator : IDisposable
     /// 从磁盘恢复出来的「上次停在这」；换号后是新作用域恢复出来的那一首。没有恢复时为 <c>null</c>。
     /// </summary>
     /// <remarks>
-    /// <b>只给播放条视图模型读</b>：构造时读一次，之后每次 <see cref="ScopeSwitched"/> 再读一次 ——
-    /// 换号时装的这份新状态不该只在下次启动才看见。它存在的唯一理由见那边的应用方法：不把这一首
-    /// 铺到播放条上，播放键就是禁用的，用户没有入口把恢复出来的队列放起来。
+    /// <b>给播放条与歌词视图模型读</b>：播放条在构造时读一次、之后每次 <see cref="ScopeSwitched"/>
+    /// 再读一次 —— 换号时装的这份新状态不该只在下次启动才看见。它存在的唯一理由见那边的应用方法：
+    /// 不把这一首铺到播放条上，播放键就是禁用的，用户没有入口把恢复出来的队列放起来。
+    /// 歌词页则用它给时间轴定起点（引擎闲置时进度就是 0，不认这一位会从第一句开始）。
+    /// <para>
+    /// <b>真正起播后置空</b>（见 <see cref="StartAsync"/>）：那时它只剩一份过期的续播坐标。
+    /// </para>
     /// <para>
     /// <b>刻意保持 internal，且不要出现在 XAML 可见类型的公开属性上。</b> 类型信息生成器会为公开
     /// 属性里的类型生成激活代码，而 <see cref="Track"/> 带 required 成员、生成器造不出实例。
@@ -866,9 +870,12 @@ public sealed class PlaybackCoordinator : IDisposable
 
             // 续播意图到这一刻就用掉了：之后进度一律以引擎为准，不能让恢复时那个旧位置在播放结束、
             // 引擎回到闲置之后又被当成「当前进度」写进快照。
+            // RestoredState 同理 —— 它只表示「还没开播的续播目标」，起播之后就是一份过期坐标，
+            // 留着会让歌词页 / 播放条在引擎闲置时又按它对齐回上次的位置。
             _resumeTrackId = 0;
             _resumePosition = TimeSpan.Zero;
             _lastCheckpoint = TimeSpan.Zero;
+            RestoredState = null;
 
             Started?.Invoke(this, new PlaybackStartedEventArgs(track, policy, source));
             QualityOptionsChanged?.Invoke(this, EventArgs.Empty);

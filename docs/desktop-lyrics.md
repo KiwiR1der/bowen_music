@@ -51,7 +51,7 @@
 
 ## 4. 固定字形与逐字扫色
 
-`DesktopLyricsCanvasView` 创建独立 Win2D 设备和透明 `CompositionDrawingSurface`，`DesktopLyricsRenderLoop` 在后台线程复用歌词页的 `FramePacer(120)` 和 `LyricsPlaybackClock`。歌曲位置通过同一时钟模型从引擎低频上报插值，当前行直接由文档时间轴查询。
+`DesktopLyricsCanvasView` 创建独立 Win2D 设备和透明 `CompositionDrawingSurface`，`DesktopLyricsRenderLoop` 在后台线程复用歌词页的 `FramePacer(120)` 和 `LyricsPlaybackClock`。歌曲位置通过同一时钟模型从引擎低频上报插值，当前行直接由文档时间轴查询。时钟起点取 `LyricsViewModel.TimelinePosition`：引擎闲置时退回恢复出来的续播位置，重启后不点播放也能直接显示上次停下的那一句。
 
 `DesktopLyricsLineRenderer` 将每行字形栅格化一次，缓存固定 alpha 遮罩；逐帧只更新不透明颜色纹理，再通过 `AlphaMaskEffect` 合成字形。扫色使用实际字形宽度和音节时间轴，两端颜色的 alpha 均为 255。长音不做上浮、缩放、抖动或发光变换。
 

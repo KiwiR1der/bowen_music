@@ -111,7 +111,9 @@ public sealed partial class LyricsCanvasView : UserControl
         _loaded = true;
         _broken = false;
         _clock.SetDuration(_engine.Duration);
-        _clock.Sync(_engine.Position, force: true);
+        // 恢复态（重启后还没点播放）引擎里没有文件、Position 是 0；起点取自视图模型，
+        // 它会在引擎闲置时退回上次的续播位置，进页就直接停在对应的那一句。
+        _clock.Sync(_viewModel.TimelinePosition, force: true);
         _clock.SetPlaying(_engine.State == PlaybackState.Playing);
         _engine.PositionChanged += OnPositionChanged;
         _engine.StateChanged += OnStateChanged;

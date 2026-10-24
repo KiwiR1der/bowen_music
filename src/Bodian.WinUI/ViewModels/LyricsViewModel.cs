@@ -73,6 +73,8 @@ public sealed partial class LyricsViewModel : ObservableObject
         _logger = logger ?? NullLogger<LyricsViewModel>.Instance;
 
         _coordinator.Started += OnStarted;
+        _coordinator.ScopeSwitched += OnScopeSwitched;
+        _coordinator.QueueExhausted += OnQueueExhausted;
         _engine.PositionChanged += OnPositionChanged;
 
         // 同步读，和主题一样：歌词页要在第一帧就按选择排好，异步读会先闪一下译文。
@@ -80,7 +82,38 @@ public sealed partial class LyricsViewModel : ObservableObject
         DefaultShowTranslation = settings.Load().Normalized().ShowTranslation;
         ShowTranslation = DefaultShowTranslation;
         _loading = false;
+
+        // 启动时恢复出来的那一首也算「有歌可看」：播放条已经铺好了曲目，
+        // 只是引擎里还没加载文件。此时点封面应当能进歌词页。
+        HasTrack = PlaybackTrack is not null;
     }
+
+    /// <summary>
+    /// 能展示歌词的曲目：真正在播的那首，或启动 / 换号后恢复出来、还没开播的那首。
+    /// </summary>
+    /// <remarks>
+    /// <b>只看 <see cref="PlaybackCoordinator.CurrentTrack"/> 会漏掉恢复态。</b> 那个字段要等
+    /// 引擎加载成功才赋值，而重启后用户不点播放时引擎一直是闲置的 —— 歌词页会误报「还没有在播放的歌曲」。
+    /// </remarks>
+    private Track? PlaybackTrack => _coordinator.CurrentTrack ?? _coordinator.RestoredState?.Track;
+
+    /// <summary>
+    /// 歌词时间轴当前应处的位置。
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <b>引擎里没有加载文件时取恢复出来的续播位置。</b> 重启后不点播放就进歌词页，
+    /// 引擎是闲置的、<c>Position</c> 为 0；只按它来对齐会让歌词停在第一句，
+    /// 而播放条上的进度明明是上次停下的位置。
+    /// </para>
+    /// <para>
+    /// 恢复态一旦真正起播就会被协调器清掉（见 <c>PlaybackCoordinator.StartAsync</c>），
+    /// 之后这里与进度条同源，一律读引擎。
+    /// </para>
+    /// </remarks>
+    public TimeSpan TimelinePosition => _engine.State is PlaybackState.Idle or PlaybackState.Stopped
+        ? _coordinator.RestoredState?.Position ?? TimeSpan.Zero
+        : _engine.Position;
 
     /// <summary>
     /// 默认是否显示译文。<b>只由设置页改写</b>，歌词页那颗按钮动不了它。
@@ -225,7 +258,7 @@ public sealed partial class LyricsViewModel : ObservableObject
     partial void OnDocumentChanged(LyricDocument value) => OnPropertyChanged(nameof(CurrentLineText));
 
     [RelayCommand]
-    private Task RetryAsync() => _coordinator.CurrentTrack is { } track
+    private Task RetryAsync() => PlaybackTrack is { } track
         ? LoadAsync(track)
         : Task.CompletedTask;
 
@@ -301,9 +334,10 @@ public sealed partial class LyricsViewModel : ObservableObject
     /// <summary>打开面板时调用：已装载就只是把高亮对齐，没装载才取词。</summary>
     private async Task RefreshAsync()
     {
-        if (_coordinator.CurrentTrack is not { } track)
+        if (PlaybackTrack is not { } track)
         {
             Clear();
+            HasTrack = false;
             StatusText = "还没有在播放的歌曲";
             return;
         }
@@ -311,7 +345,7 @@ public sealed partial class LyricsViewModel : ObservableObject
         if (_loadedTrackId == track.Id)
         {
             SetCurrent(-1);
-            UpdateCurrentLine(_engine.Position);
+            UpdateCurrentLine(TimelinePosition);
             return;
         }
 
@@ -392,7 +426,7 @@ public sealed partial class LyricsViewModel : ObservableObject
 
         Document = ShowTranslation ? clean : clean.WithoutTranslations();
         CurrentIndex = -1;
-        UpdateCurrentLine(_engine.Position);
+        UpdateCurrentLine(TimelinePosition);
     }
 
     private void Clear()
@@ -418,6 +452,43 @@ public sealed partial class LyricsViewModel : ObservableObject
 
         // 两处都没开就先不取词，把「已装载」作废，等打开时再按当前曲目加载。
         _loadedTrackId = 0;
+    }
+
+    /// <summary>
+    /// 换了账号：恢复出来的那一首跟着换，歌词页开着就重新取词。
+    /// </summary>
+    /// <remarks>
+    /// 新作用域为空时 <see cref="PlaybackTrack"/> 为 <c>null</c>，<see cref="HasTrack"/> 跟着变假，
+    /// 播放条上的封面与桌面歌词按钮才会禁用 —— 它们直接绑这一位。
+    /// </remarks>
+    private void OnScopeSwitched(object? sender, QueueScopeSwitchedEventArgs e)
+    {
+        HasTrack = PlaybackTrack is not null;
+
+        if (IsActive)
+        {
+            _ = RefreshAsync();
+        }
+    }
+
+    /// <summary>
+    /// 队列走到头了。队列已经被清空时把歌词一并收掉。
+    /// </summary>
+    /// <remarks>
+    /// <b>只在队列为空时清。</b> 顺序播放放完最后一首时队列里还有歌，播放条可以按播放整队重来，
+    /// 歌词也该留着；而「清空队列 → 当前这首放完」之后没有任何可播的曲目，
+    /// 播放条会回到空白态（见 <c>PlayerViewModel.OnQueueExhausted</c>），歌词不能还挂着旧的。
+    /// </remarks>
+    private void OnQueueExhausted(object? sender, EventArgs e)
+    {
+        if (_coordinator.Queue.Count > 0 || !HasTrack)
+        {
+            return;
+        }
+
+        HasTrack = false;
+        Clear();
+        StatusText = "还没有在播放的歌曲";
     }
 
     private void OnPositionChanged(object? sender, PlaybackPositionChangedEventArgs e)

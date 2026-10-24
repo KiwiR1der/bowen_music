@@ -296,7 +296,8 @@ public sealed partial class LyricsPage : Page, INavigationAware
         _progressSeeking = _keyboardSeeking = false;
         Player.IsSeeking = false;
         Lyrics.IsOpen = false;
-        Player.SetCoverDecodePixels(256);
+        // 只降档位、不重取图：重取时缓存未命中会让播放条封面空一截（见 PlayerViewModel 的说明）。
+        Player.ResetCoverDecodePixels();
         Bodian.WinUI.Media.CoverImageCache.TrimLargeImages();
         UpdatePause();
         _window.ExitImmersive();

@@ -757,7 +757,7 @@ public sealed partial class MiniPlayerWindow : Window
             _engine.PositionChanged += OnLyricPositionChanged;
         }
         _lyricClock.SetDuration(_engine.Duration);
-        _lyricClock.Sync(_engine.Position, force: true);
+        _lyricClock.Sync(Lyrics.TimelinePosition, force: true);
         _lyricClock.SetPlaying(_engine.State == PlaybackState.Playing);
         UpdateCoverImage();
         UpdateVolumeMuteState();

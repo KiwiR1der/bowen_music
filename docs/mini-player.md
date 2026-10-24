@@ -172,7 +172,7 @@ Win10 上失败是预期内的。
 private bool IsActive => IsOpen || IsDesktopLyricsOpen || IsMiniPlayerOpen;
 ```
 
-歌词显示用 `LyricsPlaybackClock` 在文档时间轴定位当前句。文字放在有裁剪范围的 `Canvas` 中，保持完整自然宽度和 13 DIP 字号：短句居中，长句随音节时间向左滚动，逐行歌词按本行时间推进，换句或跳转重新定位。只有可见且播放中的长句订阅 `CompositionTarget.Rendering`；悬停切换传输按钮、贴边收起、暂停和隐藏都取消逐帧回调。
+歌词显示用 `LyricsPlaybackClock` 在文档时间轴定位当前句；时钟起点取 `LyricsViewModel.TimelinePosition`，恢复态（还没点播放）下第一帧就落在续播位置对应的那一句。文字放在有裁剪范围的 `Canvas` 中，保持完整自然宽度和 13 DIP 字号：短句居中，长句随音节时间向左滚动，逐行歌词按本行时间推进，换句或跳转重新定位。只有可见且播放中的长句订阅 `CompositionTarget.Rendering`；悬停切换传输按钮、贴边收起、暂停和隐藏都取消逐帧回调。
 
 ---
 
