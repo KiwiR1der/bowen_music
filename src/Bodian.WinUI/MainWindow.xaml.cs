@@ -115,7 +115,6 @@ public sealed partial class MainWindow : Window, IPlaylistLibrarySink, IWindowHa
     private bool _playlistsPaneOpen;
     private OverlappedPresenter? _lyricsRestorePresenter;
     private NativeMethods.WindowPlacement _lyricsRestorePlacement;
-    private nint _lyricsRestoreStyle;
     private bool _lyricsFullscreen;
     private bool _closed;
     private FrameworkElement? _lyricsTitleBar;
@@ -2413,7 +2412,8 @@ public sealed partial class MainWindow : Window, IPlaylistLibrarySink, IWindowHa
         SyncOverlayInsets();
 
         ImmersiveHost.Visibility = Visibility.Visible;
-        SetTitleBar(titleBar);
+        // 全屏由系统呈现器接管，窗口没有标题栏；保留页面引用，退出全屏时再挂回去。
+        SetTitleBar(IsLyricsFullscreen ? null : titleBar);
         UpdateCaptionButtonColors();
     }
 
@@ -2450,18 +2450,11 @@ public sealed partial class MainWindow : Window, IPlaylistLibrarySink, IWindowHa
                     throw new Win32Exception(Marshal.GetLastWin32Error(), "无法保存全屏前的窗口位置");
                 _lyricsRestorePresenter = presenter;
                 _lyricsRestorePlacement = placement;
-                _lyricsRestoreStyle = NativeMethods.GetWindowLongPtr(handle, -16);
-                var bounds = DisplayArea.GetFromWindowId(AppWindow.Id, DisplayAreaFallback.Primary).OuterBounds;
                 _lyricsFullscreen = true;
                 SetTitleBar(null);
-                // 一次样式写入 + 一次位置提交，避免逐个 Presenter 属性触发同步窗口变化。
-                var style = _lyricsRestoreStyle;
-                await Task.Run(() =>
-                {
-                    NativeMethods.SetWindowLongPtr(handle, -16, (nint)((long)style & ~(0x00C00000L | 0x00040000L | 0x01000000L)));
-                    if (!NativeMethods.SetWindowPos(handle, 0, bounds.X, bounds.Y, bounds.Width, bounds.Height, 0x0034))
-                        throw new Win32Exception(Marshal.GetLastWin32Error(), "无法进入显示器全屏");
-                });
+                // 用系统自带的 FullScreen 呈现器覆盖整块显示器。手写样式只能改窗口矩形，
+                // 任务栏是置顶窗口，仍会压在上面；呈现器由系统负责隐藏任务栏与边框。
+                AppWindow.SetPresenter(AppWindowPresenterKind.FullScreen);
             }
         }
         finally
@@ -2476,11 +2469,13 @@ public sealed partial class MainWindow : Window, IPlaylistLibrarySink, IWindowHa
     {
         if (_lyricsRestorePresenter is null) return;
         _lyricsFullscreen = false;
-        var handle = WinRT.Interop.WindowNative.GetWindowHandle(this);
-        var style = _lyricsRestoreStyle;
-        var placement = _lyricsRestorePlacement;
-        await Task.Run(() => RestoreLyricsWindow(handle, style, placement));
+        var presenter = _lyricsRestorePresenter;
         _lyricsRestorePresenter = null;
+        // 切回全屏前的 Overlapped 呈现器，再把窗口放回原来的位置与显示状态。
+        AppWindow.SetPresenter(presenter);
+        var handle = WinRT.Interop.WindowNative.GetWindowHandle(this);
+        var placement = _lyricsRestorePlacement;
+        await Task.Run(() => RestoreLyricsWindow(handle, placement));
         if (!_closed) SetTitleBar(_lyricsTitleBar);
     }
 
@@ -2488,18 +2483,17 @@ public sealed partial class MainWindow : Window, IPlaylistLibrarySink, IWindowHa
     {
         if (_lyricsRestorePresenter is null) return;
         _lyricsFullscreen = false;
-        RestoreLyricsWindow(WinRT.Interop.WindowNative.GetWindowHandle(this), _lyricsRestoreStyle, _lyricsRestorePlacement);
+        var presenter = _lyricsRestorePresenter;
         _lyricsRestorePresenter = null;
+        AppWindow.SetPresenter(presenter);
+        RestoreLyricsWindow(WinRT.Interop.WindowNative.GetWindowHandle(this), _lyricsRestorePlacement);
         SetTitleBar(_lyricsTitleBar);
     }
 
-    private static void RestoreLyricsWindow(nint handle, nint style, NativeMethods.WindowPlacement placement)
+    private static void RestoreLyricsWindow(nint handle, NativeMethods.WindowPlacement placement)
     {
-        NativeMethods.SetWindowLongPtr(handle, -16, style);
         if (!NativeMethods.SetWindowPlacement(handle, ref placement))
             throw new Win32Exception(Marshal.GetLastWin32Error(), "无法恢复全屏前的窗口位置");
-        if (!NativeMethods.SetWindowPos(handle, 0, 0, 0, 0, 0, 0x0037))
-            throw new Win32Exception(Marshal.GetLastWin32Error(), "无法恢复窗口边框");
     }
 
     /// <summary>退出沉浸态，恢复外壳。与 <see cref="EnterImmersive"/> 成对。</summary>
@@ -2508,7 +2502,9 @@ public sealed partial class MainWindow : Window, IPlaylistLibrarySink, IWindowHa
         _immersiveMotionVersion++;
         AppMotion.Reset(ImmersiveHost);
         RestoreNativeCaption();
-        RestoreLyricsPresenter();
+        // 歌词与 MV 互切时宿主不换、窗口也没离开沉浸态，保留当前全屏状态；
+        // 只有真正退出沉浸（回到常规页）时才恢复进入全屏前的窗口。
+        if (!_nextImmersiveEntryFromImmersive) RestoreLyricsPresenter();
         _immersiveVisible = false;
         _lyricsChromeVisible = true;
         _lyricsTitleBar = null;

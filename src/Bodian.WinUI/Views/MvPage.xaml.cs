@@ -76,7 +76,8 @@ public sealed partial class MvPage : Page, INavigationAware, IShutdownAware
         _window.RenderingStateChanged += OnWindowRenderingStateChanged;
         UpdateVideoPresentation();
         _viewModel.PauseAudioForVideo();
-        UpdateChromeInsets();
+        // 从歌词页切过来可能仍处于系统全屏：图标、提示与占位都要按当前状态同步。
+        SyncFullscreen();
         _ = _viewModel.LoadAsync(Track);
     }
 
