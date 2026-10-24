@@ -130,6 +130,10 @@ public static class Formats
         return count == 0 ? 0 : count * (RowBadgeWidth + RowBadgeSpacing);
     }
 
+    /// <summary>只有付费角标时的预留宽度（发现页单曲行进 <see cref="BadgeReserve"/>）。</summary>
+    public static double PayBadgeReserve(bool requiresVip, bool requiresPurchase)
+        => BadgeReserve(PayLabelVisibility(requiresVip, requiresPurchase), Visibility.Collapsed);
+
     /// <summary>曲目行角标的估宽。两处模板里的 <c>Padding="6,1"</c> + 字号 11 撑出来就是这个量级。</summary>
     private const double RowBadgeWidth = 36;
 

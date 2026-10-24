@@ -244,27 +244,23 @@
                                         <Image controls:Motion.SharedCoverKey="{x:Bind local:Formats.HomePlaylistCoverKey(Playlist)}" Source="{x:Bind local:Formats.CoverSource(Cover1)}" Stretch="UniformToFill" />
                                     </Border>
 
-                                    <StackPanel Grid.Column="1" VerticalAlignment="Center">
-                                        <!-- 歌名与歌手都单行截断：长名字不能把卡片撑变形。 -->
-                                        <Grid ColumnSpacing="6">
-                                            <Grid.ColumnDefinitions>
-                                                <!--
-                                                    歌名按**自然宽度**占位（上限 180），付费标识才会紧跟着它。
-                                                    用 * 列的话歌名会占满整行，标识被推到行尾。
-                                                -->
-                                                <ColumnDefinition Width="Auto" MaxWidth="180" />
-                                                <ColumnDefinition Width="Auto" />
-                                            </Grid.ColumnDefinitions>
-
+                                    <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="2">
+                                        <!--
+                                            歌名与歌手都单行截断：长名字不能把卡片撑变形。
+                                            歌名 + 角标必须放在横向 StackPanel 里（角标才会紧贴歌名），
+                                            代价是该面板按无限宽度测量、TextTrimming 不生效 ——
+                                            所以歌名要借 TitleClamp 自己带上限，上限取自外层行的星号列。
+                                            角标放截断之后，长歌名不会再把它顶出卡片。
+                                        -->
+                                        <StackPanel Orientation="Horizontal" Spacing="6">
                                             <TextBlock
-                                                Grid.Column="0"
                                                 MaxLines="1"
                                                 Text="{x:Bind Title}"
-                                                TextTrimming="CharacterEllipsis" />
+                                                TextTrimming="CharacterEllipsis"
+                                                controls:TitleClamp.Reserve="{x:Bind local:Formats.PayBadgeReserve(RequiresVip, RequiresPurchase)}" />
 
                                             <!-- 付费标识：让用户在点之前就知道要不要会员。 -->
                                             <Border
-                                                Grid.Column="1"
                                                 Padding="5,0"
                                                 VerticalAlignment="Center"
                                                 Background="{ThemeResource SystemFillColorAttentionBackgroundBrush}"
@@ -274,7 +270,7 @@
                                                     FontSize="{StaticResource FontSizeCaption}"
                                                     Text="{x:Bind local:Formats.PayLabel(RequiresVip, RequiresPurchase)}" />
                                             </Border>
-                                        </Grid>
+                                        </StackPanel>
 
                                         <TextBlock
                                             MaxLines="1"
