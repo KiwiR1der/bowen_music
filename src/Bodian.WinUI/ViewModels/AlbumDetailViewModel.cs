@@ -87,6 +87,7 @@ public sealed partial class AlbumDetailViewModel : ObservableObject
     [NotifyPropertyChangedFor(nameof(CountText))]
     [NotifyPropertyChangedFor(nameof(ArtistDisplayText))]
     [NotifyPropertyChangedFor(nameof(ArtistToolTip))]
+    [NotifyPropertyChangedFor(nameof(HeaderArtistId))]
     public partial Album Album { get; set; }
 
     public PagedList<Track> Tracks { get; }
@@ -134,6 +135,18 @@ public sealed partial class AlbumDetailViewModel : ObservableObject
 
     /// <summary>歌手 id 拿到了才显示头部那个歌手入口。</summary>
     public bool HasArtist => Album.ArtistId > 0 || Album.Artists.Count > 0;
+
+    /// <summary>
+    /// 页头那颗头像对应的歌手 id。单歌手取 <c>artists[]</c> 那一位，多歌手取主歌手。
+    /// </summary>
+    /// <remarks>
+    /// <b>给共享头像动画定位返回落点用。</b> 进入歌手页时把页头头像登记成来源，
+    /// 返回时动画层要求目标元素带同一个 <c>SharedCoverKey</c>，否则会被当成「目标不可见」跳过。
+    /// 单歌手走 <see cref="BuildArtistChoices"/> 返回的就是 <c>artists[0]</c>，两边必须同源。
+    /// </remarks>
+    public long HeaderArtistId => Album.Artists.Count == 1 ? Album.Artists[0].Id
+        : Album.ArtistId > 0 ? Album.ArtistId
+        : 0;
 
     /// <summary>页头那行艺人串。超过两位时压缩成「首位 等 N 人」。</summary>
     public string ArtistDisplayText => Formats.ArtistDisplayText(Album.ArtistText, Album.Artists);

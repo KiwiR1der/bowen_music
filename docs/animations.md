@@ -163,6 +163,15 @@ MV 的“退出 MV”调用 `ExitImmersiveToShell`，使用 `GoBackTo` 跳过栈
 - `dotnet build src/Bodian.WinUI/Bodian.WinUI.csproj --no-restore -v minimal` 成功，0 错误；`dotnet test --project tests/Bodian.Core.Tests/Bodian.Core.Tests.csproj --no-restore`：1594 项通过。`PagedList` 在 WinUI 项目里，没有单测项目覆盖它，改动靠构建与实机验证。
 - 2026-10-14 实机确认：翻过一页之后进歌手详情再返回，列表停在原处、封面缩回原卡片；在详情页取消关注再返回，这一位从列表消失且其余项不跳位、位置不丢。
 
+2026-10-24 专辑页头歌手头像的往返：
+
+- 单歌手直接跳转没有选人弹窗接管共享头像：点击时显式
+  `PrepareFromClick(ArtistAvatar, ArtistCoverKey(id))`，进入动画才成立。
+- 返回落点要求目标元素带**同一个** `SharedCoverKey`：页头 `PersonPicture` 补上
+  `ArtistCoverKey(HeaderArtistId)`。单歌手取 `artists[0].Id`，多歌手取主歌手。
+- 从选人弹窗选了非主歌手时没有返回动画：页头显示的不是同一个人，硬飞回去会指错人。
+- 用户实机确认：单歌手进入与返回、多歌手选主歌手往返均正常。
+
 2026-10-24 截断文字悬停滚动：
 
 - `Controls/MarqueeText`：文字始终按自然宽度排布，固定裁剪窗口负责截断；静止态在右侧留 14 DIP 画「…」，

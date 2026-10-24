@@ -77,8 +77,10 @@
                     Visibility="{x:Bind local:Formats.Visible(ViewModel.HasArtist), Mode=OneWay}">
                     <StackPanel Orientation="Horizontal" Spacing="8">
                         <PersonPicture
+                            x:Name="ArtistAvatar"
                             Width="28"
                             Height="28"
+                            controls:Motion.SharedCoverKey="{x:Bind local:Formats.ArtistCoverKey(ViewModel.HeaderArtistId), Mode=OneWay}"
                             DisplayName="{x:Bind ViewModel.Album.ArtistText, Mode=OneWay}"
                             ProfilePicture="{x:Bind local:Formats.CoverSource(ViewModel.Album.ArtistCover), Mode=OneWay}" />
                         <TextBlock

@@ -105,6 +105,9 @@ public sealed partial class AlbumDetailPage : Page, INavigationAware, IAccountSc
 
         if (artists.Count == 1 && artists[0].IsAvailable)
         {
+            // 单歌手直接跳，没有选择框来接管共享头像：把页头这颗头像显式交给动画层，
+            // 否则只有多歌手 → 选人弹窗那条路有头像飞入。
+            CoverTransitionAnimator.PrepareFromClick(ArtistAvatar, Formats.ArtistCoverKey(artists[0].Id));
             NavigateTo(artists[0]);
             return;
         }
