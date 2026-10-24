@@ -49,6 +49,11 @@ public sealed partial class LyricsPage : Page, INavigationAware
     private bool _progressSeeking;
     private bool _keyboardSeeking;
     private bool _chromeVisible = true;
+    private readonly List<DispatcherQueueTimer> _entranceTimers = [];
+    private int _entranceVersion;
+    private bool _entranceActive;
+    private Brush? _coverFrameBackground;
+    private float _reflectionOpacity;
     private bool _pointerOverChrome;
     private bool _volumePopupOpen;
     private bool _moreFlyoutOpen;
@@ -171,10 +176,104 @@ public sealed partial class LyricsPage : Page, INavigationAware
         SyncTranslation();
         _pointerTimer.Start();
         UpdatePointerLocation();
+        BeginCoverEntrance();
+    }
+
+    /// <summary>
+    /// 从播放条进入时按封面飞行的节奏分层展开：封面先走，顶栏、控件、歌词依次淡入。
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// 参考 LyciaMusic（AMLL 详情页）：页面内容不能整块先出现，否则看起来是「页面展开后封面才飞进来」。
+    /// 三个时间点取封面飞行 520 ms 的 45% / 60% / 80%，每层再各用 400 ms 淡入并轻微上移。
+    /// </para>
+    /// <para>
+    /// 封面落位前清掉空槽底色并藏起倒影，画面里只留正在放大的封面。
+    /// 普通进入（没有共享封面）不执行这套，整页按原有过渡淡入。
+    /// </para>
+    /// </remarks>
+    private void BeginCoverEntrance()
+    {
+        if (!AppMotion.IsEnabled || CoverTransitionAnimator.Current?.HasLyricsEntrance(this) != true) return;
+
+        var version = ++_entranceVersion;
+        _entranceActive = true;
+        foreach (var element in new FrameworkElement[]
+        {
+            LyricsTitleBar, HeadingHost, ControlDeck, PositionSlider, SpectrumHost, CanvasHost,
+        })
+        {
+            AppMotion.Hide(element);
+        }
+
+        _coverFrameBackground = CoverFrame.Background;
+        _reflectionOpacity = (float)ReflectionView.Opacity;
+        CoverFrame.Background = null;
+        ElementCompositionPreview.GetElementVisual(ReflectionView).Opacity = 0;
+
+        RevealAfter(version, 234, () =>
+        {
+            FadeInFrom(LyricsTitleBar, -8);
+            FadeInFrom(HeadingHost, -8);
+        });
+        RevealAfter(version, 312, () =>
+        {
+            FadeInFrom(ControlDeck, 14);
+            FadeInFrom(PositionSlider, 14);
+            FadeInFrom(SpectrumHost, 14);
+        });
+        RevealAfter(version, 416, () => FadeInFrom(CanvasHost, 12));
+        RevealAfter(version, 560, () =>
+        {
+            _entranceActive = false;
+            CoverFrame.Background = _coverFrameBackground;
+            _coverFrameBackground = null;
+            RevealReflection();
+        });
+    }
+
+    private static void FadeInFrom(FrameworkElement element, float rise)
+        => _ = AppMotion.PlayAsync(element, new Vector3(0, rise, 0), Vector3.Zero, 0, 1,
+            Vector3.One, Vector3.One, TimeSpan.FromMilliseconds(400));
+
+    private void RevealReflection()
+    {
+        var visual = ElementCompositionPreview.GetElementVisual(ReflectionView);
+        using var animation = visual.Compositor.CreateScalarKeyFrameAnimation();
+        animation.InsertKeyFrame(1, _reflectionOpacity);
+        animation.Duration = TimeSpan.FromMilliseconds(300);
+        visual.StartAnimation("Opacity", animation);
+    }
+
+    private void RevealAfter(int version, int milliseconds, Action reveal)
+    {
+        var timer = DispatcherQueue.CreateTimer();
+        timer.Interval = TimeSpan.FromMilliseconds(milliseconds);
+        timer.IsRepeating = false;
+        timer.Tick += (_, _) =>
+        {
+            timer.Stop();
+            _entranceTimers.Remove(timer);
+
+            if (version == _entranceVersion && Lyrics.IsOpen) reveal();
+        };
+        _entranceTimers.Add(timer);
+        timer.Start();
     }
 
     public void OnNavigatedFrom()
     {
+        // 入场分层没放完就离开：取消计时器，把封面槽与倒影恢复原样。
+        _entranceVersion++;
+        foreach (var timer in _entranceTimers) timer.Stop();
+        _entranceTimers.Clear();
+        if (_entranceActive)
+        {
+            _entranceActive = false;
+            CoverFrame.Background = _coverFrameBackground;
+            _coverFrameBackground = null;
+            ElementCompositionPreview.GetElementVisual(ReflectionView).Opacity = _reflectionOpacity;
+        }
         if (_themeRoot is not null) _themeRoot.ActualThemeChanged -= OnAppThemeChanged;
         _themeRoot = null;
         CloseComments(restoreFocus: false);
