@@ -1,3 +1,4 @@
+using System.Runtime.CompilerServices;
 using Bodian.Core.Media;
 using Bodian.Core.Services.Abstractions;
 using Microsoft.UI.Xaml.Media.Imaging;
@@ -33,6 +34,16 @@ internal static class CoverImageCache
     private static ICoverDiskCache? _disk;
     private static readonly Dictionary<(Uri Uri, int Pixels), LinkedListNode<Entry>> Entries = [];
     private static readonly LinkedList<Entry> Recency = new();
+
+    /// <summary>
+    /// 每张位图的加载结果。
+    /// </summary>
+    /// <remarks>
+    /// 虚拟化容器回收时会把同一个 <see cref="BitmapImage"/> 再挂到新的 <c>Image</c> 上。
+    /// 那时位图早已解码完，控件的 <c>ImageOpened</c> 不会再触发 —— 控件如果只靠那个事件收转圈，
+    /// 就会一直转。这里把「已加载」这个事实留在位图旁边，控件可以先查再决定要不要亮圈。
+    /// </remarks>
+    private static readonly ConditionalWeakTable<BitmapImage, TaskCompletionSource<bool>> States = new();
 
     /// <summary>接上磁盘层。由 <c>App</c> 在建窗口之前调一次。</summary>
     public static void AttachDiskCache(ICoverDiskCache disk) => _disk = disk;
@@ -71,6 +82,7 @@ internal static class CoverImageCache
         var image = new BitmapImage { DecodePixelWidth = pixels };
         var fallback = CoverArtUrl.Fallback(source) ?? (source != uri ? uri : null);
         var entry = new Entry(key, image, (long)pixels * pixels * 4, fallback);
+        States.AddOrUpdate(image, new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously));
 
         // 先登记再发起加载：失败事件可能很快到达，必须能移除对应条目。
         var node = Recency.AddFirst(entry);
@@ -92,6 +104,7 @@ internal static class CoverImageCache
         try
         {
             await LoadStreamAsync(entry, source);
+            Settle(entry.Image, true);
         }
         catch (Exception)
         {
@@ -101,9 +114,36 @@ internal static class CoverImageCache
                 await LoadAsync(entry, fallback);
                 return;
             }
+
             Remove(entry);
+            Settle(entry.Image, false);
         }
     }
+
+    private static void Settle(BitmapImage image, bool loaded)
+    {
+        if (States.TryGetValue(image, out var state))
+        {
+            state.TrySetResult(loaded);
+        }
+    }
+
+    /// <summary>位图是否已经有结果；<paramref name="loaded"/> 为 <c>false</c> 表示加载失败。</summary>
+    internal static bool TryGetState(BitmapImage image, out bool loaded)
+    {
+        if (States.TryGetValue(image, out var state) && state.Task.IsCompleted)
+        {
+            loaded = state.Task.Result;
+            return true;
+        }
+
+        loaded = false;
+        return false;
+    }
+
+    /// <summary>还没出结果时返回可等待的任务；不是本缓存创建的位图返回 <c>null</c>。</summary>
+    internal static Task<bool>? TryGetSettlement(BitmapImage image) =>
+        States.TryGetValue(image, out var state) ? state.Task : null;
 
     private static async Task LoadStreamAsync(Entry entry, Uri source)
     {

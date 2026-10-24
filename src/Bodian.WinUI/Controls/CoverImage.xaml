@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<UserControl
+    x:Class="Bodian.WinUI.Controls.CoverImage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:controls="using:Bodian.WinUI.Controls">
+
+    <!--
+        与专辑卡片同一套显示方式：Src 给上就直接画，没有加载态。
+        唯一的额外行为是失败后补一次歌单详情，仍拿不到才画占位。
+    -->
+    <Grid>
+        <Image
+            x:Name="Cover"
+            ImageFailed="OnImageFailed"
+            Stretch="{x:Bind Stretch, Mode=OneWay}"
+            controls:Motion.SharedCoverKey="{x:Bind SharedCoverKey, Mode=OneWay}" />
+
+        <controls:Icon
+            x:Name="Fallback"
+            HorizontalAlignment="Center"
+            VerticalAlignment="Center"
+            Data="{StaticResource IconNote}"
+            Foreground="{ThemeResource TextFillColorTertiaryBrush}"
+            Size="20"
+            Visibility="Collapsed" />
+    </Grid>
+</UserControl>

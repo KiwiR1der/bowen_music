@@ -463,6 +463,11 @@ public partial class App : Application
         // 只能从这里知道应用当前是浅色还是深色，好让 popup 不跟着沉浸页的深色走。
         Resources["BodianTheme"] = _host.Services.GetRequiredService<ThemeViewModel>();
 
+        // 封面控件是 XAML 实例化的，卡片上的死链要补一次详情 —— 同样只能走资源通道。
+        Resources["BodianPlaylistCovers"] = new PlaylistCoverResolver(
+            _host.Services.GetRequiredService<IBodianApi>(),
+            _host.Services.GetRequiredService<ILogger<PlaylistCoverResolver>>());
+
         // ★ 必须排在解析 MainWindow 之前：主窗口一构造，播放队列就已经从盘上读进内存了，
         //   而旧布局的数据这时候还平铺在根目录下 —— 晚一步就什么都读不到（看着像「数据丢了」）。
         //   它自己读 session.dat 定归属，不等会话恢复也能算对。

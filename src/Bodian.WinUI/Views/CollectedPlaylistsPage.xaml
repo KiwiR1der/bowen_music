@@ -35,7 +35,11 @@
                     Background="{ThemeResource ControlFillColorDefaultBrush}"
                     CornerRadius="{StaticResource RadiusMd}">
                     <Grid>
-                        <Image controls:Motion.SharedCoverKey="{x:Bind local:Formats.PlaylistCoverKey(Id)}" Source="{x:Bind local:Formats.CoverSource(CoverImage)}" Stretch="UniformToFill" />
+                        <controls:CoverImage
+                            PlaylistId="{x:Bind Id}"
+                            PlaylistSource="{x:Bind SourceType}"
+                            SharedCoverKey="{x:Bind local:Formats.PlaylistCoverKey(Id)}"
+                            Source="{x:Bind local:Formats.CoverSource(CoverImage)}" />
 
                         <Border
                             Margin="0,0,8,8"

@@ -67,6 +67,7 @@
 | [`search.md`](search.md) | 搜索入口、热榜与历史悬浮面板、综合分段、分类分页及验证记录 |
 | [`play-queue.md`](play-queue.md) | 播放队列与播放模式：队列结构、四种模式语义、加入队列入口、右侧抽屉 |
 | [`playlist-detail.md`](playlist-detail.md) | 歌单详情页头部、收藏按钮的显示条件、实现与验收清单 |
+| [`cover-images.md`](cover-images.md) | 列表封面：加载转圈、QQ CDN 死链修正与按详情补取 |
 | [`track-list-toolbar.md`](track-list-toolbar.md) | 列表工具栏、多选与批量操作；「点行 = 追加一首」的语义变更 |
 | [`mini-player.md`](mini-player.md) | 小窗：透明圆角浮窗、悬停抽屉与传输区、贴边收起与验收 |
 | [`tray.md`](tray.md) | 系统托盘、关闭到托盘与单实例 |

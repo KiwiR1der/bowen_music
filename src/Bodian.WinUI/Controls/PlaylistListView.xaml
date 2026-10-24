@@ -42,7 +42,11 @@
                         <Border
                             Background="{ThemeResource ControlFillColorDefaultBrush}"
                             CornerRadius="4">
-                            <Image controls:Motion.SharedCoverKey="{x:Bind local:Formats.PlaylistCoverKey(Id)}" Source="{x:Bind local:Formats.CoverSource(CoverImage)}" Stretch="UniformToFill" />
+                            <controls:CoverImage
+                                PlaylistId="{x:Bind Id}"
+                                PlaylistSource="{x:Bind SourceType}"
+                                SharedCoverKey="{x:Bind local:Formats.PlaylistCoverKey(Id)}"
+                                Source="{x:Bind local:Formats.CoverSource(CoverImage)}" />
                         </Border>
 
                         <!-- 隐私歌单的锁。与侧栏那份行模板同一套画法（角标尺寸也共用 token）。 -->

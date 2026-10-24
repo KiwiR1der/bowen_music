@@ -2273,7 +2273,20 @@ public sealed class BodianApi : IBodianApi
     }
 
     /// <summary>只接受 http / https 且不带 userinfo 的地址。规则见 <see cref="HttpUrl"/>。</summary>
-    private static Uri? ToHttpUri(string? value) => HttpUrl.TryParse(value);
+    private static Uri? ToHttpUri(string? value)
+    {
+        // QQ 音乐的列表接口把封面文件名里的数字 0 写成了字母 o（`_o.jpg`），
+        // 那条地址稳定 404；改成 `_0.jpg` 就能拿到图。限定 y.gtimg.cn，避免误伤别的站点。
+        if (value is not null
+            && value.Contains("_o.jpg", StringComparison.Ordinal)
+            && Uri.TryCreate(value, UriKind.Absolute, out var probe)
+            && probe.Host.Equals("y.gtimg.cn", StringComparison.OrdinalIgnoreCase))
+        {
+            value = value.Replace("_o.jpg", "_0.jpg", StringComparison.Ordinal);
+        }
+
+        return HttpUrl.TryParse(value);
+    }
 
     /// <summary>
     /// 艺人头像。服务端用一个固定的 <c>default_artist_pic.png</c> 表示「没有头像」——
