@@ -52,6 +52,8 @@
                     <x:Double x:Key="TitleBarMinDragRegionWidth">0</x:Double>
                     <Thickness x:Key="TitleBarCompactContentMargin">0</Thickness>
                     <HorizontalAlignment x:Key="TitleBarContentHorizontalAlignment">Stretch</HorizontalAlignment>
+                    <!-- WinUI 默认在窗口失焦时把标题栏内容压到 50% 不透明度；这里保持原样。 -->
+                    <x:Double x:Key="TitleBarDeactivatedOpacity">1</x:Double>
                 </TitleBar.Resources>
                 <TitleBar.LeftHeader>
                     <Grid x:Name="LeftChromeHost" Width="186">
