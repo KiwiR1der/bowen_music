@@ -1378,7 +1378,11 @@
             BorderThickness="1"
             CornerRadius="{StaticResource RadiusMd}"
             RequestedTheme="{x:Bind Theme.RequestedTheme, Mode=OneWay}">
-            <ScrollViewer Margin="10" MaxHeight="500" HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
+            <!--
+                ★ 面板本身不滚动：热榜与历史各自内嵌滚动条，这里只负责留白与裁切，
+                  避免出现「外一条、里一条」两条滚动条。
+            -->
+            <ScrollViewer Margin="10" HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Disabled" VerticalScrollMode="Disabled">
                 <StackPanel Spacing="12">
                     <HyperlinkButton
                         Content="{x:Bind Search.HotWordsStatus, Mode=OneWay}"
@@ -1386,16 +1390,34 @@
                         HorizontalAlignment="Left"
                         FontWeight="SemiBold"
                         Padding="0" />
+                    <!--
+                        ★ 列表要显式覆写项容器内边距。默认 ListViewItem 是 16,0,12,0，
+                          不覆写的话每一项都比上面的标题多缩进 16，看起来整体偏右。
+                        ★ 列表不再自带滚动条（不设 MaxHeight）：整块面板由外层 ScrollViewer
+                          统一滚动，滚动条通道也在那一层预留，悬浮底才能完整包住每一行。
+                    -->
+                    <!--
+                        ★ 最多露出 5 行（行高 40），其余在热榜内部滚动。
+                          右侧 14px 同样留给它自己的滚动条，别让滚动条压住关键词。
+                    -->
                     <ListView
-                        MaxHeight="240"
+                        MaxHeight="200"
+                        Padding="0,0,14,0"
                         ItemsSource="{x:Bind Search.HotWords}"
                         IsItemClickEnabled="True"
                         ItemClick="OnSearchHotWordClick"
                         SelectionMode="None">
+                        <ListView.ItemContainerStyle>
+                            <Style TargetType="ListViewItem" BasedOn="{StaticResource DefaultListViewItemStyle}">
+                                <Setter Property="MinWidth" Value="0" />
+                                <Setter Property="Padding" Value="6,0" />
+                                <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+                            </Style>
+                        </ListView.ItemContainerStyle>
                         <ListView.ItemTemplate>
                             <DataTemplate x:DataType="models:SearchHotWord">
-                                <Grid Padding="4,6" ColumnSpacing="12">
-                                    <Grid.ColumnDefinitions><ColumnDefinition Width="24" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+                                <Grid Padding="0,6" ColumnSpacing="8">
+                                    <Grid.ColumnDefinitions><ColumnDefinition Width="20" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
                                     <TextBlock Text="{x:Bind Rank}" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" />
                                     <TextBlock Grid.Column="1" Text="{x:Bind Keyword}" TextTrimming="CharacterEllipsis" />
                                 </Grid>
@@ -1409,15 +1431,24 @@
                         <Button Grid.Column="1" Content="清空" Command="{x:Bind Search.ClearSearchHistoryCommand}" />
                     </Grid>
                     <TextBlock Text="暂无搜索历史" Visibility="{x:Bind Search.HistoryIsEmpty, Mode=OneWay}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                    <!-- 与热榜一致：最多 5 行，右侧留 14px 给内嵌滚动条。 -->
                     <ListView
-                        MaxHeight="160"
+                        MaxHeight="200"
+                        Padding="0,0,14,0"
                         ItemsSource="{x:Bind Search.SearchHistory}"
                         IsItemClickEnabled="True"
                         ItemClick="OnSearchHistoryClick"
                         SelectionMode="None">
+                        <ListView.ItemContainerStyle>
+                            <Style TargetType="ListViewItem" BasedOn="{StaticResource DefaultListViewItemStyle}">
+                                <Setter Property="MinWidth" Value="0" />
+                                <Setter Property="Padding" Value="6,0" />
+                                <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+                            </Style>
+                        </ListView.ItemContainerStyle>
                         <ListView.ItemTemplate>
                             <DataTemplate x:DataType="x:String">
-                                <TextBlock Text="{x:Bind}" Padding="4,6" TextTrimming="CharacterEllipsis" />
+                                <TextBlock Text="{x:Bind}" Padding="0,6" TextTrimming="CharacterEllipsis" />
                             </DataTemplate>
                         </ListView.ItemTemplate>
                     </ListView>
