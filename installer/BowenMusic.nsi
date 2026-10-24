@@ -18,7 +18,7 @@
 ; ★ **别凭记忆写 NSIS 宏。** ${StrLoc} 这种看着像内置的东西在 NSIS 3.10 里并不存在，
 ;   任何 include 里都找不到 —— 编译期只报一句 "Invalid command"。用之前先
 ;   grep 一下 Include/ 目录确认（${GetSize} 在 FileFunc.nsh:583，是真的）。
-;   本脚本判断进程在不在用的是 find 的退出码，不需要任何字符串函数。
+;   本脚本判断进程在不在用的是 findstr 的退出码，不需要任何字符串函数。
 
 Unicode true
 SetCompressor /SOLID lzma
@@ -49,12 +49,18 @@ SetCompressorDictSize 64
   !define APP_LICENSE "..\LICENSE"
 !endif
 !ifndef APP_ICON
-  !define APP_ICON "..\src\Bodian.WinUI\Assets\Ripple.ico"
+  !define APP_ICON "..\src\Bowen.WinUI\Assets\Ripple.ico"
 !endif
 
 ; ── 应用信息 ────────────────────────────────────────────────────────────────
 !define APP_NAME      "波纹音乐"
-!define APP_EXE       "Bodian.WinUI.exe"
+!define APP_EXE       "BowenMusic.exe"
+; 历史 exe 名。升级安装时要一并关掉并清理，否则旧进程占着文件、
+; 或者安装目录里留下两套 exe，旧快捷方式会继续启动旧版。
+;   Bodian.WinUI.exe  —— 2026-10-24 全量改名前的版本
+;   Bowen.WinUI.exe   —— 0.2.x 改名后、本次改为 BowenMusic 前的版本
+!define APP_LEGACY_EXE  "Bodian.WinUI.exe"
+!define APP_LEGACY_EXE2 "Bowen.WinUI.exe"
 !define APP_ID        "BowenMusic"
 !define APP_PUBLISHER "gcnanmu"
 !define APP_URL       "https://github.com/ldm0715/bowen_music"
@@ -101,35 +107,123 @@ VIAddVersionKey "LegalCopyright"  "GPL-3.0"
 
 ; ── 初始化：检查与关闭正在运行的实例 ─────────────────────────────────────────
 
-!macro CloseRunningApp
-  ; ★ 判断依据是 **find 的退出码**，不是 tasklist 的输出文本。
-  ;   两个坑都在这里：
+; 检测是否有实例在跑，结果放在 $2（1 = 有）。旧版与新版 exe 名不同，各查一次。
+!macro DetectRunningApp
+  ; ★ 判断依据是 **findstr 的退出码**，不是 tasklist 的输出文本：
   ;   1. tasklist 没有匹配时会把「没有匹配任务」那行提示打进 stdout，而那句话随系统
   ;      语言变，按它判断在中文 Windows 上会失效。
   ;   2. 用起来像内置宏的 ${StrLoc} / ${StrRep} 之类在 NSIS 3.10 里**并不存在**
   ;      （StrFunc.nsh 只是个需要 ${Using:...} 声明的第三方头文件），别照着记忆写。
-  ;   find 匹配到返回 0、没匹配到返回 1，与语言无关，也不需要任何字符串函数。
-  nsExec::ExecToStack 'cmd /c tasklist /FI "IMAGENAME eq ${APP_EXE}" /FO CSV /NH | find /i "${APP_EXE}"'
+  ;   3. **不要用 find.exe。** 从 Git Bash / MSYS 环境启动安装包时，PATH 里的
+  ;      E:\Git\usr\bin\find.exe 会排在 System32 前面，那是 GNU find，不认识 /i，
+  ;      直接崩溃 → 退出码非 0 → 误判「没有实例在跑」→ 写文件时撞上占用。
+  ;      这里一律走 $WINDIR\Sysnative 的绝对路径，且只用 Windows 独有的 findstr。
+  ;      NSIS 是 32 位进程，$SYSDIR\tasklist.exe 会被重定向到 SysWOW64，看不到 64 位的
+  ;      BowenMusic.exe；Sysnative 虚拟目录才指向真正的 64 位版本。
+  ;   匹配到返回 0、没匹配到返回 1，与语言无关，也不需要任何字符串函数。
+  StrCpy $2 0
+
+  nsExec::ExecToStack 'cmd /c ""$WINDIR\Sysnative\tasklist.exe" /FI "IMAGENAME eq ${APP_EXE}" /FO CSV /NH | "$WINDIR\Sysnative\findstr.exe" /i /C:"${APP_EXE}""'
   Pop $0
   Pop $1
-
   ${If} $0 == 0
+    StrCpy $2 1
+  ${EndIf}
+
+  nsExec::ExecToStack 'cmd /c ""$WINDIR\Sysnative\tasklist.exe" /FI "IMAGENAME eq ${APP_LEGACY_EXE}" /FO CSV /NH | "$WINDIR\Sysnative\findstr.exe" /i /C:"${APP_LEGACY_EXE}""'
+  Pop $0
+  Pop $1
+  ${If} $0 == 0
+    StrCpy $2 1
+  ${EndIf}
+
+  nsExec::ExecToStack 'cmd /c ""$WINDIR\Sysnative\tasklist.exe" /FI "IMAGENAME eq ${APP_LEGACY_EXE2}" /FO CSV /NH | "$WINDIR\Sysnative\findstr.exe" /i /C:"${APP_LEGACY_EXE2}""'
+  Pop $0
+  Pop $1
+  ${If} $0 == 0
+    StrCpy $2 1
+  ${EndIf}
+!macroend
+
+!macro CloseRunningApp
+  !insertmacro DetectRunningApp
+
+  ${If} $2 == 1
     MessageBox MB_YESNO|MB_ICONQUESTION \
       "${APP_NAME}正在运行，安装前需要先关闭它。现在关闭吗？" \
       IDYES close IDNO abort
 
     close:
-      nsExec::Exec 'cmd /c taskkill /IM ${APP_EXE} /F'
+      nsExec::Exec '"$WINDIR\Sysnative\taskkill.exe" /IM ${APP_EXE} /F'
+      Pop $0
+      nsExec::Exec '"$WINDIR\Sysnative\taskkill.exe" /IM ${APP_LEGACY_EXE} /F'
+      Pop $0
+      nsExec::Exec '"$WINDIR\Sysnative\taskkill.exe" /IM ${APP_LEGACY_EXE2} /F'
       Pop $0
       Sleep 1000
+
+      ; taskkill 可能因权限不足失败（实例是管理员进程或属于别的用户）。
+      ; 不复查的话会继续往下写文件，用户只会看到「无法打开要写入的文件」。
+      !insertmacro DetectRunningApp
+      ${If} $2 == 1
+        MessageBox MB_OK|MB_ICONSTOP \
+          "无法关闭正在运行的${APP_NAME}。$\r$\n$\r$\n请先在任务管理器里手动结束它；如果它是管理员进程，请右键以管理员身份运行安装程序。"
+        SetErrorLevel 1
+        Quit
+      ${EndIf}
+
       Goto done
 
     abort:
-      Abort
+      ; 这里也可能是在 Section 里调用（写文件前的二次检查），Abort 会让 MUI
+      ; 进入「安装已中止」的半状态；Quit 直接退出，且此刻尚未写入任何文件。
+      SetErrorLevel 1
+      Quit
 
     done:
   ${EndIf}
 !macroend
+
+; 无条件结束实例。不依赖 tasklist 能不能看见它：
+; 从受限进程树（如 Git Bash / 沙箱）启动安装包时，tasklist/taskkill 都可能
+; 看不到外面的进程，此时只能靠后面的写锁检查给出明确提示。
+!macro StopRunningApp
+  nsExec::Exec '"$WINDIR\Sysnative\taskkill.exe" /IM ${APP_EXE} /F'
+  Pop $0
+  nsExec::Exec '"$WINDIR\Sysnative\taskkill.exe" /IM ${APP_LEGACY_EXE} /F'
+  Pop $0
+  nsExec::Exec '"$WINDIR\Sysnative\taskkill.exe" /IM ${APP_LEGACY_EXE2} /F'
+  Pop $0
+  Sleep 1000
+!macroend
+
+; 写文件前确认目标文件没被占用。FileOpen 追加模式只申请写权限，不写内容；
+; 正在运行的 exe/dll 会拒绝这种打开，于是能在 File 报出原始错误之前拦住。
+!macro AssertFileWritable FILE
+  ${If} ${FileExists} "$INSTDIR\${FILE}"
+    ClearErrors
+    FileOpen $0 "$INSTDIR\${FILE}" a
+    ${If} ${Errors}
+      Call ElevateOrQuit
+    ${EndIf}
+    FileClose $0
+  ${EndIf}
+!macroend
+
+; 文件仍被占用时的统一出口：要么让用户手动关掉 App，要么以管理员身份重开安装程序。
+Function ElevateOrQuit
+  MessageBox MB_YESNO|MB_ICONSTOP \
+    "${APP_NAME} 的文件仍被占用，安装无法继续。$\r$\n$\r$\n请先在任务管理器里结束 ${APP_NAME}，然后重试；如果安装包是从 Git Bash 等终端启动的，请在资源管理器里双击它。$\r$\n$\r$\n是否以管理员身份重新启动安装程序？" \
+    IDYES elevate
+  Goto cancel
+
+  elevate:
+    ExecShell "runas" "$EXEPATH"
+
+  cancel:
+    SetErrorLevel 1
+    Quit
+FunctionEnd
 
 ; 放在 .onInit 而不是某个页面的 PRE：静默安装（/S）时会跳过所有页面，
 ; 但 .onInit 一定会执行；而且它跑在欢迎页之前，能更早失败。
@@ -141,6 +235,7 @@ FunctionEnd
 Function un.onInit
   SetShellVarContext current
   !insertmacro CloseRunningApp
+  !insertmacro StopRunningApp
 FunctionEnd
 
 ; ── 安装 ────────────────────────────────────────────────────────────────────
@@ -149,17 +244,37 @@ Section "${APP_NAME}（必需）" SEC_APP
   SectionIn RO
 
   SetShellVarContext current
+
+  ; 写文件前无条件结束一次：用户可能停在欢迎页/目录页时把 App 打开了，
+  ; 也可能安装包运行在看不见该进程的受限环境里。结束不掉时由下面的写锁检查兜底。
+  !insertmacro StopRunningApp
+  !insertmacro AssertFileWritable "BowenMusic.dll"
+  !insertmacro AssertFileWritable "Bowen.Core.dll"
+  !insertmacro AssertFileWritable "Bowen.WinUI.dll"
+  !insertmacro AssertFileWritable "Bodian.Core.dll"
+
   SetOutPath "$INSTDIR"
 
   ; /r 会把 Assets、zh-CN、zh-TW 这些子目录一起铺开。
   ; 用 \* 而不是 \*.*：后者会漏掉没有扩展名的文件。
   File /r "${APP_SOURCE}\*"
 
+  ; 升级自历史版本：File /r 只覆盖、不删除，旧 exe 与程序集会留在目录里。
+  ; 不清理的话，旧桌面/任务栏快捷方式仍会启动旧版。
+  ;   Bodian.*        —— 2026-10-24 全量改名前的整套输出（含 Bodian.Core.dll）
+  ;   Bowen.WinUI.*   —— 0.2.x 的程序集名；新输出是 BowenMusic.*
+  Delete "$INSTDIR\Bodian.*"
+  Delete "$INSTDIR\Bowen.WinUI.*"
+
   WriteUninstaller "$INSTDIR\Uninstall.exe"
 
   CreateDirectory "$SMPROGRAMS"
   CreateShortCut "$SMPROGRAMS\${APP_NAME}.lnk" "$INSTDIR\${APP_EXE}" "" "$INSTDIR\${APP_EXE}" 0 \
     SW_SHOWNORMAL "" "${APP_NAME}"
+
+  ; 与 AppIdentity.LegacyShortcutFileNames 保持同步：改名前留下的旧快捷方式。
+  Delete "$SMPROGRAMS\Bodian.lnk"
+  Delete "$DESKTOP\Bodian.lnk"
 
   WriteRegStr HKCU "${UNINST_KEY}" "DisplayName"     "${APP_NAME}"
   WriteRegStr HKCU "${UNINST_KEY}" "DisplayVersion"  "${APP_VERSION}"
