@@ -337,6 +337,7 @@
                         BorderThickness="0"
                         IsEnabled="{x:Bind _navigation.CanGoBack, Mode=OneWay}"
                         Click="OnBackClick"
+                        AllowFocusOnInteraction="False"
                         AutomationProperties.Name="返回上一级"
                         ToolTipService.ToolTip="返回上一级">
                         <Button.Resources>

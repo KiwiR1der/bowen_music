@@ -2642,8 +2642,7 @@ public sealed partial class MainWindow : Window, IPlaylistLibrarySink, IWindowHa
             DispatcherQueue.TryEnqueue(() =>
             {
                 if (_closed || !ReferenceEquals(_navigation.Current, page)) return;
-                var target = FocusManager.FindFirstFocusableElement(page) as UIElement ?? page;
-                target.Focus(FocusState.Programmatic);
+                RestoreFocusToPage(page);
             });
         }
         SyncSelection();
@@ -2651,6 +2650,30 @@ public sealed partial class MainWindow : Window, IPlaylistLibrarySink, IWindowHa
         {
             if (!_immersiveVisible && !IsMinimized) AppTitleBar.RecomputeDragRegions();
         });
+    }
+
+    /// <summary>
+    /// 返回后把键盘焦点放回目标页。
+    /// </summary>
+    /// <remarks>
+    /// <b>一次可能落不下去。</b> 页面刚挂回宿主时还没完成布局，这时
+    /// <see cref="UIElement.Focus"/> 会静默返回 false；焦点就留在标题栏的返回键上，
+    /// 而返回键随即因 <c>CanGoBack</c> 变假而禁用，Windows 会把焦点顺移到相邻的搜索框，
+    /// 表现成「没点搜索框却出现光标」。所以失败时等下一次布局结束再试。
+    /// </remarks>
+    private void RestoreFocusToPage(Page page)
+    {
+        UIElement FindTarget() => FocusManager.FindFirstFocusableElement(page) as UIElement ?? page;
+        if (FindTarget().Focus(FocusState.Programmatic)) return;
+
+        void OnLayoutUpdated(object? sender, object args)
+        {
+            page.LayoutUpdated -= OnLayoutUpdated;
+            if (_closed || !ReferenceEquals(_navigation.Current, page)) return;
+            FindTarget().Focus(FocusState.Programmatic);
+        }
+
+        page.LayoutUpdated += OnLayoutUpdated;
     }
 
     /// <summary>当前根页对应的侧栏项。没有对应项的根页（搜索页、歌单详情）是 <c>null</c>。</summary>
