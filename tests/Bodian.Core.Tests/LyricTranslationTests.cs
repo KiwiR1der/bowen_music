@@ -267,6 +267,61 @@ public sealed class LyricTranslationTests
         Assert.Equal(2, stripped.IndexOfLineAt(TimeSpan.FromSeconds(60)));
     }
 
+    /// <summary>空行没有内容，投影时剔掉，不占一整行。</summary>
+    [Fact]
+    public void WithoutBlankLines_DropsTranslationPlaceholders()
+    {
+        var document = BodianLyricParser.Parse(PairedSample);
+
+        var clean = document.WithoutBlankLines();
+
+        Assert.Equal(5, clean.Lines.Count);
+        Assert.Equal("夢ならば", clean.Lines[0].Text);
+        Assert.Equal(TimeSpan.FromMilliseconds(1547), clean.Lines[0].Start);
+        Assert.True(clean.HasTranslation);
+    }
+
+    /// <summary>结尾空行没有译文标记，也照样剔掉。</summary>
+    [Fact]
+    public void WithoutBlankLines_DropsTrailingBlankWithoutTranslationMark()
+    {
+        var document = BodianLyricParser.Parse("""
+            [kuwo:027]
+            [00:01.000]<0,0>译<0,0>文
+            [00:01.000]<100,-100>原<200,-50>文
+            [00:03.000]<0,0>末<0,0>句<0,0>译<0,0>文
+            [00:03.000]
+            """);
+
+        var clean = document.WithoutBlankLines();
+
+        Assert.Equal(3, clean.Lines.Count);
+        Assert.DoesNotContain(clean.Lines, line => string.IsNullOrWhiteSpace(line.Text));
+    }
+
+    /// <summary>剔除空行不改变保留行的时间窗。</summary>
+    [Fact]
+    public void WithoutBlankLines_KeepsStartsAndDurations()
+    {
+        var document = BodianLyricParser.Parse(PairedSample);
+
+        var clean = document.WithoutBlankLines();
+
+        for (var i = 0; i < clean.Lines.Count; i++)
+        {
+            Assert.Equal(document.Lines[i + 1].Start, clean.Lines[i].Start);
+            Assert.Equal(document.Lines[i + 1].Duration, clean.Lines[i].Duration);
+        }
+    }
+
+    [Fact]
+    public void WithoutBlankLines_ReturnsSameInstanceWhenThereIsNothingToDrop()
+    {
+        var document = BodianLyricParser.Parse("[00:01.00]第一行\n[00:03.00]第二行");
+
+        Assert.Same(document, document.WithoutBlankLines());
+    }
+
     /// <summary>
     /// 原文与它的译文必须落在同一个滚动单元里，滚动时两行刚性同动。
     /// </summary>

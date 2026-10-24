@@ -384,10 +384,13 @@ public sealed partial class LyricsViewModel : ObservableObject
     /// </remarks>
     private void SyncDocument()
     {
-        // 先问完整文档有没有译文，再决定投影成哪一份 —— 顺序反了就永远问不出 true。
-        HasTranslation = _fullDocument.HasTranslation;
+        // 空行（译文占位、段落分隔、结尾空行）没有可显示的内容，投影时一并剔掉，不占行高。
+        var clean = _fullDocument.WithoutBlankLines();
 
-        Document = ShowTranslation ? _fullDocument : _fullDocument.WithoutTranslations();
+        // 先问有没有译文，再决定投影成哪一份 —— 顺序反了就永远问不出 true。
+        HasTranslation = clean.HasTranslation;
+
+        Document = ShowTranslation ? clean : clean.WithoutTranslations();
         CurrentIndex = -1;
         UpdateCurrentLine(_engine.Position);
     }

@@ -211,6 +211,19 @@ internal sealed class LyricsRenderer(LyricsRenderSettings settings, ILogger<Lyri
         if (_creator is null || _device?.Snapshot is not { Count: > 0 } snapshot || _height <= 0) return;
         EnsureMask();
         var hovered = _pointerY.HasValue ? LineIndexAt(_pointerY.Value) : -1;
+        // 选中底按「句」铺：鼠标划过原文或译文，整句（原文 + 译文）一起被包住。
+        // 非浏览时播放中的那一句本身已有逐字扫色，不再叠底。
+        var selectedUnit = -1;
+        if (hovered >= 0)
+        {
+            selectedUnit = snapshot.UnitOfLine[hovered];
+            var activeUnit = !IsBrowsing && CurrentIndex >= 0 && CurrentIndex < snapshot.Count
+                && _position >= snapshot.Document.Lines[CurrentIndex].Start
+                ? snapshot.UnitOfLine[CurrentIndex]
+                : -1;
+            if (!IsBrowsing && selectedUnit == activeUnit) selectedUnit = -1;
+        }
+        var pillDrawn = false;
         var previousTransform = session.Transform;
         using (session.CreateLayer(_edgeBrush!))
         {
@@ -232,10 +245,12 @@ internal sealed class LyricsRenderer(LyricsRenderSettings settings, ILogger<Lyri
                 var center = new Vector2(0, (float)(top + line.Height / 2));
                 session.Transform = Matrix3x2.CreateTranslation(8, (float)top)
                     * Matrix3x2.CreateScale((float)_scales[index], center) * previousTransform;
-                // 选中底只跟鼠标：浏览时没有固定焦点，划过哪行哪行才有底。
-                // 非浏览时播放行本身有扫色，不再叠底；浏览时播放行同样按普通行处理。
-                var selected = index == hovered && (!active || IsBrowsing);
-                if (selected) DrawSelectionPill(session, line);
+                // 每句只铺一次底，覆盖单元内所有行；即使单元第一行被视口裁掉也照样铺。
+                if (!pillDrawn && selectedUnit >= 0 && snapshot.UnitOfLine[index] == selectedUnit)
+                {
+                    DrawSelectionPill(session, snapshot, index);
+                    pillDrawn = true;
+                }
                 if (active && !IsBrowsing)
                 {
                     DrawActiveLine(session, snapshot, index);
@@ -255,12 +270,15 @@ internal sealed class LyricsRenderer(LyricsRenderSettings settings, ILogger<Lyri
         }
     }
 
-    /// <summary>整行铺底：横向占满歌词列，纵向覆盖行高加半个行距。</summary>
-    private void DrawSelectionPill(CanvasDrawingSession session, LyricsLineLayout line)
+    /// <summary>整句铺底：横向占满歌词列，纵向覆盖整个滚动单元加半个行距。</summary>
+    private void DrawSelectionPill(CanvasDrawingSession session, LyricsLayoutSnapshot snapshot, int lineIndex)
     {
         // 局部 x=-8 抵消绘制文字时的 8px 平移，底块左缘与歌词列对齐，右缘铺到底。
+        var unit = snapshot.UnitOfLine[lineIndex];
+        var unitTop = snapshot.UnitTops[unit] - snapshot.Tops[lineIndex];
         session.FillRoundedRectangle(
-            new Rect(-8, -settings.LineGap / 2, (float)_width, line.Height + settings.LineGap),
+            new Rect(-8, unitTop - settings.LineGap / 2, (float)_width,
+                snapshot.UnitHeights[unit] + settings.LineGap),
             SelectionPillCornerRadius, SelectionPillCornerRadius, SelectionPillColor);
     }
 

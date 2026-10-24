@@ -68,6 +68,39 @@ public sealed record LyricDocument(IReadOnlyList<LyricLine> Lines, LyricKind Kin
     }
 
     /// <summary>
+    /// 剔除没有文字的行。本来就没有空行时<b>返回自身</b>。
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// 歌词内容里常有空白行：外文歌的译文占位、段落分隔、结尾空行。它们没有可显示的内容，
+    /// 但参与排版就会占掉一整行 —— 界面上表现为凭空空一行。
+    /// </para>
+    /// <para>
+    /// <b>不重算 <see cref="LyricLine.Start"/> 与 <see cref="LyricLine.Duration"/>。</b>
+    /// 剔除空行不改变任何非空行自己的时间窗；<see cref="IndexOfLineAt"/> 在原来的空行时段里
+    /// 会继续返回上一句，比高亮消失更自然。
+    /// </para>
+    /// </remarks>
+    public LyricDocument WithoutBlankLines()
+    {
+        var kept = new List<LyricLine>(Lines.Count);
+        var dropped = false;
+
+        foreach (var line in Lines)
+        {
+            if (string.IsNullOrWhiteSpace(line.Text))
+            {
+                dropped = true;
+                continue;
+            }
+
+            kept.Add(line);
+        }
+
+        return dropped ? new LyricDocument(kept, Kind) : this;
+    }
+
+    /// <summary>
     /// 剔除译文行后的文档。本来就没有译文行时<b>返回自身</b>。
     /// </summary>
     /// <remarks>
