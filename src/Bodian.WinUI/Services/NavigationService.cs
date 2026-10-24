@@ -238,30 +238,45 @@ public sealed class NavigationService : INavigationService
                 $"导航到 {next.GetType().Name} 之前必须先调用 {nameof(Attach)}(ContentControl)。");
         }
 
+        // ★ 沉浸页（歌词 / MV）是盖在常规页上的浮层，不是常规页的替代品：
+        //   进沉浸页时常规页仍留在 PageHost 里，收起时它也没离开过可视树。
+        //   这两步不发页面生命周期、也不做滚动位置的藏 / 放 —— 否则「收起歌词」会被
+        //   目标页当成一次新的进入，把数据重新加载一遍（典型是「最近播放」跳回第一行），
+        //   而重新放一遍滚动位置会先把列表隐藏再淡入，表现成整块界面闪一下。
+        var nextHost = _selectHost?.Invoke(next) ?? _host;
+        var shownWasShell = ReferenceEquals(_shownHost, _host);
+        var nextIsShell = ReferenceEquals(nextHost, _host);
+        var leavingStaysMounted = _shown is not null && shownWasShell && !nextIsShell;
+
         // 先通知离场，再换内容，最后通知进场 —— 顺序固定，页面可以放心在
         // OnNavigatedFrom 里释放、在 OnNavigatedTo 里重建。
         // 滚动位置要在离场之前读：页面可能在自己的 OnNavigatedFrom 里改列表。
-        ScrollMemory.Capture(_shown);
+        if (!leavingStaysMounted) ScrollMemory.Capture(_shown);
         if (_shown is not null) AppMotion.Reset(_shown);
-        Notify(_shown, leaving: true);
 
-        var nextHost = _selectHost?.Invoke(next) ?? _host;
-        // 常规页留在外壳中作为展开/收起的背景；生命周期仍按离场、进场各通知一次。
+        if (!leavingStaysMounted) Notify(_shown, leaving: true);
+
         if (_shownHost is not null && (ReferenceEquals(_shownHost, nextHost)
             || !ReferenceEquals(_shownHost, _host)))
         {
             _shownHost.Content = null;
         }
 
+        var arrivingWasMounted = _shown is not null && !shownWasShell && nextIsShell
+            && ReferenceEquals(nextHost.Content, next);
+
         _shownHost = nextHost;
-        _shownHost.Content = next;
+        if (!ReferenceEquals(_shownHost.Content, next)) _shownHost.Content = next;
         _shown = next;
         // 换页会让列表从顶上重来；把上一轮的滚动位置放回去，返回才有「原位置」。
-        var scrollRestore = ScrollMemory.RestoreAsync(next);
-        if (ReferenceEquals(_shownHost, _host))
+        // 收起沉浸页时页面根本没离树，偏移一直在，再「藏住 → 落位 → 淡入」只会闪一下。
+        var scrollRestore = arrivingWasMounted ? Task.CompletedTask : ScrollMemory.RestoreAsync(next);
+        // 收起沉浸页时，下层常规页一直挂在树上、本来就是不透明的；
+        // 再跑一遍淡入会让整个界面闪一下，所以只有真正重新挂载的页面才做入场动画。
+        if (ReferenceEquals(_shownHost, _host) && !arrivingWasMounted)
             _ = AppMotion.EnterAsync(next, sharedCover is null ? x : 0, sharedCover is null ? y : 0);
 
-        Notify(next, leaving: false);
+        if (!arrivingWasMounted) Notify(next, leaving: false);
         Navigated?.Invoke(this, next);
         if (sharedCover is not null) _ = PlaySharedCoverAsync(scrollRestore, sharedCover);
         if (_diagnostics) _logger.LogInformation("页面切换 {Page}：UI 处理 {Elapsed:F2} ms", next.GetType().Name, Stopwatch.GetElapsedTime(started).TotalMilliseconds);
