@@ -57,8 +57,8 @@ SetCompressorDictSize 64
 !define APP_EXE       "BowenMusic.exe"
 ; 历史 exe 名。升级安装时要一并关掉并清理，否则旧进程占着文件、
 ; 或者安装目录里留下两套 exe，旧快捷方式会继续启动旧版。
-;   Bodian.WinUI.exe  —— 2026-10-24 全量改名前的版本
-;   Bowen.WinUI.exe   —— 0.2.x 改名后、本次改为 BowenMusic 前的版本
+;   Bodian.WinUI.exe  —— 0.2.0 及更早版本
+;   Bowen.WinUI.exe   —— 未在任何正式版本中使用，保留兜底
 !define APP_LEGACY_EXE  "Bodian.WinUI.exe"
 !define APP_LEGACY_EXE2 "Bowen.WinUI.exe"
 !define APP_ID        "BowenMusic"
