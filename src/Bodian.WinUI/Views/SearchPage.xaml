@@ -280,10 +280,9 @@
                     Spacing="2">
                     <StackPanel Orientation="Horizontal" Spacing="6">
                         <!-- 歌名的宽度上限：本列宽度减角标占位。理由与 TrackListView 那份同一段注释。 -->
-                        <TextBlock
+                        <controls:MarqueeText
                             FontSize="{StaticResource FontSizeBodyLarge}"
                             Text="{x:Bind Title}"
-                            TextTrimming="CharacterEllipsis"
                             controls:TitleClamp.Reserve="{x:Bind local:Formats.BadgeReserve(PayLabelVisibility, MvLabelVisibility)}" />
 
                         <!-- 付费标识：让用户在点之前就知道要不要会员 -->

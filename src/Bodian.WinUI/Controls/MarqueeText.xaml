@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="utf-8"?>
+<UserControl
+    x:Class="Bodian.WinUI.Controls.MarqueeText"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <!--
+        单行文字：放得下就原样显示，放不下时鼠标悬停横向滚动，移开回到起点。
+        ★ 文字始终按自然宽度排布，裁剪窗口（ClipHost）负责截断；静止时右侧留出省略号的位置。
+        ★ 裁剪必须挂在固定不动的 ClipHost 上：挂在会平移的 Track 上会跟着一起移。
+        ★ 文字层不参与命中测试：滚出视口的那一截不会盖住旁边的角标 / 抢走点击。
+        ★ 外层 Grid 必须有 Background="Transparent"，否则空白处收不到 PointerEntered。
+    -->
+    <Grid
+        x:Name="Viewport"
+        Background="Transparent"
+        PointerEntered="OnPointerEntered"
+        PointerExited="OnPointerExited"
+        SizeChanged="OnViewportSizeChanged">
+        <Grid x:Name="ClipHost" IsHitTestVisible="False" SizeChanged="OnClipHostSizeChanged">
+            <StackPanel
+                x:Name="Track"
+                HorizontalAlignment="Left"
+                VerticalAlignment="Center"
+                Orientation="Horizontal">
+                <TextBlock
+                    x:Name="TextLine"
+                    FontSize="{x:Bind FontSize, Mode=OneWay}"
+                    FontWeight="{x:Bind FontWeight, Mode=OneWay}"
+                    Text="{x:Bind Text, Mode=OneWay}"
+                    TextWrapping="NoWrap" />
+            </StackPanel>
+        </Grid>
+
+        <!-- 静止态的省略号画在裁剪窗口右侧空出的位置里，与原生 TextTrimming 的观感一致。 -->
+        <TextBlock
+            x:Name="EllipsisLine"
+            Margin="0,0,2,0"
+            HorizontalAlignment="Right"
+            VerticalAlignment="Center"
+            FontSize="{x:Bind FontSize, Mode=OneWay}"
+            FontWeight="{x:Bind FontWeight, Mode=OneWay}"
+            IsHitTestVisible="False"
+            Text="…"
+            Visibility="Collapsed" />
+    </Grid>
+</UserControl>

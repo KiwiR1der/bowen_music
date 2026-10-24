@@ -191,35 +191,6 @@ public static class Formats
     public static Visibility HasTracks(int count) => Visible(count > 0);
 
     /// <summary>
-    /// 曲目列表里专辑名的字符上限。
-    /// </summary>
-    /// <remarks>
-    /// 列宽是 <c>0.7*</c>，专辑名跟着数据无限长会让同一份列表的列宽忽宽忽窄，
-    /// 所以按字数截断。12 个字放得下「仙剑奇侠传电视剧原声带」这类长专辑名。
-    /// </remarks>
-    private const int AlbumNameMaxChars = 12;
-
-    /// <summary>
-    /// 曲目列表里的专辑名。超过 12 个字符时截断，以省略号收尾。
-    /// </summary>
-    /// <remarks>
-    /// 数的是 <c>char</c>（UTF-16 码元）而不是字素簇：中文、日文、韩文都在基本平面内，
-    /// 一个字符就是一个码元；只有基本平面外的字符（如「𠮷」）占两个。
-    /// 所以截断前查一下末尾是不是高位代理，免得切出半个字符。
-    /// </remarks>
-    public static string AlbumName(string? value)
-    {
-        if (string.IsNullOrEmpty(value) || value.Length <= AlbumNameMaxChars)
-        {
-            return value ?? "";
-        }
-
-        var length = char.IsHighSurrogate(value[AlbumNameMaxChars - 1]) ? AlbumNameMaxChars - 1 : AlbumNameMaxChars;
-
-        return string.Concat(value.AsSpan(0, length), "…");
-    }
-
-    /// <summary>
     /// 付费标识文案。
     /// </summary>
     /// <remarks>

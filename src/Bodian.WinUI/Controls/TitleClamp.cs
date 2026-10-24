@@ -35,8 +35,13 @@ namespace Bodian.WinUI.Controls;
 public static class TitleClamp
 {
     /// <summary>歌名之后那些角标占掉的宽度。</summary>
+    /// <remarks>
+    /// <b>默认值是 NaN，不是 0。</b> 依赖属性赋成与默认值相同的值时不会触发变更回调；
+    /// 用 0 作默认会让「没有角标」（预留 0）的那些行根本不挂 clamp，长歌名照旧溢出。
+    /// 赋任何具体值（包括 0）都表示「这一行要按列宽夹」。
+    /// </remarks>
     public static readonly DependencyProperty ReserveProperty = DependencyProperty.RegisterAttached(
-        "Reserve", typeof(double), typeof(TitleClamp), new PropertyMetadata(0d, OnReserveChanged));
+        "Reserve", typeof(double), typeof(TitleClamp), new PropertyMetadata(double.NaN, OnReserveChanged));
 
     public static double GetReserve(DependencyObject element) => (double)element.GetValue(ReserveProperty);
 

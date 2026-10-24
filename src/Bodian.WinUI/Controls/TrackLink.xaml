@@ -3,6 +3,7 @@
     x:Class="Bodian.WinUI.Controls.TrackLink"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:controls="using:Bodian.WinUI.Controls"
     xmlns:local="using:Bodian.WinUI">
 
     <!--
@@ -17,13 +18,6 @@
           所以要自己写一份模板把这两点按下去。
     -->
     <UserControl.Resources>
-        <Style x:Key="TrackLinkTextStyle" TargetType="TextBlock">
-            <Setter Property="FontSize" Value="{StaticResource FontSizeCaption}" />
-            <Setter Property="VerticalAlignment" Value="Center" />
-            <Setter Property="TextTrimming" Value="CharacterEllipsis" />
-            <Setter Property="TextWrapping" Value="NoWrap" />
-        </Style>
-
         <Style x:Key="TrackLinkButtonStyle" TargetType="HyperlinkButton">
             <!-- 常态色 = 播放条那一行的静止色，同一个键。 -->
             <Setter Property="Foreground" Value="{ThemeResource HyperlinkForeground}" />
@@ -83,18 +77,22 @@
                 Click="OnArtistClick"
                 Style="{StaticResource TrackLinkButtonStyle}"
                 Visibility="{x:Bind local:Formats.Visible(Row.CanOpenArtist), Mode=OneWay}">
-                <TextBlock
-                    Style="{StaticResource TrackLinkTextStyle}"
+                <controls:MarqueeText
+                    FontSize="{StaticResource FontSizeCaption}"
+                    HorizontalAlignment="Left"
                     Text="{x:Bind Row.ArtistDisplayText, Mode=OneWay}"
-                    ToolTipService.ToolTip="{x:Bind Row.ArtistToolTip, Mode=OneWay}" />
+                    ToolTipService.ToolTip="{x:Bind Row.ArtistToolTip, Mode=OneWay}"
+                    controls:TitleClamp.Reserve="0" />
             </HyperlinkButton>
 
-            <TextBlock
+            <controls:MarqueeText
+                FontSize="{StaticResource FontSizeCaption}"
                 Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                Style="{StaticResource TrackLinkTextStyle}"
+                HorizontalAlignment="Left"
                 Text="{x:Bind Row.ArtistDisplayText, Mode=OneWay}"
                 ToolTipService.ToolTip="{x:Bind Row.ArtistToolTip, Mode=OneWay}"
-                Visibility="{x:Bind local:Formats.VisibleWhenFalse(Row.CanOpenArtist), Mode=OneWay}" />
+                Visibility="{x:Bind local:Formats.VisibleWhenFalse(Row.CanOpenArtist), Mode=OneWay}"
+                controls:TitleClamp.Reserve="0" />
         </Grid>
 
         <!-- 专辑：同上，灰阶用三级。 -->
@@ -103,14 +101,20 @@
                 Click="OnAlbumClick"
                 Style="{StaticResource TrackLinkButtonStyle}"
                 Visibility="{x:Bind local:Formats.Visible(Row.CanOpenAlbum), Mode=OneWay}">
-                <TextBlock Style="{StaticResource TrackLinkTextStyle}" Text="{x:Bind Row.AlbumName, Mode=OneWay}" />
+                <controls:MarqueeText
+                    FontSize="{StaticResource FontSizeCaption}"
+                    HorizontalAlignment="Left"
+                    Text="{x:Bind Row.AlbumName, Mode=OneWay}"
+                    controls:TitleClamp.Reserve="0" />
             </HyperlinkButton>
 
-            <TextBlock
+            <controls:MarqueeText
+                FontSize="{StaticResource FontSizeCaption}"
                 Foreground="{ThemeResource TextFillColorTertiaryBrush}"
-                Style="{StaticResource TrackLinkTextStyle}"
+                HorizontalAlignment="Left"
                 Text="{x:Bind Row.AlbumName, Mode=OneWay}"
-                Visibility="{x:Bind local:Formats.VisibleWhenFalse(Row.CanOpenAlbum), Mode=OneWay}" />
+                Visibility="{x:Bind local:Formats.VisibleWhenFalse(Row.CanOpenAlbum), Mode=OneWay}"
+                controls:TitleClamp.Reserve="0" />
         </Grid>
     </Grid>
 </UserControl>

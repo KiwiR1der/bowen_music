@@ -136,10 +136,10 @@
                             所以歌名要自己带上限：本列宽度减去角标占位，由 TitleClamp 刷。
                         -->
                         <StackPanel Orientation="Horizontal" Spacing="6">
-                            <TextBlock
+                            <!-- 悬停时横向滚动看全名；宽度上限仍由 TitleClamp 刷，角标不会被动到。 -->
+                            <controls:MarqueeText
                                 FontSize="{StaticResource FontSizeBodyLarge}"
                                 Text="{x:Bind Title}"
-                                TextTrimming="CharacterEllipsis"
                                 controls:TitleClamp.Reserve="{x:Bind local:Formats.BadgeReserve(PayLabelVisibility, MvLabelVisibility)}" />
 
                             <!-- 付费标识：让用户在点之前就知道要不要会员 -->

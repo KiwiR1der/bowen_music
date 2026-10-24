@@ -65,7 +65,11 @@ public sealed partial class TrackRow : ObservableObject
     /// <summary>压缩过才给完整名单做 ToolTip；没压缩时是 <c>null</c>。</summary>
     public string? ArtistToolTip => Formats.ArtistToolTip(ArtistText, Source.Artists);
 
-    public string AlbumName => Formats.AlbumName(Source.AlbumName);
+    /// <summary>
+    /// 专辑名。**不在这里按字数截断**：截断交给列的宽度与 <c>MarqueeText</c>，
+    /// 悬停时才能滚出完整名称（此前 12 字符硬截断会先丢掉后半段，滚动也看不回来）。
+    /// </summary>
+    public string AlbumName => Source.AlbumName ?? "";
 
     public Uri? CoverImage => Source.CoverImage;
 

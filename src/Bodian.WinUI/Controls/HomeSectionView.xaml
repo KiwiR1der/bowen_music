@@ -253,10 +253,8 @@
                                             角标放截断之后，长歌名不会再把它顶出卡片。
                                         -->
                                         <StackPanel Orientation="Horizontal" Spacing="6">
-                                            <TextBlock
-                                                MaxLines="1"
+                                            <controls:MarqueeText
                                                 Text="{x:Bind Title}"
-                                                TextTrimming="CharacterEllipsis"
                                                 controls:TitleClamp.Reserve="{x:Bind local:Formats.PayBadgeReserve(RequiresVip, RequiresPurchase)}" />
 
                                             <!-- 付费标识：让用户在点之前就知道要不要会员。 -->
@@ -272,12 +270,12 @@
                                             </Border>
                                         </StackPanel>
 
-                                        <TextBlock
-                                            MaxLines="1"
+                                        <controls:MarqueeText
+                                            HorizontalAlignment="Left"
+                                            FontSize="{StaticResource FontSizeCaption}"
                                             Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                                            Style="{StaticResource CaptionTextBlockStyle}"
                                             Text="{x:Bind Subtitle}"
-                                            TextTrimming="CharacterEllipsis" />
+                                            controls:TitleClamp.Reserve="0" />
                                     </StackPanel>
                                 </Grid>
                             </Grid>
