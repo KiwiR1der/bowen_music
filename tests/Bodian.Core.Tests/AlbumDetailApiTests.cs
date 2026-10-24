@@ -59,6 +59,11 @@ public sealed class AlbumDetailApiTests : IDisposable
         Assert.Equal(336, album.ArtistId);
         Assert.NotNull(album.ArtistCover);
 
+        // 明细同样一直有；多歌手专辑靠它弹选人框，而不是只跳主艺人。
+        var artist = Assert.Single(album.Artists);
+        Assert.Equal(336, artist.Id);
+        Assert.Equal("周杰伦", artist.Name);
+
         // 简介实测是整篇企划文案（几千字），界面上要折叠 —— 这里只确认它真的取到了。
         Assert.True(album.HasDescription);
         Assert.True(album.Description.Length > 500);

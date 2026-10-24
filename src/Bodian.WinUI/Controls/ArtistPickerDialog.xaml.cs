@@ -61,6 +61,33 @@ public sealed partial class ArtistPickerDialog : UserControl
             return;
         }
 
+        // 关窗之后再跳：弹窗还挂着时换页会把它的根节点抽掉。
+        if (await ShowAsync(artists, xamlRoot, theme) is { } chosen)
+        {
+            viewModel.OpenArtist(chosen);
+        }
+    }
+
+    /// <summary>
+    /// 把候选人摊给用户挑一位，返回选中的那个；直接关闭返回 <c>null</c>。
+    /// </summary>
+    /// <remarks>
+    /// 专辑页头用它：那里的候选不是曲目算出来的，而是专辑详情里的 <c>artists[]</c>，
+    /// 走不到 <c>TrackActionsViewModel.OpenArtistAsync</c> 那条链。
+    /// </remarks>
+    internal static async Task<ArtistChoice?> ShowAsync(
+        IReadOnlyList<ArtistChoice> artists,
+        XamlRoot xamlRoot,
+        ElementTheme theme)
+    {
+        ArgumentNullException.ThrowIfNull(artists);
+        ArgumentNullException.ThrowIfNull(xamlRoot);
+
+        if (artists.Count == 0)
+        {
+            return null;
+        }
+
         var picker = new ArtistPickerDialog();
         var dialog = AppDialogs.Create("歌手", xamlRoot, theme, maxWidth: 380);
         dialog.Content = picker;
@@ -71,11 +98,7 @@ public sealed partial class ArtistPickerDialog : UserControl
 
         await dialog.ShowAsync();
 
-        // 关窗之后再跳：弹窗还挂着时换页会把它的根节点抽掉。
-        if (picker.Selected is { } chosen)
-        {
-            viewModel.OpenArtist(chosen);
-        }
+        return picker.Selected;
     }
 
     /// <summary>铺开候选人。列表由 ViewModel 算好，这里只负责画。</summary>

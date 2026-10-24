@@ -1,4 +1,5 @@
 using Bodian.Core.Models;
+using Bodian.WinUI.Controls;
 using Bodian.WinUI.Services;
 using Bodian.WinUI.ViewModels;
 using Microsoft.UI.Xaml;
@@ -92,20 +93,35 @@ public sealed partial class AlbumDetailPage : Page, INavigationAware, IAccountSc
     /// <b>不带计数</b>：专辑这边只知道歌手名与头像，歌曲数、专辑数、粉丝数都要靠
     /// 歌手页自己去取（<c>GetArtistInfoAsync</c>），取到之前头部那行元信息是不显示的。
     /// </remarks>
-    private void OnArtistClick(object sender, RoutedEventArgs e)
+    private async void OnArtistClick(object sender, RoutedEventArgs e)
     {
-        var album = ViewModel.Album;
+        // 明细优先；老来源没有 artists[] 时退回 artistId 那一位。
+        var artists = ViewModel.BuildArtistChoices();
 
-        if (album.ArtistId <= 0)
+        if (artists.Count == 0)
         {
             return;
         }
 
-        _navigation.Navigate(_artistFactory(new Artist
+        if (artists.Count == 1 && artists[0].IsAvailable)
         {
-            Id = album.ArtistId,
-            Name = album.ArtistText,
-            CoverImage = album.ArtistCover,
-        }));
+            NavigateTo(artists[0]);
+            return;
+        }
+
+        if (await ArtistPickerDialog.ShowAsync(artists, XamlRoot, ActualTheme) is { } chosen)
+        {
+            NavigateTo(chosen);
+        }
+    }
+
+    private void NavigateTo(ArtistChoice artist)
+    {
+        if (!artist.IsAvailable)
+        {
+            return;
+        }
+
+        _navigation.Navigate(_artistFactory(artist.ToArtist()));
     }
 }

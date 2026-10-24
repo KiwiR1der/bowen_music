@@ -1856,7 +1856,7 @@ public sealed class BodianApi : IBodianApi
             FavoriteCount = dto.Favorite is { } favorites ? Math.Max(0, favorites) : null,
             ShareCount = dto.Share is { } shares ? Math.Max(0, shares) : null,
             ArtistText = dto.Artist ?? JoinArtists(dto.Artists),
-            Artists = dto.Artists?.Select(a => new TrackArtist(a.Id, a.Name ?? "", ToHttpUri(a.Pic))).ToArray() ?? [],
+            Artists = dto.Artists?.Select(a => new TrackArtist(a.Id, a.Name ?? "", ToArtistAvatar(a.Pic))).ToArray() ?? [],
             AlbumName = dto.Album,
             AlbumId = dto.AlbumId,
 
@@ -1889,6 +1889,7 @@ public sealed class BodianApi : IBodianApi
 
         ArtistText = dto.EffectiveArtist ?? "",
         ArtistId = dto.ArtistId,
+        Artists = dto.Artists?.Select(a => new TrackArtist(a.Id, a.Name ?? "", ToArtistAvatar(a.Pic))).ToArray() ?? [],
         CoverImage = ToHttpUri(dto.Pic),
         MusicCount = dto.MusicCount,
         ArtistCover = ToHttpUri(dto.ArtistPic),
@@ -2273,4 +2274,14 @@ public sealed class BodianApi : IBodianApi
 
     /// <summary>只接受 http / https 且不带 userinfo 的地址。规则见 <see cref="HttpUrl"/>。</summary>
     private static Uri? ToHttpUri(string? value) => HttpUrl.TryParse(value);
+
+    /// <summary>
+    /// 艺人头像。服务端用一个固定的 <c>default_artist_pic.png</c> 表示「没有头像」——
+    /// 专辑详情的 <c>artists[]</c> 九个条目全是这一张，直接显示会得到一排一模一样的占位图。
+    /// 当成 <c>null</c> 交给界面，<c>PersonPicture</c> 才会退回姓名首字。
+    /// </summary>
+    private static Uri? ToArtistAvatar(string? value) =>
+        value?.EndsWith("/default_artist_pic.png", StringComparison.OrdinalIgnoreCase) == true
+            ? null
+            : ToHttpUri(value);
 }

@@ -85,6 +85,8 @@ public sealed partial class AlbumDetailViewModel : ObservableObject
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(HasArtist))]
     [NotifyPropertyChangedFor(nameof(CountText))]
+    [NotifyPropertyChangedFor(nameof(ArtistDisplayText))]
+    [NotifyPropertyChangedFor(nameof(ArtistToolTip))]
     public partial Album Album { get; set; }
 
     public PagedList<Track> Tracks { get; }
@@ -131,7 +133,53 @@ public sealed partial class AlbumDetailViewModel : ObservableObject
     public partial bool IsPlayingAll { get; set; }
 
     /// <summary>歌手 id 拿到了才显示头部那个歌手入口。</summary>
-    public bool HasArtist => Album.ArtistId > 0;
+    public bool HasArtist => Album.ArtistId > 0 || Album.Artists.Count > 0;
+
+    /// <summary>页头那行艺人串。超过两位时压缩成「首位 等 N 人」。</summary>
+    public string ArtistDisplayText => Formats.ArtistDisplayText(Album.ArtistText, Album.Artists);
+
+    /// <summary>压缩过才给完整名单做 ToolTip；没压缩时是 <c>null</c>。</summary>
+    public string? ArtistToolTip => Formats.ArtistToolTip(Album.ArtistText, Album.Artists);
+
+    /// <summary>
+    /// 页头选人弹窗的候选。
+    /// </summary>
+    /// <remarks>
+    /// 专辑详情的 <c>artists[]</c> 里，头像全是服务端那张 <c>default_artist_pic.png</c>
+    /// （映射层已当成 <c>null</c>），直接显示会得到一排相同的占位图。
+    /// 曲目列表里同一批人的头像是真的，而这份列表本来就在加载，顺手补上，不额外发请求。
+    /// 补不到的条目由 <c>PersonPicture</c> 退回姓名首字。
+    /// </remarks>
+    public IReadOnlyList<ArtistChoice> BuildArtistChoices()
+    {
+        if (Album.Artists.Count == 0)
+        {
+            return Album.ArtistId > 0
+                ? [new ArtistChoice(Album.ArtistId, Album.ArtistText, Album.ArtistCover)]
+                : [];
+        }
+
+        Dictionary<long, Uri> avatars = [];
+
+        foreach (var track in Tracks.Items)
+        {
+            foreach (var artist in track.Artists)
+            {
+                if (artist.Id > 0 && artist.Avatar is not null)
+                {
+                    avatars[artist.Id] = artist.Avatar;
+                }
+            }
+        }
+
+        return
+        [
+            .. Album.Artists.Select(a => new ArtistChoice(
+                a.Id,
+                a.Name,
+                a.Avatar ?? avatars.GetValueOrDefault(a.Id))),
+        ];
+    }
 
     public async Task EnsureLoadedAsync(CancellationToken cancellationToken = default)
     {

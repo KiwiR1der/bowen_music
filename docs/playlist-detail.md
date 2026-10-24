@@ -247,3 +247,61 @@ DI 里注册成指向同一个外壳实例（`AddSingleton<IPlaylistLibrarySink>
 - 离线测试 **957** 项通过。新增 `PlaylistDeleteApiTests` 5 项：DELETE 打裸路径、body 的 id 数组、
   空回执算成功、非正 id 与未登录都不发请求、在途换号则拒绝。
 - 界面部分已由用户手动验收（2026-10-03）：确认框、侧栏那一行消失、换根回「我喜欢的」。
+
+---
+
+## 7. 头部补充：作者与多歌手（2026-10-24）
+
+### 7.1 标签不展示（已放弃）
+
+本来打算把 `service/playlist/info` 的 `categories` 显示在页头。实测（2026-10-24，两条公开歌单）：
+
+| source | `categories` |
+| --- | --- |
+| `4`（公开歌单） | **键不存在** |
+| `13`（发现页） | 整个 `data` 是空对象 |
+| `5`（自己的歌单） | 有，编辑对话框用它做初值 |
+
+也就是说公开歌单根本拿不到标签，做出来只有自己歌单能看到 —— 结论是**不展示**，
+`Playlist.Categories` 继续只服务编辑对话框。
+
+### 7.2 自建歌单也显示作者
+
+`ComputeOwnership` 原来写死 `HasCreator = !IsOwnPlaylist && …`，理由是「自己的歌单那行只写着
+『我』」。现在改成有创建者数据就显示，自建歌单不再缺这半块。
+
+`source=5` 的详情是否带 `creatorName` / `creatorIcon` 没有实测证据，所以补一条兜底：
+详情没给、且判定是自己的歌单时，用 `IBodianLogin.Account` 的昵称与头像；昵称为空则显示「我」。
+`PlaylistDetailViewModel` 因此多一个 `IBodianLogin` 依赖（`App.xaml.cs` 的工厂一起改）。
+名字放在 `*` 列里，长名字的省略号才会生效。
+
+### 7.3 多歌手：专辑页头与曲目行
+
+**专辑页头**是「点了只跳第一个」的真实入口：那里原来直接用 `Album.ArtistId` 跳转，
+而 `artist` 串里可能是一整串名字。
+
+- `AlbumDto` / `Album` 补 `artists[]`（fixture 里一直有，只是一直没映射）。
+- `AlbumDetailViewModel` 暴露 `ArtistDisplayText` / `ArtistToolTip`；
+  `OnArtistClick` 改成：单个可点艺人直接跳，多个（或含不可点的）弹 `ArtistPickerDialog`。
+- `ArtistPickerDialog` 新增与曲目无关的 `ShowAsync(candidates, …)` 入口，
+  `ShowPickerAsync` 复用它。
+- **头像**：专辑详情的 `artists[].pic` 全是服务端的 `default_artist_pic.png`
+  （2026-10-24 实测，九个条目同一张），映射层把它当 `null`；
+  `BuildArtistChoices` 再用曲目列表里同一批人的真实头像补齐，不额外发请求。
+  补不到的由 `PersonPicture` 显示姓名首字。
+
+**曲目行**本来就接 `TrackLink → ArtistPickerDialog`，这次补的是数据缺口：
+`GetArtistsAsync` 见明细只有一位就直接跳，而拼接串里可能还有别人。
+新增 `Reconcile`：单条明细 + 拆串结果里确实包含这位歌手的名字时，把其余名字补成
+不可点的灰卡交给弹窗。**按名字是否命中来判**，不看到 `&` 就拆：`Chase & Status` 这类队名会被误拆。
+
+**行内压缩**统一放在 `Formats.ArtistDisplayText`：超过 2 位显示 `首位 等 N 人`，
+完整名单进 ToolTip；两位仍然显示 `A、B`。曲目行与专辑页头共用。
+弹窗本身已有 `MaxHeight=320` 与换行滚动，人多不用改。
+
+### 7.4 验证
+
+- 构建 0 错误；离线测试 **1691** 项通过（原 1688）。
+- 新增 `TrackActionsViewModel` 3 项：单条明细按拼接串补全、详情那条路径同样补全、
+  队名带 `&` 不误拆。
+- 手动验收：自建歌单作者；多歌手专辑页头显示「首位 等 N 人」、点击弹选人框。

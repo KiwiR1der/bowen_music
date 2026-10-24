@@ -345,6 +345,59 @@ public sealed class TrackActionsViewModelTests
         Assert.Null(navigator.Artist);
     }
 
+    /// <summary>
+    /// 明细只回了一位、但艺人串里还有别人时，仍然弹窗，避免「点了只跳到第一个」。
+    /// </summary>
+    [Fact]
+    public async Task Artist_ExpandsASingleEntryWhenTheTextListsMore()
+    {
+        var navigator = new Navigator();
+        var viewModel = new TrackActionsViewModel(
+            Track(artistText: "周杰伦&费玉清", artists: [new TrackArtist(42, "周杰伦", null)]),
+            new PlaybackApiStub(), navigator, new Notices());
+
+        var artists = await viewModel.OpenArtistAsync(Ct);
+
+        Assert.Equal(["周杰伦", "费玉清"], artists.Select(a => a.Name));
+        Assert.True(artists[0].IsAvailable);
+        Assert.Equal(42, artists[0].Id);
+        Assert.False(artists[1].IsAvailable);
+        Assert.Null(navigator.Artist);
+    }
+
+    /// <summary>明细只有一位、且名字本身带 &amp; 时，不能把它拆成两个人。</summary>
+    [Fact]
+    public async Task Artist_DoesNotSplitABandNameThatContainsAmpersand()
+    {
+        var navigator = new Navigator();
+        var viewModel = new TrackActionsViewModel(
+            Track(artistText: "Chase & Status", artists: [new TrackArtist(7, "Chase & Status", null)]),
+            new PlaybackApiStub(), navigator, new Notices());
+
+        Assert.Empty(await viewModel.OpenArtistAsync(Ct));
+
+        Assert.Equal(7, navigator.Artist?.Id);
+    }
+
+    /// <summary>详情补查回来的明细只有一位时，同样按详情里的艺人串补全。</summary>
+    [Fact]
+    public async Task Artist_ExpandsTheDetailEntryWhenItsTextListsMore()
+    {
+        var api = new PlaybackApiStub
+        {
+            GetTrack = (id, _) => Task.FromResult<Track?>(
+                Track(id, artistText: "陈奕迅&王菲", artists: [new TrackArtist(9, "陈奕迅", null)])),
+        };
+        var navigator = new Navigator();
+        var viewModel = new TrackActionsViewModel(Track(5), api, navigator, new Notices());
+
+        var artists = await viewModel.OpenArtistAsync(Ct);
+
+        Assert.Equal(["陈奕迅", "王菲"], artists.Select(a => a.Name));
+        Assert.Equal(9, artists[0].Id);
+        Assert.Null(navigator.Artist);
+    }
+
     /// <summary>唯一那位服务端找不到时也弹窗，就是一张不可点的黑卡片。</summary>
     [Fact]
     public async Task Artist_OffersASingleArtistWithNoIdAsABlackCard()

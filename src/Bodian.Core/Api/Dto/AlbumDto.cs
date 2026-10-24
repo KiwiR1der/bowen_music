@@ -35,6 +35,12 @@ internal sealed class AlbumDto
 
     [JsonPropertyName("artistId")] public long ArtistId { get; init; }
 
+    /// <summary>
+    /// 艺人明细。专辑详情与列表样本里都有（见 <c>fixtures/album-1293.json</c>）；
+    /// <c>artist</c> 是拼接串，这里是同一批人的结构化名单，多歌手以它为准。
+    /// </summary>
+    [JsonPropertyName("artists")] public TrackArtistDto[]? Artists { get; init; }
+
     /// <summary>发行日期的字符串形式。</summary>
     [JsonPropertyName("showtime")] public string? ShowTime { get; init; }
 

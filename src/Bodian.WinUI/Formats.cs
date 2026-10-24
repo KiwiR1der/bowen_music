@@ -450,6 +450,50 @@ public static class Formats
     public static string IconPaths(string key) => IconGeometry.Paths(key);
 
     /// <summary>
+    /// 行内显示的艺人串。超过两位时压缩成「首位 等 N 人」。
+    /// </summary>
+    /// <remarks>
+    /// 十来个名字挤在一行里只会变成一串省略号，看不出后面还有人。
+    /// 完整名单由 <see cref="ArtistToolTip"/> 提供，点开仍有选人弹窗。
+    /// </remarks>
+    public static string ArtistDisplayText(string artistText, IReadOnlyList<TrackArtist> artists)
+    {
+        if (artists.Count > 2 && !string.IsNullOrWhiteSpace(artists[0].Name))
+        {
+            return $"{artists[0].Name} 等 {artists.Count} 人";
+        }
+
+        var names = SplitArtistNames(artistText);
+
+        return names.Count > 2 ? $"{names[0]} 等 {names.Count} 人" : artistText;
+    }
+
+    /// <summary>压缩过才给完整名单做 ToolTip；没压缩时返回 <c>null</c>，不弹重复内容。</summary>
+    public static string? ArtistToolTip(string artistText, IReadOnlyList<TrackArtist> artists)
+        => ArtistDisplayText(artistText, artists) == artistText ? null : artistText;
+
+    /// <remarks>
+    /// 明细齐全时由 <c>BodianApi.JoinArtists</c> 用「、」拼接；缺失时才退回服务端的「&amp;」串。
+    /// </remarks>
+    private static IReadOnlyList<string> SplitArtistNames(string text)
+    {
+        if (string.IsNullOrWhiteSpace(text))
+        {
+            return [];
+        }
+
+        var separator = text.Contains('、') ? '、' : '&';
+
+        return
+        [
+            .. text.Split(separator)
+                .Select(part => part.Trim())
+                .Where(part => part.Length > 0)
+                .Distinct(StringComparer.Ordinal),
+        ];
+    }
+
+    /// <summary>
     /// 应用显示名。给侧栏 Logo 与托盘提示用。
     /// </summary>
     /// <remarks>

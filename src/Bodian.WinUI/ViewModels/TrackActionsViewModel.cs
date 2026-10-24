@@ -370,7 +370,7 @@ public sealed partial class TrackActionsViewModel : ObservableObject
 
         if (artists.Count > 0)
         {
-            return artists;
+            return Reconcile(artists, _track.ArtistText);
         }
 
         // 「最近播放」是本地快照重建的，没有艺人明细（见 PlayHistoryEntry.ToTrack）；
@@ -387,10 +387,48 @@ public sealed partial class TrackActionsViewModel : ObservableObject
 
         if (artists.Count > 0)
         {
-            return artists;
+            return Reconcile(
+                artists,
+                string.IsNullOrWhiteSpace(detail.ArtistText) ? _track.ArtistText : detail.ArtistText);
         }
 
         return SplitArtists(string.IsNullOrWhiteSpace(detail.ArtistText) ? _track.ArtistText : detail.ArtistText);
+    }
+
+    /// <summary>
+    /// 明细只回了一位、而艺人串里还有别人时，把串拆开补成候选。
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// 有些列表接口的 <c>artists[]</c> 只带主艺人，<c>artist</c> 拼接串里才是完整名单。
+    /// 只看明细的话会被判成「只有一个人」而直接跳走 —— 表现就是「点了只跳到第一个」。
+    /// </para>
+    /// <para>
+    /// <b>拆出来的名字必须包含明细里那位才认。</b> 不这么做的话，
+    /// <c>Chase &amp; Status</c> 这类队名会被 <c>&amp;</c> 拆成两个假人。
+    /// </para>
+    /// </remarks>
+    private static IReadOnlyList<ArtistChoice> Reconcile(IReadOnlyList<ArtistChoice> artists, string text)
+    {
+        if (artists.Count != 1)
+        {
+            return artists;
+        }
+
+        var parts = SplitArtists(text);
+
+        if (parts.Count <= 1
+            || !parts.Any(part => string.Equals(part.Name, artists[0].Name, StringComparison.Ordinal)))
+        {
+            return artists;
+        }
+
+        return
+        [
+            .. parts.Select(part => string.Equals(part.Name, artists[0].Name, StringComparison.Ordinal)
+                ? artists[0]
+                : part),
+        ];
     }
 
     /// <summary>查看专辑。曲目没带专辑 id 时这一项是灰的，正常点不到。</summary>

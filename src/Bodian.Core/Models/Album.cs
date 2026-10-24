@@ -28,6 +28,12 @@ public sealed record Album
     /// </remarks>
     public long ArtistId { get; init; }
 
+    /// <summary>
+    /// 艺人明细。多歌手专辑里 <see cref="ArtistText"/> 是一串名字，
+    /// 这一份才是每人一条（含 id），选人弹窗用它。
+    /// </summary>
+    public IReadOnlyList<TrackArtist> Artists { get; init; } = [];
+
     /// <summary>封面地址。</summary>
     public Uri? CoverImage { get; init; }
 

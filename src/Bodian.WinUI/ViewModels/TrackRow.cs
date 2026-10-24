@@ -59,6 +59,12 @@ public sealed partial class TrackRow : ObservableObject
 
     public string ArtistText => Source.ArtistText;
 
+    /// <summary>行内那格显示的艺人串。超过两位时压缩成「首位 等 N 人」。</summary>
+    public string ArtistDisplayText => Formats.ArtistDisplayText(ArtistText, Source.Artists);
+
+    /// <summary>压缩过才给完整名单做 ToolTip；没压缩时是 <c>null</c>。</summary>
+    public string? ArtistToolTip => Formats.ArtistToolTip(ArtistText, Source.Artists);
+
     public string AlbumName => Formats.AlbumName(Source.AlbumName);
 
     public Uri? CoverImage => Source.CoverImage;

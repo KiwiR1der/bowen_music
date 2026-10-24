@@ -40,6 +40,7 @@ public sealed partial class PlaylistDetailViewModel : PlaylistTracksViewModel
     private readonly int _source;
     private readonly IBodianApi _api;
     private readonly BodianSession _session;
+    private readonly IBodianLogin _login;
     private readonly IClipboardService _clipboard;
     private readonly INoticeSink _notice;
     private readonly IPlaylistLibrarySink _library;
@@ -57,6 +58,7 @@ public sealed partial class PlaylistDetailViewModel : PlaylistTracksViewModel
         IBodianApi api,
         PlaybackCoordinator coordinator,
         BodianSession session,
+        IBodianLogin login,
         IClipboardService clipboard,
         Playlist playlist,
         int source,
@@ -66,6 +68,7 @@ public sealed partial class PlaylistDetailViewModel : PlaylistTracksViewModel
         : base(api, coordinator, logger ?? NullLogger<PlaylistDetailViewModel>.Instance, session)
     {
         ArgumentNullException.ThrowIfNull(session);
+        ArgumentNullException.ThrowIfNull(login);
         ArgumentNullException.ThrowIfNull(clipboard);
         ArgumentNullException.ThrowIfNull(playlist);
         ArgumentNullException.ThrowIfNull(notice);
@@ -73,6 +76,7 @@ public sealed partial class PlaylistDetailViewModel : PlaylistTracksViewModel
 
         _api = api;
         _session = session;
+        _login = login;
         _clipboard = clipboard;
         _notice = notice;
         _library = library;
@@ -404,9 +408,9 @@ public sealed partial class PlaylistDetailViewModel : PlaylistTracksViewModel
     /// 歌单当前的标签，编辑时用来预选。
     /// </summary>
     /// <remarks>
-    /// <b>只有详情会给标签</b>（<c>service/playlist/info</c> 的 <c>categories</c>），
-    /// 列表来源没有 —— 所以详情还没回来时这里就是空的，与「这个歌单没有标签」无法区分。
-    /// 编辑入口只在 <see cref="IsOwnPlaylist"/> 时出现，而那一页必然会加载详情。
+    /// <b>只有自己的歌单会返回标签</b>（<c>service/playlist/info</c> 的 <c>categories</c>，
+    /// 2026-10-24 实测：<c>source=4</c> 连这个键都没有，<c>source=13</c> 整个 data 是空对象），
+    /// 所以页头不展示标签，只给编辑对话框做初值。
     /// </remarks>
     public IReadOnlyList<MusicCategory> Categories => _info?.Categories ?? Playlist.Categories;
 
@@ -579,8 +583,6 @@ public sealed partial class PlaylistDetailViewModel : PlaylistTracksViewModel
             Subtitle = BuildSubtitle(info);
             Description = info.Description;
             HasDescription = info.HasDescription;
-            CreatorName = info.CreatorName;
-            CreatorCover = info.CreatorCover;
             IsCollected = info.IsCollected;
             ComputeOwnership(info);
         }
@@ -628,8 +630,38 @@ public sealed partial class PlaylistDetailViewModel : PlaylistTracksViewModel
 
         IsOwnPlaylist = matchesCurrentUser || _source == AccountPlaylistSource;
 
-        // 自己的歌单不显示创建者 —— 那一行只会写着「我」，是噪音。
-        HasCreator = !IsOwnPlaylist && info is { HasCreator: true };
+        ApplyCreator(info);
+    }
+
+    /// <summary>
+    /// 填创建者那一行。
+    /// </summary>
+    /// <remarks>
+    /// <b>自己的歌单也显示</b>：缺了这半块页头会显得只有一半，而创建者行本身不可点，
+    /// 不存在误导。<c>source=5</c> 的详情是否带创建者字段没有实测证据，所以拿不到时
+    /// 退回当前账号的昵称与头像；昵称也空就写「我」。
+    /// </remarks>
+    private void ApplyCreator(Playlist? info)
+    {
+        if (info is { HasCreator: true })
+        {
+            CreatorName = info.CreatorName;
+            CreatorCover = info.CreatorCover;
+            HasCreator = true;
+            return;
+        }
+
+        if (IsOwnPlaylist && _login.Account is { } account)
+        {
+            CreatorName = string.IsNullOrWhiteSpace(account.Nickname) ? "我" : account.Nickname;
+            CreatorCover = account.Avatar;
+            HasCreator = true;
+            return;
+        }
+
+        CreatorName = "";
+        CreatorCover = null;
+        HasCreator = false;
     }
 
     /// <summary>

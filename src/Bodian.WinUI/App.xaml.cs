@@ -398,6 +398,7 @@ public partial class App : Application
                     sp.GetRequiredService<IBodianApi>(),
                     sp.GetRequiredService<PlaybackCoordinator>(),
                     sp.GetRequiredService<BodianSession>(),
+                    sp.GetRequiredService<IBodianLogin>(),
                     sp.GetRequiredService<IClipboardService>(),
                     playlist,
                     source,

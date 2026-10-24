@@ -58,23 +58,29 @@
 
                 <!--
                     创建者。**不可点是故意的** —— 本项目没有用户主页，做成可点的按钮会点出个死路。
-                    自己的歌单不显示这一行（HasCreator 里已经排除了）。
+                    自己的歌单也显示（详情没给作者时用当前账号兜底），页头才不缺半块。
+                    名字放在星号列里，长名字才会真的出省略号。
                 -->
-                <StackPanel
-                    Orientation="Horizontal"
-                    Spacing="8"
+                <Grid
+                    ColumnSpacing="8"
                     Visibility="{x:Bind local:Formats.Visible(ViewModel.HasCreator), Mode=OneWay}">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+
                     <PersonPicture
                         Width="28"
                         Height="28"
                         DisplayName="{x:Bind ViewModel.CreatorName, Mode=OneWay}"
                         ProfilePicture="{x:Bind local:Formats.CoverSource(ViewModel.CreatorCover), Mode=OneWay}" />
                     <TextBlock
+                        Grid.Column="1"
                         VerticalAlignment="Center"
                         Foreground="{ThemeResource TextFillColorSecondaryBrush}"
                         Text="{x:Bind ViewModel.CreatorName, Mode=OneWay}"
                         TextTrimming="CharacterEllipsis" />
-                </StackPanel>
+                </Grid>
 
                 <StackPanel
                     Margin="0,2,0,0"

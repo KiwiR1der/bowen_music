@@ -83,13 +83,17 @@
                 Click="OnArtistClick"
                 Style="{StaticResource TrackLinkButtonStyle}"
                 Visibility="{x:Bind local:Formats.Visible(Row.CanOpenArtist), Mode=OneWay}">
-                <TextBlock Style="{StaticResource TrackLinkTextStyle}" Text="{x:Bind Row.ArtistText, Mode=OneWay}" />
+                <TextBlock
+                    Style="{StaticResource TrackLinkTextStyle}"
+                    Text="{x:Bind Row.ArtistDisplayText, Mode=OneWay}"
+                    ToolTipService.ToolTip="{x:Bind Row.ArtistToolTip, Mode=OneWay}" />
             </HyperlinkButton>
 
             <TextBlock
                 Foreground="{ThemeResource TextFillColorSecondaryBrush}"
                 Style="{StaticResource TrackLinkTextStyle}"
-                Text="{x:Bind Row.ArtistText, Mode=OneWay}"
+                Text="{x:Bind Row.ArtistDisplayText, Mode=OneWay}"
+                ToolTipService.ToolTip="{x:Bind Row.ArtistToolTip, Mode=OneWay}"
                 Visibility="{x:Bind local:Formats.VisibleWhenFalse(Row.CanOpenArtist), Mode=OneWay}" />
         </Grid>
 
