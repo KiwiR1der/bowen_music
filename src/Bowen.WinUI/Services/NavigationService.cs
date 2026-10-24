@@ -1,0 +1,313 @@
+using System.ComponentModel;
+using System.Diagnostics;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
+using Bowen.Core.Navigation;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.UI.Xaml.Controls;
+
+namespace Bowen.WinUI.Services;
+
+/// <inheritdoc cref="INavigationService" />
+/// <remarks>
+/// 这一层只做三件事：把页面内容换进宿主、按固定顺序通知页面、广播
+/// <see cref="Navigated"/>。<b>栈的语义全在
+/// <see cref="Bowen.Core.Navigation.NavigationStack{T}"/> 里</b>，本类不自己判等、
+/// 不自己截断 —— 那些是能单测的部分，不该埋在需要 UI 线程才能跑起来的代码里。
+/// </remarks>
+public sealed class NavigationService : INavigationService
+{
+    private readonly IServiceProvider _services;
+    private readonly ILogger<NavigationService> _logger;
+    private readonly bool _diagnostics = Environment.GetEnvironmentVariable("BODIAN_LYRICS_DIAGNOSTICS") == "1";
+
+    private readonly NavigationStack<Page> _stack;
+    private readonly Dictionary<Type, Page> _rootPages = [];
+    private readonly LinkedList<Type> _rootRecency = new();
+
+    private ContentControl? _host;
+    private ContentControl? _shownHost;
+    private Func<Page, ContentControl>? _selectHost;
+    private Func<Page, Page, Task>? _beforeNavigate;
+    private Page? _pendingPage;
+    private float _pendingX;
+    private float _pendingY;
+    private bool _departing;
+    private CoverTransitionAnimator.NavigationCover? _pendingCover;
+
+    /// <summary>当前真正挂在宿主上的页面。用来判断「这次到底变没变」。</summary>
+    private Page? _shown;
+
+    public NavigationService(IServiceProvider services, ILogger<NavigationService>? logger = null)
+    {
+        ArgumentNullException.ThrowIfNull(services);
+
+        _services = services;
+        _logger = logger ?? NullLogger<NavigationService>.Instance;
+
+        // 身份：带参根页自己声明（每个自建歌单详情各是一个根），其余按类型判等 ——
+        // 「发现」「我喜欢的」这类无参根页一种只有一个实例。
+        _stack = new NavigationStack<Page>(
+            page => page is INavigationIdentity identified
+                ? identified.NavigationIdentity
+                : page.GetType());
+    }
+
+    public event EventHandler<Page>? Navigated;
+
+    public event PropertyChangedEventHandler? PropertyChanged;
+
+    public bool CanGoBack => _stack.CanGoBack;
+
+    public Page? Current => _stack.Current;
+
+    public Page? Root => _stack.Root;
+
+    public void Attach(ContentControl host, Func<Page, ContentControl>? selectHost = null,
+        Func<Page, Page, Task>? beforeNavigate = null)
+    {
+        ArgumentNullException.ThrowIfNull(host);
+        _host = host;
+        _selectHost = selectHost;
+        _beforeNavigate = beforeNavigate;
+    }
+
+    internal TPage GetDetail<TPage, TModel>(TModel model, Func<TModel, TPage> create)
+        where TPage : Page
+    {
+        // 详情页拥有自己的 OneTime x:Bind 数据源。重新绑定旧页面会留下旧曲目集合，
+        // 离屏时清空原生列表也会破坏该绑定；每次进入新详情保持独立页面和数据源。
+        return create(model);
+    }
+
+    public void ReleaseCachedPages()
+    {
+        _rootPages.Clear();
+        _rootRecency.Clear();
+    }
+
+    public void Navigate<TPage>() where TPage : Page =>
+        Show(_stack.Push(_stack.Current is TPage current && current is not INavigationIdentity
+            ? current : _services.GetRequiredService<TPage>()));
+
+    public void Navigate(Page page)
+    {
+        ArgumentNullException.ThrowIfNull(page);
+
+        Show(_stack.Push(page));
+    }
+
+    public void NavigateRoot<TPage>() where TPage : Page
+    {
+        // 先找当前返回栈里的已有无参页面；不要先构造一个 XAML 页面再被栈丢弃。
+        var existing = _stack.Current is TPage current && current is not INavigationIdentity ? current
+            : _stack.History.OfType<TPage>().FirstOrDefault(page => page is not INavigationIdentity);
+        var type = typeof(TPage);
+        if (existing is null && _rootPages.TryGetValue(type, out var cached)) existing = (TPage)cached;
+        var page = existing ?? _services.GetRequiredService<TPage>();
+        if (page is not INavigationIdentity)
+        {
+            _rootPages[type] = page;
+            _rootRecency.Remove(type);
+            _rootRecency.AddFirst(type);
+            if (_rootPages.Count > 3 && _rootRecency.Last is { } oldest)
+            {
+                _rootPages.Remove(oldest.Value);
+                _rootRecency.RemoveLast();
+            }
+        }
+        Show(_stack.NavigateRoot(page), 0, 20);
+    }
+
+    public void NavigateRoot(Page page) => Show(_stack.NavigateRoot(page), 0, 20);
+
+    public void Reset<TPage>() where TPage : Page
+    {
+        // 登录/登出重置时清缓存，避免旧账号数据被复用。
+        _rootPages.Clear();
+        _rootRecency.Clear();
+        Show(_stack.Reset(_services.GetRequiredService<TPage>()), 0, 20);
+    }
+
+    public void GoBack()
+    {
+        // 栈空时 GoBack 返回 null，这里自然什么都不做。
+        if (_stack.GoBack() is { } page)
+        {
+            Show(page, -28, 0);
+        }
+    }
+
+    /// <summary>
+    /// 把某一页显示出来。
+    /// </summary>
+    /// <remarks>
+    /// <b>页面没变就跳过页面生命周期</b>：重复点同一个侧栏项、<c>Navigate</c> 到当前页，都会走到这里
+    /// 而目标与已在显示的是同一个实例。跳过意味着既不做内容赋值，也不发
+    /// <see cref="INavigationAware.OnNavigatedFrom"/> / <see cref="INavigationAware.OnNavigatedTo"/>
+    /// —— 后者会让页面白白重取一次数据。
+    /// </remarks>
+    public void GoBackTo(Func<Page, bool> destination)
+    {
+        // 栈里可以跳过歌词页，但宿主只切一次，不调用中间页的进场/离场动画。
+        if (_stack.GoBackTo(destination) is { } page) Show(page, -28, 0);
+    }
+
+    private void Show(Page next, float x = 28, float y = 0)
+    {
+        _pendingPage = next;
+        _pendingX = x;
+        _pendingY = y;
+        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(CanGoBack)));
+        // 返回栈立即前进，视觉离场只跑一次；连点返回或直接选页时提交最后的目标。
+        if (_departing)
+        {
+            // ★ 这次导航被挂起，等离场动画结束再提交。
+            //   离场若**永远不结束**，导航就永远不来（表现为「点什么都没反应」），
+            //   而那时静默是查不出来的 —— 这条日志就是唯一线索。
+            _logger.LogWarning("离场未结束，导航到 {Page} 先挂起", next.GetType().Name);
+            _pendingCover = null;
+            return;
+        }
+        if (ReferenceEquals(_shown, next))
+        {
+            _pendingPage = null;
+            return;
+        }
+        _pendingCover = CoverTransitionAnimator.Current?.PrepareNavigation(_shown, next, x < 0);
+        if (_shown is not null && _beforeNavigate is not null)
+        {
+            var departure = _beforeNavigate(_shown, next);
+            if (!departure.IsCompletedSuccessfully)
+            {
+                _departing = true;
+                _ = CompleteDepartureAsync(departure);
+                return;
+            }
+        }
+        CommitPending();
+    }
+
+    private async Task CompleteDepartureAsync(Task departure)
+    {
+        try { await departure; }
+        catch (Exception exception)
+        {
+            _logger.LogWarning(exception, "页面离场动画失败，直接完成导航");
+        }
+        finally { _departing = false; }
+        // 窗口已经关闭时，不再挂载页面或重新开启播放。
+        if (_host is not { IsLoaded: true })
+        {
+            _logger.LogWarning("离场结束但宿主未就绪，丢弃挂起的导航 {Page}", _pendingPage?.GetType().Name);
+            _pendingPage = null;
+            return;
+        }
+        CommitPending();
+    }
+
+    private void CommitPending()
+    {
+        if (_pendingPage is not { } next) return;
+        var x = _pendingX;
+        var y = _pendingY;
+        _pendingPage = null;
+        var sharedCover = _pendingCover;
+        _pendingCover = null;
+        if (ReferenceEquals(_shown, next))
+        {
+            // 离场途中又回到原页，只恢复视觉状态，不重复页面生命周期。
+            Navigated?.Invoke(this, next);
+            return;
+        }
+        ShowCore(next, x, y, sharedCover);
+    }
+
+    private void ShowCore(Page next, float x, float y, CoverTransitionAnimator.NavigationCover? sharedCover)
+    {
+        var started = Stopwatch.GetTimestamp();
+        if (ReferenceEquals(_shown, next))
+        {
+            return;
+        }
+
+        if (_host is null)
+        {
+            // 抛明确的异常，而不是等 NullReferenceException —— 这个错误信息直接指出该怎么修。
+            throw new InvalidOperationException(
+                $"导航到 {next.GetType().Name} 之前必须先调用 {nameof(Attach)}(ContentControl)。");
+        }
+
+        // ★ 沉浸页（歌词 / MV）是盖在常规页上的浮层，不是常规页的替代品：
+        //   进沉浸页时常规页仍留在 PageHost 里，收起时它也没离开过可视树。
+        //   这两步不发页面生命周期、也不做滚动位置的藏 / 放 —— 否则「收起歌词」会被
+        //   目标页当成一次新的进入，把数据重新加载一遍（典型是「最近播放」跳回第一行），
+        //   而重新放一遍滚动位置会先把列表隐藏再淡入，表现成整块界面闪一下。
+        var nextHost = _selectHost?.Invoke(next) ?? _host;
+        var shownWasShell = ReferenceEquals(_shownHost, _host);
+        var nextIsShell = ReferenceEquals(nextHost, _host);
+        var leavingStaysMounted = _shown is not null && shownWasShell && !nextIsShell;
+
+        // 先通知离场，再换内容，最后通知进场 —— 顺序固定，页面可以放心在
+        // OnNavigatedFrom 里释放、在 OnNavigatedTo 里重建。
+        // 滚动位置要在离场之前读：页面可能在自己的 OnNavigatedFrom 里改列表。
+        if (!leavingStaysMounted) ScrollMemory.Capture(_shown);
+        if (_shown is not null) AppMotion.Reset(_shown);
+
+        if (!leavingStaysMounted) Notify(_shown, leaving: true);
+
+        if (_shownHost is not null && (ReferenceEquals(_shownHost, nextHost)
+            || !ReferenceEquals(_shownHost, _host)))
+        {
+            _shownHost.Content = null;
+        }
+
+        var arrivingWasMounted = _shown is not null && !shownWasShell && nextIsShell
+            && ReferenceEquals(nextHost.Content, next);
+
+        _shownHost = nextHost;
+        if (!ReferenceEquals(_shownHost.Content, next)) _shownHost.Content = next;
+        _shown = next;
+        // 换页会让列表从顶上重来；把上一轮的滚动位置放回去，返回才有「原位置」。
+        // 收起沉浸页时页面根本没离树，偏移一直在，再「藏住 → 落位 → 淡入」只会闪一下。
+        var scrollRestore = arrivingWasMounted ? Task.CompletedTask : ScrollMemory.RestoreAsync(next);
+        // 收起沉浸页时，下层常规页一直挂在树上、本来就是不透明的；
+        // 再跑一遍淡入会让整个界面闪一下，所以只有真正重新挂载的页面才做入场动画。
+        if (ReferenceEquals(_shownHost, _host) && !arrivingWasMounted)
+            _ = AppMotion.EnterAsync(next, sharedCover is null ? x : 0, sharedCover is null ? y : 0);
+
+        if (!arrivingWasMounted) Notify(next, leaving: false);
+        Navigated?.Invoke(this, next);
+        if (sharedCover is not null) _ = PlaySharedCoverAsync(scrollRestore, sharedCover);
+        if (_diagnostics) _logger.LogInformation("页面切换 {Page}：UI 处理 {Elapsed:F2} ms", next.GetType().Name, Stopwatch.GetElapsedTime(started).TotalMilliseconds);
+    }
+
+    /// <summary>播放共享封面的往返动画。</summary>
+    /// <remarks>
+    /// <b>必须先等滚动位置落位。</b> 返回的落点是原来那张卡片，
+    /// 列表还在顶上时那张卡片不在视口里：要么等不到（整段动画被跳过），
+    /// 要么量到的是列表顶部对应的坐标（封面飞到半路停下）。
+    /// </remarks>
+    private static async Task PlaySharedCoverAsync(Task scrollRestore, CoverTransitionAnimator.NavigationCover cover)
+    {
+        await scrollRestore;
+        if (CoverTransitionAnimator.Current is { } animator) await animator.PlayNavigationAsync(cover);
+    }
+
+    private static void Notify(Page? page, bool leaving)
+    {
+        if (page is not INavigationAware aware)
+        {
+            return;
+        }
+
+        if (leaving)
+        {
+            aware.OnNavigatedFrom();
+        }
+        else
+        {
+            aware.OnNavigatedTo();
+        }
+    }
+}

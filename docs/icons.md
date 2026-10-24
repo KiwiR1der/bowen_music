@@ -219,7 +219,7 @@ C# 里码位字符串 0 处；构建 0 错误 0 警告；1062 项离线测试通
   用点写 `Data="{StaticResource IconHeart}"` —— 编译期 **0 错误**，启动时**必崩**：
 
   ```
-  XamlParseException: Failed to assign to property 'Bodian.WinUI.Controls.TrackStatisticButton.Data'
+  XamlParseException: Failed to assign to property 'Bowen.WinUI.Controls.TrackStatisticButton.Data'
   Failed to assign to property 'Microsoft.UI.Xaml.Controls.PathIcon.Data'   ← 连内置控件也一样
   ```
 
@@ -272,8 +272,8 @@ C# 里码位字符串 0 处；构建 0 错误 0 警告；1062 项离线测试通
 ## 6. 验证
 
 ```powershell
-dotnet build src/Bodian.WinUI/Bodian.WinUI.csproj --no-restore --verbosity minimal
-dotnet test --project tests/Bodian.Core.Tests/Bodian.Core.Tests.csproj --no-restore --verbosity minimal
+dotnet build src/Bowen.WinUI/Bowen.WinUI.csproj --no-restore --verbosity minimal
+dotnet test --project tests/Bowen.Core.Tests/Bowen.Core.Tests.csproj --no-restore --verbosity minimal
 ```
 
 **已完成**：构建 0 错误 0 警告；1062 项离线测试通过。

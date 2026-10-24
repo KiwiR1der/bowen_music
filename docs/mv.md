@@ -4,7 +4,7 @@
 接口协议、实网样本与字段表见 [`../reverse/findings/15-mv.md`](../reverse/findings/15-mv.md)，
 本文只讲客户端怎么落地。
 
-**状态**：构建通过、`tests/Bodian.Core.Tests` 全绿（含 6 条 MV 测试）。
+**状态**：构建通过、`tests/Bowen.Core.Tests` 全绿（含 6 条 MV 测试）。
 界面已在真机跑过并修过一轮（播放与暂停、进度拖动、画面菜单、标题栏间距），
 **下面「验收」一节尚未逐条走完**。
 
@@ -210,7 +210,7 @@ MV 常常是从歌词页点进来的，`GoBack()` 一层会落回歌词页 —�
 
 ## 7. 验收
 
-**核心逻辑**（`tests/Bodian.Core.Tests/MvApiTests.cs`，6 条）：
+**核心逻辑**（`tests/Bowen.Core.Tests/MvApiTests.cs`，6 条）：
 
 - 有 MV → 取出 `highUrl`；无 MV（20048）→ 返回 `null` 而不是抛
 - 搜索列表里 `isMv=0` 但 `vid>0` 的歌 → `HasMv` 为真；`isMv=0 且 vid=0` → 为假

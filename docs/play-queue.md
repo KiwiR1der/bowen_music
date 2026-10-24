@@ -17,7 +17,7 @@
 
 ## 1. 队列的内部结构：排列 + 游标
 
-`src/Bodian.WinUI/Playback/PlayQueue.cs` 从「单个 `_index`」改成三个字段：
+`src/Bowen.WinUI/Playback/PlayQueue.cs` 从「单个 `_index`」改成三个字段：
 
 ```
 _items    : List<Track>    队列本体，**顺序就是抽屉里给用户看到的顺序**
@@ -66,7 +66,7 @@ _mode     : PlayMode
 
 ## 2. 四种播放模式
 
-`src/Bodian.Core/Models/PlayMode.cs`。
+`src/Bowen.Core/Models/PlayMode.cs`。
 
 | 模式 | 自然放完 | 手动下一首 | 手动上一首 | `QueueExhausted` |
 | --- | --- | --- | --- | --- |
@@ -88,7 +88,7 @@ _mode     : PlayMode
 
 ## 3. 协调器上的命令
 
-`src/Bodian.WinUI/Playback/PlaybackCoordinator.cs` 新增：
+`src/Bowen.WinUI/Playback/PlaybackCoordinator.cs` 新增：
 
 | 方法 | 说明 |
 | --- | --- |
@@ -139,7 +139,7 @@ _mode     : PlayMode
 文案也刻意避开「歌单」二字。
 
 接线沿用 `TrackActionsViewModel` 那一套：新增自制接口
-`src/Bodian.WinUI/Services/IQueueSink.cs`（`PlayNextAsync` / `AddToQueueAsync`），
+`src/Bowen.WinUI/Services/IQueueSink.cs`（`PlayNextAsync` / `AddToQueueAsync`），
 真实实现在 `TrackActionsService` 里落到协调器。
 这样 `TrackActionsViewModel` 仍然只依赖 Core 模型与自制接口，**六条动作全都能离屏测**。
 
@@ -151,7 +151,7 @@ _mode     : PlayMode
 
 列表级的两条队列动作在 `Controls/TrackListToolbar` 上，走另一个自制接口
 `Services/ITrackBatchActions.cs`（同样由 `TrackActionsService` 兼任，走 App 资源键
-`BodianTrackActions`）：
+`BowenTrackActions`）：
 
 | 按钮 | 行为 |
 | --- | --- |
@@ -288,7 +288,7 @@ WinUI 构建通过，0 错误、0 警告（`AiPlaylistPage.xaml:27` 那条既有
 
 ### 10.2 判断收在协调器的 `PlayAsync`
 
-新增 `PlaybackCoordinator.PlayAsync`（`src/Bodian.WinUI/Playback/PlaybackCoordinator.cs`），
+新增 `PlaybackCoordinator.PlayAsync`（`src/Bowen.WinUI/Playback/PlaybackCoordinator.cs`），
 **所有播放键都走它**：引擎处于 `Idle` / `Stopped` 时不再直接调引擎的 `PlayAsync`，而是重新解析音源再 loadfile
 （CDN 直链带签名且有时效，旧的很可能已经过期）。`PlayerViewModel.TogglePlayPauseAsync` 与
 `SmtcManager` 那两处局部判断都并到这一个入口，与 §2「模式判断收在 `PlayQueue` 里」是同一条理由。

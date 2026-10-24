@@ -1,0 +1,189 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Page
+    x:Class="Bowen.WinUI.Views.LibraryCategoryPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:controls="using:Bowen.WinUI.Controls"
+    xmlns:local="using:Bowen.WinUI"
+    xmlns:models="using:Bowen.Core.Models">
+
+    <!--
+        乐库的一个大类：子类页签 + 精品/最新 + 专辑列表。
+        压在栈上的详情页，侧栏仍高亮「乐库」。
+
+        ★ 子类与专辑不是一回事：子类来自首页那一次 navigation（不用请求），
+          而每个子类的专辑列表要单独请求，所以只有下半部分有加载状态。
+    -->
+    <Grid Style="{StaticResource BowenPageRoot}">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <!-- ── 头部 ─────────────────────────────────────────────────────── -->
+        <Grid Grid.Row="0" ColumnSpacing="12">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
+
+            <Border
+                Grid.Column="0"
+                Width="{StaticResource SizeCoverMd}"
+                Height="{StaticResource SizeCoverMd}"
+                VerticalAlignment="Top"
+                Background="{ThemeResource ControlFillColorDefaultBrush}"
+                CornerRadius="{StaticResource RadiusMd}">
+                <!--
+                    页头封面：共享封面动画的落点，名字必须是 DetailCover。
+                    与乐库首页那张大类卡片用的是同一个字段，所以从首页点进来能接上。
+                    这里不挂 CoverFadeIn：页头这层由飞行动画接管。
+                -->
+                <Image
+                    x:Name="DetailCover"
+                    controls:Motion.SharedCoverKey="{x:Bind local:Formats.CategoryCoverKey(ViewModel.Group.Id)}"
+                    Source="{x:Bind local:Formats.CoverSource(ViewModel.Group.CoverImage)}"
+                    Stretch="UniformToFill" />
+            </Border>
+
+            <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="2">
+                <TextBlock Style="{StaticResource TitleTextBlockStyle}" Text="{x:Bind ViewModel.Group.Name}" />
+                <TextBlock
+                    Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                    Style="{StaticResource CaptionTextBlockStyle}"
+                    Text="{x:Bind ViewModel.Group.Title}" />
+                <TextBlock
+                    Foreground="{ThemeResource TextFillColorTertiaryBrush}"
+                    Style="{StaticResource CaptionTextBlockStyle}"
+                    Text="{x:Bind local:Formats.AlbumCount(ViewModel.Group.AlbumCount)}" />
+            </StackPanel>
+
+        </Grid>
+
+        <!-- 分类和排序都使用与侧栏一致的胶囊选中背景。 -->
+        <controls:PillTabBar
+            Grid.Row="1"
+            HorizontalAlignment="Stretch"
+            WrapItems="True"
+            ItemsSource="{x:Bind ViewModel.ChildTabs}"
+            SelectedIndex="{x:Bind ViewModel.SelectedChildIndex, Mode=TwoWay}" />
+
+        <Grid Grid.Row="2" ColumnSpacing="16">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+
+            <TextBlock
+                VerticalAlignment="Center"
+                Style="{StaticResource BowenPageStatus}"
+                Text="{x:Bind ViewModel.Albums.StatusText, Mode=OneWay}" />
+
+            <controls:PillTabBar
+                Grid.Column="1"
+                HorizontalAlignment="Right"
+                ItemsSource="{x:Bind ViewModel.SortTabs}"
+                SelectedIndex="{x:Bind ViewModel.SelectedSortIndex, Mode=TwoWay}" />
+        </Grid>
+
+        <!-- ── 专辑网格 ─────────────────────────────────────────────────── -->
+        <GridView controls:Motion.TabContent="True"
+            Grid.Row="3"
+            Padding="0"
+            controls:CoverCardLayout.IsEnabled="True"
+            controls:CoverCardLayout.CoverSize="132"
+            controls:CoverCardLayout.TextHeight="60"
+            controls:AutoPaging.Command="{x:Bind ViewModel.Albums.LoadMoreCommand}"
+            controls:AutoPaging.HasMore="{x:Bind ViewModel.Albums.HasMore, Mode=OneWay}"
+            IsItemClickEnabled="True"
+            ItemClick="OnAlbumClick"
+            ItemContainerStyle="{StaticResource BowenCoverCardItem}"
+            ItemsSource="{x:Bind ViewModel.Albums.Items}"
+            SelectionMode="None">
+            <GridView.ItemsPanel>
+                <ItemsPanelTemplate>
+                    <ItemsWrapGrid
+                        CacheLength="0.5"
+                        ItemHeight="210"
+                        ItemWidth="144"
+                        Orientation="Horizontal" />
+                </ItemsPanelTemplate>
+            </GridView.ItemsPanel>
+            <GridView.ItemTemplate>
+                <DataTemplate x:DataType="models:Album">
+                    <Grid
+                        Width="132"
+                        RowSpacing="6"
+                        VerticalAlignment="Top">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                        </Grid.RowDefinitions>
+
+                        <Border
+                            Width="132"
+                            Height="132"
+                            Background="{ThemeResource ControlFillColorDefaultBrush}"
+                            CornerRadius="{StaticResource RadiusMd}">
+                            <Grid>
+                                <Image
+                                    controls:Motion.CoverFadeIn="True"
+                                    controls:Motion.SharedCoverKey="{x:Bind local:Formats.AlbumCoverKey(Id)}"
+                                    Source="{x:Bind local:Formats.CoverSource(CoverImage)}"
+                                    Stretch="UniformToFill" />
+
+                                <Border
+                                    Margin="0,0,8,8"
+                                    Padding="7,1,7,2"
+                                    HorizontalAlignment="Right"
+                                    VerticalAlignment="Bottom"
+                                    Background="{ThemeResource MediaOverlayBackgroundBrush}"
+                                    CornerRadius="{StaticResource RadiusSm}"
+                                    Visibility="{x:Bind local:Formats.HasTracks(MusicCount)}">
+                                    <TextBlock
+                                        FontSize="12"
+                                        Foreground="{ThemeResource MediaOverlayForegroundBrush}"
+                                        Text="{x:Bind local:Formats.AlbumCount(MusicCount)}" />
+                                </Border>
+                            </Grid>
+                        </Border>
+
+                        <StackPanel
+                            Grid.Row="1"
+                            Spacing="2">
+                            <TextBlock
+                                MaxLines="2"
+                                LineHeight="20"
+                                ToolTipService.ToolTip="{x:Bind Name}"
+                                Text="{x:Bind Name}"
+                                TextTrimming="CharacterEllipsis"
+                                TextWrapping="Wrap" />
+
+                            <TextBlock
+                                Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                MaxLines="1"
+                                Style="{StaticResource CaptionTextBlockStyle}"
+                                Text="{x:Bind ArtistText}"
+                                TextTrimming="CharacterEllipsis" />
+                        </StackPanel>
+                    </Grid>
+                </DataTemplate>
+            </GridView.ItemTemplate>
+            <GridView.Footer>
+                <controls:PagingEndNote
+                    RetryCommand="{x:Bind ViewModel.Albums.LoadMoreCommand}"
+                    ShowEnd="{x:Bind ViewModel.Albums.ShowEnd, Mode=OneWay}"
+                    ShowRetry="{x:Bind ViewModel.Albums.ShowRetry, Mode=OneWay}" />
+            </GridView.Footer>
+        </GridView>
+
+        <Grid Grid.Row="4" Style="{StaticResource BowenPageFooter}">
+            <ProgressRing
+                Style="{StaticResource BowenPageBusyRing}"
+                IsActive="{x:Bind ViewModel.Albums.IsBusy, Mode=OneWay}" />
+        </Grid>
+    </Grid>
+</Page>

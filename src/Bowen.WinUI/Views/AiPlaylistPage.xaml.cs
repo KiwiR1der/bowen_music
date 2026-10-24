@@ -1,0 +1,35 @@
+using Bowen.Core.Models;
+using Bowen.WinUI.Services;
+using Bowen.WinUI.ViewModels;
+using Microsoft.UI.Xaml.Controls;
+
+namespace Bowen.WinUI.Views;
+
+/// <summary>
+/// 一个 AI 歌单（发现页「个性化歌单」里点标题进来）。
+/// </summary>
+/// <remarks>
+/// <b>压在栈上的详情页，不是根</b>：侧栏该继续高亮「发现」。
+/// </remarks>
+public sealed partial class AiPlaylistPage : Page, INavigationAware
+{
+    public AiPlaylistPage(AiPlaylistViewModel viewModel)
+    {
+        ArgumentNullException.ThrowIfNull(viewModel);
+
+        ViewModel = viewModel;
+
+        InitializeComponent();
+    }
+
+    public AiPlaylistViewModel ViewModel { get; }
+
+    public void OnNavigatedTo() => _ = ViewModel.EnsureLoadedAsync();
+
+    /// <summary>不需要收尾：数据一次加载完，没有常驻订阅要摘。</summary>
+    public void OnNavigatedFrom()
+    {
+    }
+
+    private void OnTrackInvoked(object? sender, Track track) => _ = ViewModel.PlayAsync(track);
+}

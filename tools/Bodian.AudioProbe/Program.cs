@@ -3,12 +3,12 @@ using System.Diagnostics;
 using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json;
-using Bodian.Core.Api;
-using Bodian.Core.Models;
-using Bodian.Core.Playback;
-using Bodian.Core.Services;
-using Bodian.Core.Services.Abstractions;
-using Bodian.Core.Services.Implementations;
+using Bowen.Core.Api;
+using Bowen.Core.Models;
+using Bowen.Core.Playback;
+using Bowen.Core.Services;
+using Bowen.Core.Services.Abstractions;
+using Bowen.Core.Services.Implementations;
 
 // Read-only audit: never print account identifiers, signed URLs, response bodies or EKey contents.
 var credential = new DpapiCredentialStore().Load();

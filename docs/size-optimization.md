@@ -39,7 +39,7 @@ Release x64 输出目录从 **174.6 MiB / 450 个文件** 压到 **115.2 MiB / 2
 | 其余托管依赖（Extensions / Serilog / NAudio / 托盘 / Win2D…） | 15.4 MB | 13% |
 | `libmpv-2.dll` | 8.0 MB | 7% |
 | Win2D（逐字歌词） | 2.8 MB | 2% |
-| **Bodian 应用自身**（dll + `pri` + exe + pdb） | 6.3 MB | 5% |
+| **Bowen 应用自身**（dll + `pri` + exe + pdb） | 6.3 MB | 5% |
 | `Microsoft.Extensions.*` | 1.1 MB | 1% |
 | Serilog | 0.3 MB | — |
 
@@ -102,7 +102,7 @@ WinAppSDK 会铺 91 个语言目录，每个里面两份 `.mui`（`Microsoft.ui.
 dotnet build -c Release -p:DistributionBuild=true
 ```
 
-去掉 `Bodian.WinUI.pdb` 与 `Bodian.Core.pdb`。**默认保留 PDB**——线上出问题时
+去掉 `BowenMusic.pdb` 与 `Bowen.Core.pdb`。**默认保留 PDB**——线上出问题时
 Serilog 日志里的行号比 1.6 MB 值钱。开关放在 `Directory.Build.props` 而不是某个
 csproj，否则只会去掉一个项目的 pdb。
 
@@ -203,7 +203,7 @@ error : The MSIX build tools use the 'CustomBeforeMicrosoftCommonTargets' MSBuil
 2. **升级 WinAppSDK 时先核对元包依赖表。** `Microsoft.WindowsAppSDK` 的依赖列表变化时，
    四个被挡的组件版本号（见 `src/Directory.Packages.props`）要跟着走。查法：
    `cat ~/.nuget/packages/microsoft.windowsappsdk/<版本>/microsoft.windowsappsdk.nuspec`。
-3. **自检命令**：对账 `Bodian.WinUI.deps.json` 里声明的运行时程序集与输出目录实际文件，
+3. **自检命令**：对账 `BowenMusic.deps.json` 里声明的运行时程序集与输出目录实际文件，
    缺一个都会在启动时报缺 DLL。当前 80 个声明、0 缺失。
 4. 语言资源那段的判定依赖 `.mui` 后缀这一事实。**若 WinAppSDK 将来把非资源文件也放进
    语言目录**，这条 target 需要跟着改。
@@ -218,7 +218,7 @@ error : The MSIX build tools use the 'CustomBeforeMicrosoftCommonTargets' MSBuil
 | AI / ML / Search / Widgets 残留 | 无（`onnxruntime` / `DirectML` / `SemanticIndex` / `PerceptiveStreaming` / `NPUDetect` / `Windows.AI.*` 全部为空） |
 | 语言目录 | 仅 `zh-CN`、`zh-TW` |
 | `Microsoft.UI.Xaml\Assets` | 完好（`NoiseAsset_256x256_PNG.png`、`map.html`） |
-| 关键运行时文件 | `Bodian.WinUI.exe` / `Bodian.WinUI.dll` / `Bodian.Core.dll` / `libmpv-2.dll` / `Microsoft.ui.xaml.dll` / `Microsoft.WinUI.dll` / `Microsoft.UI.Xaml.Controls.dll` / `Microsoft.WindowsAppRuntime.dll` / `Microsoft.Windows.SDK.NET.dll` / `Microsoft.Graphics.Canvas.dll` 全部在位 |
+| 关键运行时文件 | `BowenMusic.exe` / `BowenMusic.dll` / `Bowen.Core.dll` / `libmpv-2.dll` / `Microsoft.ui.xaml.dll` / `Microsoft.WinUI.dll` / `Microsoft.UI.Xaml.Controls.dll` / `Microsoft.WindowsAppRuntime.dll` / `Microsoft.Windows.SDK.NET.dll` / `Microsoft.Graphics.Canvas.dll` 全部在位 |
 | `deps.json` 声明的运行时程序集 | 80 个，输出目录 **0 缺失** |
 | `deps.json` 里的 AI 条目 | 只剩 `Microsoft.Windows.AI.MachineLearning/2.1.74` 一个空壳（`runtime` / `native` / `runtimeTargets` 全为空），不触发加载，无害 |
 | 应用启动与功能 | **见下方核对清单** |

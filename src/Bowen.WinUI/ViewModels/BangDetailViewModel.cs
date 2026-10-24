@@ -1,0 +1,84 @@
+using Bowen.Core.Api;
+using Bowen.Core.Api.Paging;
+using Bowen.Core.Models;
+using Bowen.Core.Services.Abstractions;
+using Bowen.WinUI.Playback;
+using CommunityToolkit.Mvvm.ComponentModel;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
+
+namespace Bowen.WinUI.ViewModels;
+
+/// <summary>
+/// 一个榜的详情页：完整榜单（实测 100 首），可翻页。
+/// </summary>
+/// <remarks>
+/// 页号从 1 起、<c>rn</c> 取 30（与项目其余列表一致）。
+/// </remarks>
+public sealed partial class BangDetailViewModel : ObservableObject
+{
+    private readonly IBodianApi _api;
+    private readonly PlaybackCoordinator _coordinator;
+
+    public BangDetailViewModel(
+        IBodianApi api,
+        PlaybackCoordinator coordinator,
+        Bang bang,
+        ILogger<BangDetailViewModel>? logger = null,
+        ICurrentAccount? account = null)
+    {
+        ArgumentNullException.ThrowIfNull(api);
+        ArgumentNullException.ThrowIfNull(coordinator);
+        ArgumentNullException.ThrowIfNull(bang);
+
+        _api = api;
+        _coordinator = coordinator;
+        Bang = bang;
+
+        // 榜详情也要名次，所以包一层 RankedTrack。
+        // 名次 = 这一页的起始偏移 + 页内下标 + 1 —— 用游标的 Offset，不能用已加载条数累加，
+        // 否则服务端省略条目时名次会整体前移。
+        Tracks = new PagedList<RankedTrack>(
+            async (cursor, token) =>
+            {
+                var page = await api.GetBangTracksAsync(bang.Id, cursor, token).ConfigureAwait(false);
+
+                return new PagedResult<RankedTrack>(
+                    [.. page.Items.Select((track, index) => new RankedTrack(page.Offset + index + 1, track))],
+                    page.Offset,
+                    page.PageSize,
+                    page.Total);
+            },
+            logger ?? NullLogger<BangDetailViewModel>.Instance,
+            $"榜「{bang.Name}」",
+            "这个榜暂时取不到曲目。",
+            countUnit: "首",
+            account: account);
+    }
+
+    public Bang Bang { get; }
+
+    public PagedList<RankedTrack> Tracks { get; }
+
+    public string Title => Bang.Name;
+
+    public Uri? CoverImage => Bang.CoverImage;
+
+    public string UpdateText => Bang.UpdateText;
+
+    /// <summary>首次进入时调。</summary>
+    public Task EnsureLoadedAsync(CancellationToken cancellationToken = default) =>
+        Tracks.EnsureLoadedAsync(cancellationToken);
+
+    /// <summary>点播榜里的某一首：加到队尾并立即播放它。要一次排进整个榜，走工具栏的「全部加入播放列表」。</summary>
+    /// <remarks>
+    /// <b>入参是曲目而不是 <see cref="RankedTrack"/></b>：行模板换成了共享的
+    /// <c>TrackListView</c>，它按约定只上报曲目。名次是榜单自己的展示概念，到这一层就该脱掉了。
+    /// </remarks>
+    public async Task PlayAsync(Track track)
+    {
+        ArgumentNullException.ThrowIfNull(track);
+
+        await _coordinator.EnqueueAndPlayAsync(track).ConfigureAwait(true);
+    }
+}

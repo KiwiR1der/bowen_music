@@ -14,7 +14,7 @@
 用户随后说明平时从下面的路径启动，之前可能多次启动了旧构建：
 
 ```text
-F:\My_Project\bodain_winui\src\Bodian.WinUI\bin\Debug\net10.0-windows10.0.26100.0\win-x64\Bodian.WinUI.exe
+F:\My_Project\bodain_winui\src\Bowen.WinUI\bin\Debug\net10.0-windows10.0.26100.0\win-x64\BowenMusic.exe
 ```
 
 因此，之前各轮负面反馈**不能都当作对应候选构建已经被验证失败**；一些测试的实际版本不明确。
@@ -36,7 +36,7 @@ F:\My_Project\bodain_winui\src\Bodian.WinUI\bin\Debug\net10.0-windows10.0.26100.
 - 托盘 Hide/Show、非文本焦点和候选窗口定位均交给既有 WinUI 实现；最终应用没有接入额外 IMM 上下文保护、
   手动坐标、原生 caret 或 TSF 文档干预。没有替换原生输入框。
 
-开发时可以使用 `Bodian.WinUI.exe --ime-compatibility` 临时开启本次启动的兼容路径，不写偏好。
+开发时可以使用 `BowenMusic.exe --ime-compatibility` 临时开启本次启动的兼容路径，不写偏好。
 最终代码的启动日志带 `final-minimal` 标记，可与早期候选构建区分。
 
 ## 3. 排查结论与撤回的判断
@@ -71,14 +71,14 @@ F:\My_Project\bodain_winui\src\Bodian.WinUI\bin\Debug\net10.0-windows10.0.26100.
 用户重新启动后确认修好。
 
 ```powershell
-dotnet build src/Bodian.WinUI/Bodian.WinUI.csproj -c Debug --output artifacts/ime-final-minimal/ -p:IntermediateOutputPath=obj/ime-startup-fixed/
+dotnet build src/Bowen.WinUI/Bowen.WinUI.csproj -c Debug --output artifacts/ime-final-minimal/ -p:IntermediateOutputPath=obj/ime-startup-fixed/
 ```
 
 一般开发使用默认输出，避免混淆：
 
 ```powershell
-dotnet build src/Bodian.WinUI/Bodian.WinUI.csproj -c Debug
-& ./tools/Verify-WinUIResources.ps1 -OutputDirectory ./src/Bodian.WinUI/bin/Debug/net10.0-windows10.0.26100.0/win-x64
+dotnet build src/Bowen.WinUI/Bowen.WinUI.csproj -c Debug
+& ./tools/Verify-WinUIResources.ps1 -OutputDirectory ./src/Bowen.WinUI/bin/Debug/net10.0-windows10.0.26100.0/win-x64
 ```
 
 资源检查只解析 PRI，不启动应用；核对项目全部 XAML 的相对索引和 XBF 数据。

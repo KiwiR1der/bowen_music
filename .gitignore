@@ -48,7 +48,7 @@ AppPackages/
 TestResults/
 *.trx
 
-# 日志兜底（正常落在 %LOCALAPPDATA%\Bodian\logs）
+# 日志兜底（正常落在 %LOCALAPPDATA%\Bowen\logs）
 logs/
 
 # 探针运行时的本机凭据（正常落在 %LOCALAPPDATA%，这里兜底防误提交）

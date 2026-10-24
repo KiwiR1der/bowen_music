@@ -36,22 +36,22 @@
 
 | 文件 | 职责 |
 | --- | --- |
-| `src/Bodian.WinUI/Services/AppMotion.cs` | 通用淡入、位移、缩放和卡片换页；取消旧任务，卸载时恢复视觉状态；`Hide` / `RevealAsync` 是「定位落位前先别露出来」的遮挡 |
-| `src/Bodian.WinUI/Controls/Motion.cs` | 标记 Tab 内容、共享封面身份、封面淡入（`CoverFadeIn`）和宿主裁剪；只动画内容根节点 |
-| `src/Bodian.WinUI/Controls/PillTabBar.xaml.cs` | 选中指示块的位置、宽度与方向过渡 |
-| `src/Bodian.WinUI/Controls/SelectionPill.cs` | 通用「选中底滑动块」：侧栏分类与设置页分类栏共用，按选中项自己那块底色的矩形（容器内缩一圈）量位置并滑动 |
-| `src/Bodian.WinUI/Services/CoverTransitionAnimator.cs` | 统一的封面飞行层、详情往返、歌词封面交接；复用现有图像源 |
-| `src/Bodian.WinUI/Services/CoverDropAnimation.cs` | 捕获单曲点击来源，确认播放结果后启动下坠 |
-| `src/Bodian.WinUI/Controls/CoverDropPath.cs` | 下坠轨迹与缩放的纯数学计算 |
-| `src/Bodian.WinUI/Services/ThemeTransitionAnimator.cs` | 独立合成遮罩；不修改主题资源、控件颜色、整窗透明度或页面变换 |
-| `src/Bodian.WinUI/Services/ThemeColorMotion.cs` | 正弦缓动采样，当前供遮罩透明度关键帧使用 |
-| `src/Bodian.WinUI/Services/ScrollMemory.cs` | 离屏前记下页面各处的滚动偏移，挂回来时放回；不碰数据源，不调用 `ScrollIntoView` |
-| `src/Bodian.WinUI/Services/NavigationService.cs` | 导航提交、沉浸页离场等待、共享封面准备与启动；返回时先等滚动落位再启动封面 |
-| `src/Bodian.Core/Navigation/NavigationStack.cs` | `GoBackTo` 一次取得最终返回页，保留此前的页面实例和返回栈 |
-| `src/Bodian.WinUI/MainWindow.xaml.cs` | 通知条显隐：`OnNotificationChanged` 推迟一拍，用 `AppMotion` 播 6 DIP / 220 ms 的进出场 |
-| `src/Bodian.WinUI/Controls/AmbientBackdrop.xaml.cs` | 氛围背景颜色过渡：`ColorPalette.Blend` 逐帧插值，650 ms / 40 ms 一帧；复用像素缓冲区并串行渲染 |
-| `src/Bodian.WinUI/Controls/PlayQueuePanel.xaml.cs` | 删单曲的退场：`AppMotion.ExitAsync` 淡出并上移 6 DIP，结束才删除 |
-| `src/Bodian.Core/Media/ColorPalette.cs` | `Blend` 的纯函数：两个调色板按通道插值，可离线单测 |
+| `src/Bowen.WinUI/Services/AppMotion.cs` | 通用淡入、位移、缩放和卡片换页；取消旧任务，卸载时恢复视觉状态；`Hide` / `RevealAsync` 是「定位落位前先别露出来」的遮挡 |
+| `src/Bowen.WinUI/Controls/Motion.cs` | 标记 Tab 内容、共享封面身份、封面淡入（`CoverFadeIn`）和宿主裁剪；只动画内容根节点 |
+| `src/Bowen.WinUI/Controls/PillTabBar.xaml.cs` | 选中指示块的位置、宽度与方向过渡 |
+| `src/Bowen.WinUI/Controls/SelectionPill.cs` | 通用「选中底滑动块」：侧栏分类与设置页分类栏共用，按选中项自己那块底色的矩形（容器内缩一圈）量位置并滑动 |
+| `src/Bowen.WinUI/Services/CoverTransitionAnimator.cs` | 统一的封面飞行层、详情往返、歌词封面交接；复用现有图像源 |
+| `src/Bowen.WinUI/Services/CoverDropAnimation.cs` | 捕获单曲点击来源，确认播放结果后启动下坠 |
+| `src/Bowen.WinUI/Controls/CoverDropPath.cs` | 下坠轨迹与缩放的纯数学计算 |
+| `src/Bowen.WinUI/Services/ThemeTransitionAnimator.cs` | 独立合成遮罩；不修改主题资源、控件颜色、整窗透明度或页面变换 |
+| `src/Bowen.WinUI/Services/ThemeColorMotion.cs` | 正弦缓动采样，当前供遮罩透明度关键帧使用 |
+| `src/Bowen.WinUI/Services/ScrollMemory.cs` | 离屏前记下页面各处的滚动偏移，挂回来时放回；不碰数据源，不调用 `ScrollIntoView` |
+| `src/Bowen.WinUI/Services/NavigationService.cs` | 导航提交、沉浸页离场等待、共享封面准备与启动；返回时先等滚动落位再启动封面 |
+| `src/Bowen.Core/Navigation/NavigationStack.cs` | `GoBackTo` 一次取得最终返回页，保留此前的页面实例和返回栈 |
+| `src/Bowen.WinUI/MainWindow.xaml.cs` | 通知条显隐：`OnNotificationChanged` 推迟一拍，用 `AppMotion` 播 6 DIP / 220 ms 的进出场 |
+| `src/Bowen.WinUI/Controls/AmbientBackdrop.xaml.cs` | 氛围背景颜色过渡：`ColorPalette.Blend` 逐帧插值，650 ms / 40 ms 一帧；复用像素缓冲区并串行渲染 |
+| `src/Bowen.WinUI/Controls/PlayQueuePanel.xaml.cs` | 删单曲的退场：`AppMotion.ExitAsync` 淡出并上移 6 DIP，结束才删除 |
+| `src/Bowen.Core/Media/ColorPalette.cs` | `Blend` 的纯函数：两个调色板按通道插值，可离线单测 |
 
 通用交互约 150–260 ms；通知条进出场 220 ms；播放队列删单曲 170 ms；详情封面往返约 340–420 ms；沉浸页展开约 440 ms；歌词封面放大 520 ms、回位 420 ms；单曲下坠 620 ms；主题遮罩 650 ms；氛围背景变色 650 ms。关键帧时长是设定值，日志中的实际结束时间还包含合成提交和 UI 回调调度时间。
 
@@ -125,7 +125,7 @@ MV 的“退出 MV”调用 `ExitImmersiveToShell`，使用 `GoBackTo` 跳过栈
 - 不动画整窗透明度、缩放或位移，避免干扰歌词、频谱、封面飞行和页面切换。
 - 先写入动画终值作为底值，再启动显式动画；启动后再写同一属性会提前终止动画。
 - 遮罩常驻独立合成层，XAML 首次布局和主题资源更新不会覆盖其透明度动画。
-- 侧栏与设置页分类栏的选中高亮块画在列表**之下**（`Controls/SelectionPill`，块放在列表之前的 Canvas 里），依赖宿主底色透明：侧栏靠 `Theme.xaml` 把 `NavigationViewDefaultPaneBackground` 等四个键覆写成透明，分类栏靠 `BodianSettingsRail` 不设底色。宿主若改回不透明底，块会被盖住 —— 症状是「没有高亮」，那时把图层挪到列表之后，代价是底色必须永远半透明。两处都用 `SelectionPillBrush`（高对比度为透明，那一档保留系统自带的选中底，块不参与），色号与 `NavigationViewItemBackgroundSelected` 一致。
+- 侧栏与设置页分类栏的选中高亮块画在列表**之下**（`Controls/SelectionPill`，块放在列表之前的 Canvas 里），依赖宿主底色透明：侧栏靠 `Theme.xaml` 把 `NavigationViewDefaultPaneBackground` 等四个键覆写成透明，分类栏靠 `BowenSettingsRail` 不设底色。宿主若改回不透明底，块会被盖住 —— 症状是「没有高亮」，那时把图层挪到列表之后，代价是底色必须永远半透明。两处都用 `SelectionPillBrush`（高对比度为透明，那一档保留系统自带的选中底，块不参与），色号与 `NavigationViewItemBackgroundSelected` 一致。
 - 新请求、卸载或关闭时取消遮罩；窗口按钮配色与托盘更新合并为一次低优先级任务，深浅两版图标复用至窗口关闭。
 
 先前的整窗快照造成动态画面定格；直接动画画刷 `Color` 引发 XAML 未处理异常，共用画刷重复目标和资源覆盖又造成过渡失败及浅色样式回归。最终实现完全撤回画刷颜色动画，以独立合成层隔离主题过渡。
@@ -134,8 +134,8 @@ MV 的“退出 MV”调用 `ExitImmersiveToShell`，使用 `GoBackTo` 跳过栈
 
 2026-10-07 的最终验证：
 
-- `dotnet build src/Bodian.WinUI/Bodian.WinUI.csproj --no-restore -v minimal` 成功，0 错误；保留 `AiPlaylistPage.xaml:28` 原有的 `WMC1506` 绑定警告。
-- `dotnet test --project tests/Bodian.Core.Tests/Bodian.Core.Tests.csproj --no-restore --verbosity minimal`：1417 项通过，0 失败、0 跳过。
+- `dotnet build src/Bowen.WinUI/Bowen.WinUI.csproj --no-restore -v minimal` 成功，0 错误；保留 `AiPlaylistPage.xaml:28` 原有的 `WMC1506` 绑定警告。
+- `dotnet test --project tests/Bowen.Core.Tests/Bowen.Core.Tests.csproj --no-restore --verbosity minimal`：1417 项通过，0 失败、0 跳过。
 - `git diff --check` 通过。
 - 运行时日志确认无音乐状态首播等待有效布局后下坠、首次歌词封面放大、歌词封面回位、多歌手头像进入、专辑封面往返均实际启动并完成。
 - “常规页 → 歌词页 → MV → 退出 MV”直接回到原常规页，没有中间歌词页入场或封面回位。
@@ -147,20 +147,20 @@ MV 的“退出 MV”调用 `ExitImmersiveToShell`，使用 `GoBackTo` 跳过栈
 
 2026-10-14 的滚动位置恢复：
 
-- `dotnet build src/Bodian.WinUI/Bodian.WinUI.csproj --no-restore -v minimal` 成功，0 错误 0 警告。
-- `dotnet test --project tests/Bodian.Core.Tests/Bodian.Core.Tests.csproj --no-restore`：1594 项通过，0 失败、0 跳过。
+- `dotnet build src/Bowen.WinUI/Bowen.WinUI.csproj --no-restore -v minimal` 成功，0 错误 0 警告。
+- `dotnet test --project tests/Bowen.Core.Tests/Bowen.Core.Tests.csproj --no-restore`：1594 项通过，0 失败、0 跳过。
 - **界面行为尚未实测**（合成与布局时序只有跑起来才看得出来）：详情返回后列表停在原处、封面照常缩回原卡片，且返回时看不到「先顶部再跳」；播放队列抽屉打开时同样不闪；侧栏换根后回到原位置；定位窗口内手动滚动不被拉回。这些留给用户实机确认。
 
 2026-10-14 的排行榜 / 乐库封面动画：
 
-- `dotnet build src/Bodian.WinUI/Bodian.WinUI.csproj --no-restore -v minimal` 成功，0 错误；保留 `AiPlaylistPage.xaml:28` 原有的 `WMC1506` 绑定警告。
-- `dotnet test --project tests/Bodian.Core.Tests/Bodian.Core.Tests.csproj --no-restore`：1594 项通过，0 失败、0 跳过。Core 未改动。
+- `dotnet build src/Bowen.WinUI/Bowen.WinUI.csproj --no-restore -v minimal` 成功，0 错误；保留 `AiPlaylistPage.xaml:28` 原有的 `WMC1506` 绑定警告。
+- `dotnet test --project tests/Bowen.Core.Tests/Bowen.Core.Tests.csproj --no-restore`：1594 项通过，0 失败、0 跳过。Core 未改动。
 - 2026-10-14 实机确认：点榜卡片 / 乐库大类时封面飞入页头、返回时缩回原卡片；排行榜展开一组时卡片淡入、收起时直接重排不抖；乐库首页与分类页的卡片封面、以及乐库分类页的专辑封面，都在图解码完成时淡入而不是硬切。
 
 2026-10-14 的「关注的歌手」返回位置修复：
 
 - 成因见上文「返回时不要把列表重拉一遍」。
-- `dotnet build src/Bodian.WinUI/Bodian.WinUI.csproj --no-restore -v minimal` 成功，0 错误；`dotnet test --project tests/Bodian.Core.Tests/Bodian.Core.Tests.csproj --no-restore`：1594 项通过。`PagedList` 在 WinUI 项目里，没有单测项目覆盖它，改动靠构建与实机验证。
+- `dotnet build src/Bowen.WinUI/Bowen.WinUI.csproj --no-restore -v minimal` 成功，0 错误；`dotnet test --project tests/Bowen.Core.Tests/Bowen.Core.Tests.csproj --no-restore`：1594 项通过。`PagedList` 在 WinUI 项目里，没有单测项目覆盖它，改动靠构建与实机验证。
 - 2026-10-14 实机确认：翻过一页之后进歌手详情再返回，列表停在原处、封面缩回原卡片；在详情页取消关注再返回，这一位从列表消失且其余项不跳位、位置不丢。
 
 2026-10-24 专辑页头歌手头像的往返：

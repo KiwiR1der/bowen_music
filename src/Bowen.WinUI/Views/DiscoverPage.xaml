@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Page
+    x:Class="Bowen.WinUI.Views.DiscoverPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:controls="using:Bowen.WinUI.Controls"
+    xmlns:home="using:Bowen.Core.Models.Home"
+    xmlns:vm="using:Bowen.WinUI.ViewModels">
+
+    <Page.Resources>
+        <DataTemplate x:Key="DiscoverHeaderTemplate" x:DataType="vm:ListSectionHeader">
+            <!--
+                左边缘与上面卡片区的封面左沿对齐：28（给翻页按钮腾的留白）+ 12（卡片让出的空白）。
+                宽度交给 Grid 的 * 列，标题长了也不会把右边的刷新按钮挤掉（同侧栏那一处）。
+            -->
+            <Grid Margin="40,12,16,8">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <TextBlock Style="{StaticResource BowenModuleTitle}" Text="{x:Bind Title}" />
+                <Button Grid.Column="1"
+                    AutomationProperties.Name="刷新"
+                    Command="{x:Bind RefreshCommand}"
+                    Style="{StaticResource BowenIconButton}"
+                    ToolTipService.ToolTip="刷新"
+                    Visibility="{x:Bind RefreshVisibility}">
+                    <controls:Icon Size="12" Data="{StaticResource IconRefresh}" />
+                </Button>
+            </Grid>
+        </DataTemplate>
+        <DataTemplate x:Key="DiscoverSectionTemplate" x:DataType="home:HomeSection">
+            <controls:HomeSectionView Margin="0,0,0,16" CardInvoked="OnCardInvoked" Section="{x:Bind}" />
+        </DataTemplate>
+        <controls:ResultTemplateSelector x:Key="DiscoverTemplateSelector"
+            HeaderTemplate="{StaticResource DiscoverHeaderTemplate}" HomeSectionTemplate="{StaticResource DiscoverSectionTemplate}" />
+    </Page.Resources>
+    <Grid Style="{StaticResource BowenPageRoot}">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <!-- 模块标题与每个横向卡片区都是可回收的独立条目；不会实现整组离屏卡片。 -->
+        <!--
+            翻页靠末尾条目被实现来触发。首屏若不足一屏会自动补到填满 ——
+            否则列表根本滚不动，后面的模块就永远够不到了。
+        -->
+        <controls:VirtualizedListView x:Name="FeedList" Grid.Row="0"
+            Padding="{StaticResource SpaceVerticalScrollContentPadding}" ItemsSource="{x:Bind ViewModel.Rows}"
+            controls:AutoPaging.Command="{x:Bind ViewModel.LoadMoreCommand}"
+            controls:AutoPaging.HasMore="{x:Bind ViewModel.HasMore, Mode=OneWay}"
+            ItemTemplateSelector="{StaticResource DiscoverTemplateSelector}" SelectionMode="None"
+            ScrollViewer.VerticalScrollBarVisibility="Auto" ScrollViewer.VerticalScrollMode="Enabled">
+            <controls:VirtualizedListView.ItemContainerStyle>
+                <Style TargetType="ListViewItem" BasedOn="{StaticResource DefaultListViewItemStyle}">
+                    <Setter Property="Padding" Value="0" />
+                    <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+                </Style>
+            </controls:VirtualizedListView.ItemContainerStyle>
+            <controls:VirtualizedListView.Footer>
+                <controls:PagingEndNote
+                    RetryCommand="{x:Bind ViewModel.LoadMoreCommand}"
+                    ShowEnd="{x:Bind ViewModel.ShowEnd, Mode=OneWay}"
+                    ShowRetry="{x:Bind ViewModel.ShowRetry, Mode=OneWay}" />
+            </controls:VirtualizedListView.Footer>
+        </controls:VirtualizedListView>
+
+        <Grid Grid.Row="1" Style="{StaticResource BowenPageFooter}">
+            <ProgressRing
+                Style="{StaticResource BowenPageBusyRing}"
+                IsActive="{x:Bind ViewModel.IsBusy, Mode=OneWay}" />
+        </Grid>
+    </Grid>
+</Page>

@@ -57,7 +57,7 @@ def download(url: str, path: Path, expected: str | None = None) -> str:
     path.parent.mkdir(parents=True, exist_ok=True)
     if not path.exists():
         print(f"Downloading {path.name}", flush=True)
-        request = urllib.request.Request(url, headers={"User-Agent": "Bodian-mpv-audio-build"})
+        request = urllib.request.Request(url, headers={"User-Agent": "Bowen-mpv-audio-build"})
         with urllib.request.urlopen(request, timeout=120) as response, path.open("wb") as output:
             shutil.copyfileobj(response, output, length=1024 * 1024)
     digest = sha256(path)
@@ -67,7 +67,7 @@ def download(url: str, path: Path, expected: str | None = None) -> str:
 
 
 def extract_source(archive: Path, target: Path) -> None:
-    if (target / ".bodian-extracted").exists():
+    if (target / ".bowen-extracted").exists():
         return
     target.mkdir(parents=True, exist_ok=True)
     with tarfile.open(archive) as source:
@@ -79,7 +79,7 @@ def extract_source(archive: Path, target: Path) -> None:
             member.name = str(Path(*parts[1:]))
             members.append(member)
         source.extractall(target, members=members, filter="data")
-    (target / ".bodian-extracted").write_text(sha256(archive), encoding="utf-8")
+    (target / ".bowen-extracted").write_text(sha256(archive), encoding="utf-8")
 
 
 class Builder:
@@ -116,9 +116,9 @@ class Builder:
         if not python.exists():
             self.run("venv", [sys.executable, "-m", "venv", str(self.work / "venv")])
         self.python = python
-        if not (self.work / "venv/.bodian-packages").exists():
+        if not (self.work / "venv/.bowen-packages").exists():
             self.run("pip", [str(python), "-m", "pip", "install", "--disable-pip-version-check", *PYTHON_PACKAGES])
-            (self.work / "venv/.bodian-packages").write_text("\n".join(PYTHON_PACKAGES), encoding="utf-8")
+            (self.work / "venv/.bowen-packages").write_text("\n".join(PYTHON_PACKAGES), encoding="utf-8")
         self.meson = self.work / "venv/Scripts/meson.exe"
         self.ninja = self.work / "venv/Scripts/ninja.exe"
         self.env["PATH"] = ";".join(map(str, [self.toolchain, self.nasm, python.parent, self.prefix / "bin", self.bash.parent])) + ";" + self.env["PATH"]

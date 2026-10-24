@@ -27,7 +27,7 @@
 
 ## 2. 实现分层
 
-### Core（`src/Bodian.Core/`）
+### Core（`src/Bowen.Core/`）
 
 | 文件 | 内容 |
 | --- | --- |
@@ -44,7 +44,7 @@
 - `FollowedArtistsService.SetFollowedAsync` **写之前先同步一次**：否则首次写之后本地集合是残缺的
   （只含刚写进去的那个 id），别的歌手会被误判成未关注。
 
-### UI（`src/Bodian.WinUI/`）
+### UI（`src/Bowen.WinUI/`）
 
 | 位置 | 改动 |
 | --- | --- |
@@ -72,7 +72,7 @@
 
 ## 4. 验证
 
-- 构建：`dotnet build Bodian.sln -c Debug` → 0 错误 0 警告。
+- 构建：`dotnet build Bowen.sln -c Debug` → 0 错误 0 警告。
 - 离线测试：`877` 项通过（新增 `CollectionApiTests` 18 项、`FollowedArtistsServiceTests` 8 项）。
   跑法见 README（MTP 模式下必须带 `--project`）。
 - 真机：**歌单**与**专辑**各做过一次收藏→读回→取消→读回的往返（账号均已还原）。

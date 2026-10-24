@@ -10,7 +10,7 @@
 
 **症状：外面开着代理，应用的请求也跟着绕。**
 
-根因在 `BodianHttpTransport.CreateHandler`（`src/Bodian.Core/Api/BodianHttpTransport.cs`）：
+根因在 `BodianHttpTransport.CreateHandler`（`src/Bowen.Core/Api/BodianHttpTransport.cs`）：
 
 ```csharp
 if (options.Proxy is { } proxy)      // 生产环境谁也没填，是 null
@@ -79,7 +79,7 @@ Proxy = options.Proxy is { } proxy ? new WebProxy(proxy) : null,
 
 ### 4.2 更新通道：一个会读实时设置的 `IWebProxy`
 
-新增 `Bodian.Core/Services/UpdateProxy.cs`：
+新增 `Bowen.Core/Services/UpdateProxy.cs`：
 
 ```csharp
 public sealed class UpdateProxy : IWebProxy
@@ -171,7 +171,7 @@ public sealed record ProxySettings(ProxyMode Mode = ProxyMode.Direct, string Add
 | 常规请求 | 只读文字「固定直连」 | 说明「登录、歌单、封面这些请求固定直连，不受系统代理影响」 |
 | 检查更新使用的代理 | 下拉：不使用代理 / 跟随系统 / 自定义 | 说明更新与下载走这条路 |
 | 代理地址 | 输入框，`IsRowEnabled` 绑「模式 == 自定义」 | 占位说明给例子；**失焦才写盘**（`UpdateSourceTrigger` 不写，默认就是 LostFocus），否则每敲一个字写一次文件 |
-| 状态行 | `BodianPageStatus` | 地址有效时回显实际生效的地址，无效时说清哪不对 |
+| 状态行 | `BowenPageStatus` | 地址有效时回显实际生效的地址，无效时说清哪不对 |
 
 图标新增一颗 `IconGlobe`（`globe_24_regular`，Fluent System Icons，MIT，
 完整 24×24 坐标 + `F1` 前缀）。**新增图标只改 `Themes/Icons.xaml` 一处**，见 `icons.md` 的规约。

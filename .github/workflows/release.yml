@@ -90,19 +90,19 @@ jobs:
           }
 
       - name: 离线测试
-        run: dotnet test --project tests/Bodian.Core.Tests/Bodian.Core.Tests.csproj -c Release
+        run: dotnet test --project tests/Bowen.Core.Tests/Bowen.Core.Tests.csproj -c Release
 
       # 两个变体共用同一条命令行，只差 --self-contained。
       # 自包含 = 开箱即用（189.8 MiB / 340 文件）；框架依赖 = 体积小、需要 .NET 10 桌面运行时。
       - name: 发布（自包含）
         run: >
-          dotnet publish src/Bodian.WinUI/Bodian.WinUI.csproj
+          dotnet publish src/Bowen.WinUI/Bowen.WinUI.csproj
           -c Release -r win-x64 --self-contained true
           -p:DistributionBuild=true -o ${{ env.OUT }}/publish
 
       - name: 发布（不含 .NET 运行时）
         run: >
-          dotnet publish src/Bodian.WinUI/Bodian.WinUI.csproj
+          dotnet publish src/Bowen.WinUI/Bowen.WinUI.csproj
           -c Release -r win-x64 --self-contained false
           -p:DistributionBuild=true -o ${{ env.OUT }}/publish-noruntime
 
@@ -112,7 +112,7 @@ jobs:
         shell: pwsh
         run: |
           foreach ($dir in @("$env:OUT/publish", "$env:OUT/publish-noruntime")) {
-            foreach ($f in @('libmpv-2.dll', 'Bodian.WinUI.exe', 'Bodian.WinUI.dll',
+            foreach ($f in @('libmpv-2.dll', 'BowenMusic.exe', 'BowenMusic.dll',
                              'Microsoft.ui.xaml.dll', 'Microsoft.WindowsAppRuntime.dll',
                              'Assets/Ripple.ico')) {
               if (-not (Test-Path "$dir/$f")) { throw "$dir 缺少 $f" }
@@ -169,7 +169,7 @@ jobs:
             "/DAPP_SOURCE=$source" `
             "/DOUTFILE=$target" `
             "/DAPP_LICENSE=$root\LICENSE" `
-            "/DAPP_ICON=$root\src\Bodian.WinUI\Assets\Ripple.ico" `
+            "/DAPP_ICON=$root\src\Bowen.WinUI\Assets\Ripple.ico" `
             installer/BowenMusic.nsi
 
           if ($LASTEXITCODE -ne 0) { throw "makensis 退出码 $LASTEXITCODE" }

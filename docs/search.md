@@ -80,9 +80,9 @@
 ## 结果工具栏与视图切换（2026-10-06）
 
 「歌单 / 专辑 / 歌手」三个页签上方各有一条工具栏：**左侧是当前页签的结果条数，右侧一颗视图切换按钮**。
-排法与单曲页签那条 `TrackListToolbar` 刻意一致 —— 左计数用同一个 `BodianPageStatusStrong`
+排法与单曲页签那条 `TrackListToolbar` 刻意一致 —— 左计数用同一个 `BowenPageStatusStrong`
 样式配同一份 `SpaceRowPadding` 内边距（所以四个页签切来切去，那行数字不会换位置），右端图标按钮用
-`BodianIconButton`。但它**不是**那个控件：`TrackListToolbar` 的多选与批量入队对这三类结果没有意义，
+`BowenIconButton`。但它**不是**那个控件：`TrackListToolbar` 的多选与批量入队对这三类结果没有意义，
 这里是一条自理的轻量工具栏。这也**不与** [`track-list-toolbar.md`](track-list-toolbar.md) 里
 「封面网格页不迁工具栏」那条决定冲突 —— 那条说的是带多选的曲目工具栏。
 
@@ -93,7 +93,7 @@
 列表与封面网格两态**都留在可视树上、只切 `Visibility`**，显隐是「是哪个页签」× 「列表还是网格」
 两个布尔相与（`Formats.VisibleBoth`，因为 `x:Bind` 的函数绑定不能套函数）。这沿用本页既有的规矩：
 折叠的元素不进布局、容器不被实现，而自动翻页挂在「末尾容器被实现」上，所以同一份集合喂给两个控件
-也不会被触发两遍。网格沿用乐库分类页的专辑卡样式（`BodianCoverCardItem` + `CoverCardLayout`，
+也不会被触发两遍。网格沿用乐库分类页的专辑卡样式（`BowenCoverCardItem` + `CoverCardLayout`，
 封面 132、单元格 144×210）；歌手卡是 `PersonPicture` 圆形头像 + 姓名，**不显示歌曲数与专辑数**。
 
 > ★ 三个网格的 `ItemsWrapGrid.ItemWidth/ItemHeight` 写的是字面量 `144 / 210`，**必须与
@@ -177,8 +177,8 @@
 复现命令：
 
 ```powershell
-dotnet build src/Bodian.WinUI/Bodian.WinUI.csproj -c Debug --no-restore -v minimal
-dotnet test --project tests/Bodian.Core.Tests/Bodian.Core.Tests.csproj -c Debug --no-build --no-restore
+dotnet build src/Bowen.WinUI/Bowen.WinUI.csproj -c Debug --no-restore -v minimal
+dotnet test --project tests/Bowen.Core.Tests/Bowen.Core.Tests.csproj -c Debug --no-build --no-restore
 ```
 
 搜索增强阶段曾遇到 `dotnet test --project ...` 返回零测试，当时改用 xUnit 可执行测试宿主验证。

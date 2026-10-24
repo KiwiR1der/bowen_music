@@ -36,7 +36,7 @@ POST service/playlist   signed   新建歌单
 
 ## 2. 实现分层
 
-### Core（`src/Bodian.Core/`）
+### Core（`src/Bowen.Core/`）
 
 | 文件 | 内容 |
 | --- | --- |
@@ -52,7 +52,7 @@ POST service/playlist   signed   新建歌单
 - **没有复用 `MapPlaylist`**。回执只有 id，构造不出完整对象 —— 所以返回 `long` 而不是 `Playlist`，
   由调用方决定怎么用（现在是拿 id + 名字本地拼一行，见 §3）。
 
-### UI（`src/Bodian.WinUI/`）
+### UI（`src/Bowen.WinUI/`）
 
 | 位置 | 改动 |
 | --- | --- |
@@ -123,9 +123,9 @@ WinUI 的 `DefaultContentDialogStyle`（`generic.xaml`）里：
 
 ## 4. 验证
 
-- 构建：`dotnet build src/Bodian.WinUI/Bodian.WinUI.csproj -c Debug --no-restore` → 0 错误，
+- 构建：`dotnet build src/Bowen.WinUI/Bowen.WinUI.csproj -c Debug --no-restore` → 0 错误，
   1 个既有警告（`AiPlaylistPage.xaml:27` 的 `WMC1506`）。
-- 离线测试：`dotnet test --project tests/Bodian.Core.Tests/Bodian.Core.Tests.csproj`
+- 离线测试：`dotnet test --project tests/Bowen.Core.Tests/Bowen.Core.Tests.csproj`
   → **951 项通过，0 失败 0 跳过**（新增 `PlaylistCreateApiTests` 9 项）。
 - 实网：用 `tools/Bodian.Probe` 走过 创建 → 读回 → 删除 的往返（`private` 真 / 假各一次），
   外加空名字与 50 字名字两次边界，用完即删，**账号已还原**（自建歌单仍是 20 条）。

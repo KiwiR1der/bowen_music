@@ -10,11 +10,11 @@
 
 | 路径 | 说明 |
 | --- | --- |
-| `src/Bodian.Core/` | `net10.0`，零 UI 依赖：传输层 / 门面 / DTO / 领域模型 / 分页 / 歌词解码 / 凭据。**可独立单测** |
-| `src/Bodian.WinUI/` | `net10.0-windows10.0.26100.0`，WinUI 3。页面 / ViewModel / libmpv 播放引擎 / 导航 |
-| `tests/Bodian.Core.Tests/` | xunit.v3，用 `fixtures/` 的真实响应做断言，**零真实网络请求** |
+| `src/Bowen.Core/` | `net10.0`，零 UI 依赖：传输层 / 门面 / DTO / 领域模型 / 分页 / 歌词解码 / 凭据。**可独立单测** |
+| `src/Bowen.WinUI/` | `net10.0-windows10.0.26100.0`，WinUI 3。页面 / ViewModel / libmpv 播放引擎 / 导航 |
+| `tests/Bowen.Core.Tests/` | xunit.v3，用 `fixtures/` 的真实响应做断言，**零真实网络请求** |
 | `docs/` | 逆向勘查记录与设计方案 |
-| `tools/Bodian.Probe/` | P0 协议探针，一次性控制台工具。**不参与 `Bodian.sln`**，但必须保持可独立构建 |
+| `tools/Bodian.Probe/` | P0 协议探针，一次性控制台工具。**不参与 `Bowen.sln`**，但必须保持可独立构建 |
 | `tools/Bodian.AudioProbe/` | 只读音源审计：核对实际返回的码率、容器与解密结果，不输出账号标识或签名地址 |
 | `tools/Bodian.ImeProbe/` | 输入法对照探针，复核 WinUI 文本框候选框问题；见 [`ime-candidate-window.md`](ime-candidate-window.md) |
 | `tools/Measure-PlayerResources.ps1` | 按进程采样播放期间 CPU 与资源占用 |

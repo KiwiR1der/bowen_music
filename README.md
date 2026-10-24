@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="src/Bodian.WinUI/Assets/Ripple.png" alt="波纹音乐" width="128" />
+<img src="src/Bowen.WinUI/Assets/Ripple.png" alt="波纹音乐" width="128" />
 
 # 波纹音乐
 
@@ -121,11 +121,11 @@ git clone https://github.com/ldm0715/bowen_music.git
 cd bowen_music
 
 # 构建与单测（客户端工程 + 全部离线测试，零真实网络请求）
-dotnet build Bodian.sln -c Debug
-dotnet test  --project tests/Bodian.Core.Tests/Bodian.Core.Tests.csproj
+dotnet build Bowen.sln -c Debug
+dotnet test  --project tests/Bowen.Core.Tests/Bowen.Core.Tests.csproj
 
 # 启动。unpackaged 运行：Windows App SDK 随包，.NET 用系统运行时
-./src/Bodian.WinUI/bin/Debug/net10.0-windows10.0.26100.0/win-x64/Bodian.WinUI.exe
+./src/Bowen.WinUI/bin/Debug/net10.0-windows10.0.26100.0/win-x64/BowenMusic.exe
 ```
 
 `libmpv-2.dll` 已随仓库提供（`libmpv/`），克隆后直接可以播放。它是自建的精简版，重建与回退方式见 [`docs/libmpv-audio-build.md`](docs/libmpv-audio-build.md)。

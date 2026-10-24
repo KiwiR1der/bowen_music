@@ -60,7 +60,7 @@
     <PackageVersion Include="xunit.runner.visualstudio" Version="4.0.0" />
     <!--
       仅在测试项目里以 ExcludeAssets=all 引用，目的是把 xunit.v3 传递引入的测试宿主遥测扩展
-      挤出 deps.json（见 tests/Bodian.Core.Tests/Bodian.Core.Tests.csproj 的说明）。
+      挤出 deps.json（见 tests/Bowen.Core.Tests/Bowen.Core.Tests.csproj 的说明）。
       版本跟随 xunit.v3 4.0.1 实际解析到的版本，不单独升级。
     -->
     <PackageVersion Include="Microsoft.Testing.Extensions.Telemetry" Version="2.4.0" />

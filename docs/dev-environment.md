@@ -83,7 +83,7 @@ No .NET SDKs were found.
 
 | # | 事实 | 证据 | 后果 |
 | --- | --- | --- | --- |
-| 1 | **`dotnet new sln` 默认生成 `.slnx`**（XML 格式），不是 `.sln` | `dotnet new sln --help` 的 `-f, --format <sln\|slnx>` 写着 `默认: slnx` | 不写 `-f sln` 就得到 `Bodian.slnx`，VS / `dotnet sln add` 的行为都要重新确认 |
+| 1 | **`dotnet new sln` 默认生成 `.slnx`**（XML 格式），不是 `.sln` | `dotnet new sln --help` 的 `-f, --format <sln\|slnx>` 写着 `默认: slnx` | 不写 `-f sln` 就得到 `Bowen.slnx`，VS / `dotnet sln add` 的行为都要重新确认 |
 | 2 | **WinUI 3 没有 CLI 模板** | `dotnet new list winui` 找不到匹配（退出码 103）；全表里只有 console / classlib / winforms / wpf / xunit 等；`Microsoft.WindowsAppSDK.Templates` 在 nuget.org 上不存在 | WinUI 项目的 csproj 与 XAML **只能手写**，没有捷径可抄 |
 | 3 | **`xunit.v3` 要求测试项目 `OutputType=Exe`** | 包的 `buildTransitive` targets 里有 `Condition=" '$(OutputType)' != 'Exe' "` 的 `<Error>`；`dotnet new xunit` 生成的是 **xunit v2（2.9.3）**，不符合选型 | 测试 csproj 必须手写，且 `OutputType` 不能沿用 classlib 的默认值 |
 | 4 | **`dotnet test` 要走 MTP 必须在 `global.json` 里显式选择** | `dotnet test --help` 首行：「若要使用 Microsoft.Testing.Platform，请通过 global.json 选择加入」 | 不写 `{"test":{"runner":"Microsoft.Testing.Platform"}}` 就退回 VSTest 模式；选了 MTP 之后调用形态变为 `dotnet test --project <csproj>`，不再接受位置参数 |
@@ -100,7 +100,7 @@ TESTINGPLATFORM_TELEMETRY_OPTOUT=1    或    DOTNET_CLI_TELEMETRY_OPTOUT=1
 
 （变量名取自 `Microsoft.Testing.Platform.dll` 内的提示字符串，非记忆。）
 
-这与 README 的「不含遥测与日志上报」冲突，而「设环境变量」属于「靠自觉」。**已在 `tests/Bodian.Core.Tests/Bodian.Core.Tests.csproj` 里用 `ExcludeAssets="all"` 直接把它挤出运行时**：
+这与 README 的「不含遥测与日志上报」冲突，而「设环境变量」属于「靠自觉」。**已在 `tests/Bowen.Core.Tests/Bowen.Core.Tests.csproj` 里用 `ExcludeAssets="all"` 直接把它挤出运行时**：
 
 ```xml
 <PackageReference Include="Microsoft.Testing.Extensions.Telemetry" ExcludeAssets="all" PrivateAssets="all" />
@@ -127,7 +127,7 @@ Assert.Equal(3, reports.Count);     // ← 偶发得到 2
 实测 `LikedSongsServiceTests.SetLikedMany_ReportsProgressAsItGoes` **三次里挂一次**；
 `PlaylistMusicWriterTests.ReportsProgressAfterEachTrack` 是同一套写法，只是还没撞上。
 
-**改用 `tests/Bodian.Core.Tests/Support/RecordingProgress.cs`**：`Report` 直接同步调用，
+**改用 `tests/Bowen.Core.Tests/Support/RecordingProgress.cs`**：`Report` 直接同步调用，
 断言在 `await` 返回后立刻成立。
 
 **这不是产品代码的问题** —— 界面上的 `Progress<T>` 是在 UI 线程建的，投递回 UI 线程正是它该有的行为。
@@ -158,7 +158,7 @@ dotnet build
 
 **改过 csproj 或包版本后必须全量重新构建。** MSBuild 只做增量拷贝，**不会删除**已不在项目里的文件：优化前那批 AI DLL 会原样留在旧输出目录里，不清掉就会以为没生效。清 `bin/`（已 gitignore）或换 `-p:BaseOutputPath=` 建到新目录；细节见 [`size-optimization.md`](size-optimization.md)。
 
-**Windows App SDK 与 .NET 的自包含是两回事。** 项目设置了 `WindowsAppSDKSelfContained=true`，但没有设置 .NET 的 `SelfContained=true`。当前 `Bodian.WinUI.runtimeconfig.json` 使用 `framework: Microsoft.NETCore.App 10.0.0`，启动时需要系统的 x64 .NET 10 运行时；2026-10-06 已验证实际加载 `C:\Program Files\dotnet\shared\Microsoft.NETCore.App\10.0.12\coreclr.dll`。
+**Windows App SDK 与 .NET 的自包含是两回事。** 项目设置了 `WindowsAppSDKSelfContained=true`，但没有设置 .NET 的 `SelfContained=true`。当前 `BowenMusic.runtimeconfig.json` 使用 `framework: Microsoft.NETCore.App 10.0.0`，启动时需要系统的 x64 .NET 10 运行时；2026-10-06 已验证实际加载 `C:\Program Files\dotnet\shared\Microsoft.NETCore.App\10.0.12\coreclr.dll`。
 
 **不要混用旧构建产物。** 本次遇到两类实际故障：依赖系统 .NET 的新配置与旧 `hostfxr.dll` 并存，启动器转而在应用目录查找框架，误报缺少 .NET；旧 XAML 文件与新程序集混用，则导致绑定或类型转换异常。处理方式是备份旧 `obj` 和输出目录，再使用正常构建命令完整重新生成，不向旧目录拼接不同构建的文件，也不因此重装系统 .NET。
 

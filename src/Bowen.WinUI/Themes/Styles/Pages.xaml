@@ -1,0 +1,278 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    页面骨架的共享样式。
+
+    背景：十三个页面各自写了一遍 <Grid Padding="24,16" RowSpacing="12"> + 三行结构 +
+    16px 的 ProgressRing，光「16」就重复了十二次。改一处要改十三处。
+
+    这里只收敛**尺寸与外观**，不动页面的行列结构 —— 各页的组合本来就不一样
+    （发现页只有「重新加载」，我喜欢的页还有「重试」），
+    抽成控件反而要开一堆可见性属性孔。
+
+    ★ 这些 Style 的目标类型是 Grid / TextBlock / ProgressRing，不是 Control。
+      WinUI 的 Style 可以作用于任意 FrameworkElement（通过 FrameworkElement.Style），
+      只要 Setter 里的属性在目标类型上存在即可。构建能过就说明这一点成立。
+-->
+<ResourceDictionary
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <!-- 列表默认按可见行回收，保持半屏预取。所有页面使用同一组基础面板。 -->
+    <ItemsPanelTemplate x:Key="BowenVirtualizedItemsPanel">
+        <ItemsStackPanel CacheLength="0.5" />
+    </ItemsPanelTemplate>
+    <ItemsPanelTemplate x:Key="BowenHorizontalItemsPanel">
+        <ItemsStackPanel Orientation="Horizontal" CacheLength="0.5" />
+    </ItemsPanelTemplate>
+
+    <!-- 页面根容器：统一的页边距与行间距 -->
+    <Style x:Key="BowenPageRoot" TargetType="Grid">
+        <Setter Property="Padding" Value="{StaticResource SpacePagePadding}" />
+        <Setter Property="RowSpacing" Value="{StaticResource SpaceSection}" />
+    </Style>
+
+    <!-- 乐库封面卡片：悬浮背景只比内容多一圈小留白，高度随内容变化。 -->
+    <Style x:Key="BowenCoverCardItem" TargetType="GridViewItem" BasedOn="{StaticResource DefaultGridViewItemStyle}">
+        <Setter Property="MinWidth" Value="0" />
+        <Setter Property="MinHeight" Value="0" />
+        <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+        <Setter Property="VerticalContentAlignment" Value="Top" />
+        <Setter Property="VerticalAlignment" Value="Top" />
+        <Setter Property="Padding" Value="4" />
+        <Setter Property="Margin" Value="0,0,4,4" />
+        <Setter Property="CornerRadius" Value="{StaticResource RadiusMd}" />
+    </Style>
+
+    <!-- 页面标题 -->
+    <Style x:Key="BowenPageTitle" TargetType="TextBlock" BasedOn="{StaticResource TitleTextBlockStyle}" />
+
+    <!-- 标题旁的次级说明（「4 组、共 20 个榜」这类） -->
+    <Style x:Key="BowenPageStatus" TargetType="TextBlock" BasedOn="{StaticResource CaptionTextBlockStyle}">
+        <Setter Property="Foreground" Value="{ThemeResource TextFillColorSecondaryBrush}" />
+        <Setter Property="TextTrimming" Value="CharacterEllipsis" />
+    </Style>
+
+    <!--
+        BowenPageStatus 的「正文重」版本：字号与颜色都对齐列表正文。
+        歌手详情的歌曲与专辑页签用它 —— 那两行下面紧挨着列表与卡片，小字淡灰会显得和内容脱节。
+        （Foreground 要显式给：套了自己 Style 的 TextBlock 不再吃隐式默认样式那份主色。）
+    -->
+    <Style x:Key="BowenPageStatusStrong" TargetType="TextBlock" BasedOn="{StaticResource BodyTextBlockStyle}">
+        <Setter Property="Foreground" Value="{ThemeResource TextFillColorPrimaryBrush}" />
+        <Setter Property="TextTrimming" Value="CharacterEllipsis" />
+        <Setter Property="VerticalAlignment" Value="Center" />
+    </Style>
+
+    <!-- 页脚里那个转圈的进度环 -->
+    <Style x:Key="BowenPageBusyRing" TargetType="ProgressRing">
+        <Setter Property="Width" Value="{StaticResource SizeProgressRing}" />
+        <Setter Property="Height" Value="{StaticResource SizeProgressRing}" />
+        <Setter Property="HorizontalAlignment" Value="Left" />
+    </Style>
+
+    <!-- 页脚那一行：左侧一簇（进度环 + 重新加载） -->
+    <Style x:Key="BowenPageFooter" TargetType="Grid">
+        <Setter Property="ColumnSpacing" Value="{StaticResource SpaceSection}" />
+    </Style>
+
+    <!--
+        列表末尾的状态小字：「没有更多了哦~」「加载失败」，由 PagingEndNote 使用。
+        翻页改成滚动触发后，这是用户判断「是真的没了」还是「卡住了」的唯一线索。
+    -->
+    <Style x:Key="BowenPageEndNote" TargetType="TextBlock" BasedOn="{StaticResource BowenPageStatus}">
+        <Setter Property="HorizontalAlignment" Value="Center" />
+    </Style>
+
+    <!--
+        发现页的标题分两层：外层列表的模块标题（一层）、HomeSectionView 里那一组的小标题（二层）。
+        两层的字号必须拉开 —— 曾经是反的（模块 14、组内 20），看起来「孩子比爸爸大」。
+    -->
+
+    <!-- 模块标题 -->
+    <Style x:Key="BowenModuleTitle" TargetType="TextBlock" BasedOn="{StaticResource SubtitleTextBlockStyle}">
+        <Setter Property="TextTrimming" Value="CharacterEllipsis" />
+    </Style>
+
+    <!-- 组内标题：低模块一层，所以是 14 半粗而不是 20 -->
+    <Style x:Key="BowenSectionTitle" TargetType="TextBlock" BasedOn="{StaticResource BodyStrongTextBlockStyle}">
+        <Setter Property="TextTrimming" Value="CharacterEllipsis" />
+    </Style>
+
+    <!--
+        同层的「可点」版本（只有 AI 歌单那一组会点开成完整歌单）。
+        字号字重与 BowenSectionTitle 对齐，可点性只用强调色区分 ——
+        靠大小区分会让人以为是两种层级的东西。
+    -->
+    <Style x:Key="BowenSectionTitleLink" TargetType="HyperlinkButton"
+           BasedOn="{StaticResource DefaultHyperlinkButtonStyle}">
+        <Setter Property="FontSize" Value="{StaticResource FontSizeBodyLarge}" />
+        <Setter Property="FontWeight" Value="SemiBold" />
+        <Setter Property="Padding" Value="4,0,0,0" />
+        <Setter Property="MinWidth" Value="0" />
+        <Setter Property="MinHeight" Value="0" />
+        <Setter Property="VerticalAlignment" Value="Center" />
+    </Style>
+
+    <!--
+        28×28 的图标按钮：透明底、无边框、RadiusSm，内容由调用方给一个 <c>controls:Icon</c>。
+        列表工具栏、侧栏的刷新/新建、行尾的「更多」都是这一套，别再各写一份 Setter。
+
+        ★ MinWidth/MinHeight 必须清零：Button 默认 MinWidth 是 120，不清零会被撑成长条。
+        ★ 想要别的边长（行尾「更多」是 32）在调用点上写 Width/Height 覆盖即可。
+        ★ 不复用 BowenCardPagerButton：那个是半透明黑底、给封面上的翻页箭头用的，
+          压在浅色页面上会消失。
+        ★ ToolTip / AutomationProperties.Name / Click / Command 是语义不是外观，留在各调用点。
+    -->
+    <Style x:Key="BowenIconButton" TargetType="Button">
+        <Setter Property="Width" Value="{StaticResource SizeIconButton}" />
+        <Setter Property="Height" Value="{StaticResource SizeIconButton}" />
+        <Setter Property="MinWidth" Value="0" />
+        <Setter Property="MinHeight" Value="0" />
+        <Setter Property="Padding" Value="0" />
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="BorderThickness" Value="0" />
+        <Setter Property="CornerRadius" Value="{StaticResource RadiusSm}" />
+        <Setter Property="VerticalAlignment" Value="Center" />
+    </Style>
+
+    <!--
+        发现页卡片区两侧的翻页箭头。它压封面上，底色不能用 SubtleButton 那一套
+        （悬停底只有 4~6%，一悬停就没了，白箭头压在浅色封面上会消失），
+        用自己的 CardPagerButton* 画刷：深浅两套是同一档半透明黑，高对比度跟系统走。
+        全仓没有 Storyboard，悬停只换底色。
+        ★ MinWidth 必须清零：Button 默认 MinWidth 是 120，不清零会被撑成长条。
+    -->
+    <Style x:Key="BowenCardPagerButton" TargetType="Button">
+        <Setter Property="Width" Value="{StaticResource SizeHomePagerButtonWidth}" />
+        <Setter Property="Height" Value="{StaticResource SizeHomePagerButtonHeight}" />
+        <Setter Property="MinWidth" Value="0" />
+        <Setter Property="MinHeight" Value="0" />
+        <Setter Property="Padding" Value="0" />
+        <Setter Property="CornerRadius" Value="{StaticResource RadiusSm}" />
+        <Setter Property="Background" Value="{ThemeResource CardPagerButtonBackgroundBrush}" />
+        <Setter Property="Foreground" Value="{ThemeResource CardPagerButtonForegroundBrush}" />
+        <Setter Property="BorderThickness" Value="0" />
+        <Setter Property="VerticalAlignment" Value="Center" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Button">
+                    <Border
+                        x:Name="Root"
+                        Background="{TemplateBinding Background}"
+                        CornerRadius="{TemplateBinding CornerRadius}">
+                        <ContentPresenter
+                            HorizontalAlignment="Center"
+                            VerticalAlignment="Center"
+                            Content="{TemplateBinding Content}" />
+                        <VisualStateManager.VisualStateGroups>
+                            <VisualStateGroup x:Name="CommonStates">
+                                <VisualState x:Name="Normal" />
+                                <VisualState x:Name="PointerOver">
+                                    <VisualState.Setters>
+                                        <Setter Target="Root.Background"
+                                                Value="{ThemeResource CardPagerButtonBackgroundPointerOverBrush}" />
+                                    </VisualState.Setters>
+                                </VisualState>
+                                <VisualState x:Name="Pressed">
+                                    <VisualState.Setters>
+                                        <Setter Target="Root.Background"
+                                                Value="{ThemeResource CardPagerButtonBackgroundPressedBrush}" />
+                                    </VisualState.Setters>
+                                </VisualState>
+                                <VisualState x:Name="Disabled" />
+                            </VisualStateGroup>
+                        </VisualStateManager.VisualStateGroups>
+                    </Border>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!--
+        封面卡片网格的共同设置。五处网格（搜索的专辑 / 歌单 / 歌手页签、收藏的专辑、收藏的歌单）
+        都用这一份，省得每处抄四个 Setter 而漏掉其中之一。
+
+        ★ 只收敛这四个属性：`ItemsSource` / `ItemTemplate` / `ItemClick` / `AutoPaging` 各页不一样，
+          而且后三个要在 XAML 里写 x:Bind，塞进 Style 反而写不出来。
+        ★ `Padding=0` 与 `ItemContainerStyle` 是配 `CoverCardLayout` 用的：那个附加属性算单元格
+          尺寸时假定容器内边距与间距是 `BowenCoverCardItem` 里那两个值（见其常量），换成别的样式就对不上。
+        ★ **卡片模板不在这里**，也不在任何一个共享字典里 —— 它必须各页一份（`x:Bind` 在
+          ResourceDictionary 里要么编译不过、要么运行时静默失效，详见 `SearchPage.xaml` 那段注释）。
+    -->
+    <Style x:Key="BowenCoverCardGrid" TargetType="GridView">
+        <Setter Property="Padding" Value="0" />
+        <Setter Property="SelectionMode" Value="None" />
+        <Setter Property="IsItemClickEnabled" Value="True" />
+        <Setter Property="ItemContainerStyle" Value="{StaticResource BowenCoverCardItem}" />
+    </Style>
+
+    <!--
+        设置页左侧的分类栏。用 ListView 而不是嵌套 NavigationView：后者会把 pane 背景、
+        亚克力与自适应逻辑一并带进来，而这个项目的侧栏高度公式已经证明它的模板行为要小心对待。
+        ListView 顺带免费给到上下键导航与选中态，配色直接复用 Theme.xaml 里已有的
+        ListViewItemBackground* 那一组，不需要新增任何画刷。
+    -->
+    <Style x:Key="BowenSettingsRail" TargetType="ListView">
+        <Setter Property="Padding" Value="0" />
+        <Setter Property="SelectionMode" Value="Single" />
+        <Setter Property="ScrollViewer.HorizontalScrollMode" Value="Disabled" />
+        <Setter Property="ScrollViewer.HorizontalScrollBarVisibility" Value="Disabled" />
+    </Style>
+
+    <!-- 与标题栏主题飞层里那份 ListViewItem 同源，两处的选中观感因此一致。 -->
+    <Style x:Key="BowenSettingsRailItem" TargetType="ListViewItem" BasedOn="{StaticResource DefaultListViewItemStyle}">
+        <Setter Property="MinWidth" Value="0" />
+        <Setter Property="Padding" Value="10,8" />
+        <Setter Property="Margin" Value="0,2" />
+        <Setter Property="CornerRadius" Value="{StaticResource RadiusSm}" />
+        <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+    </Style>
+
+    <!--
+        设置分组。★ 底色必须实色（HomeCardBackgroundBrush）：页面底色是氛围渐变，
+        半透明底会让同一张卡片上下两端的观感不一样。
+    -->
+    <Style x:Key="BowenSettingsCard" TargetType="Border">
+        <Setter Property="Background" Value="{ThemeResource HomeCardBackgroundBrush}" />
+        <Setter Property="CornerRadius" Value="{StaticResource RadiusMd}" />
+        <Setter Property="Padding" Value="16,4" />
+    </Style>
+
+    <!-- 分组内相邻两行之间的 1 像素分割线。 -->
+    <Style x:Key="BowenSettingsRowDivider" TargetType="Border">
+        <Setter Property="Height" Value="1" />
+        <Setter Property="Background" Value="{ThemeResource DividerStrokeColorDefaultBrush}" />
+    </Style>
+
+    <!-- 分组标题，与页内其它二级标题同层（14 半粗）。 -->
+    <Style x:Key="BowenSettingsGroupTitle" TargetType="TextBlock" BasedOn="{StaticResource BowenSectionTitle}" />
+
+    <!--
+        关于页那一排按钮。底色沿用 Button 的默认填充（不透明底 + 描边已经够），
+        只是把内边距放宽一点，让图标与文字在按钮里不贴边。
+
+        ★ 圆角用 RadiusMd（8），**不是 RadiusPill** —— 拉满会变成橄榄球，
+          与这一页其它圆角卡片不是一套语言。
+        ★ MinWidth 必须清零：Button 默认 MinWidth 是 120，不清零会被撑成长条。
+    -->
+    <Style x:Key="BowenAboutButton" TargetType="Button">
+        <Setter Property="MinWidth" Value="0" />
+        <Setter Property="MinHeight" Value="0" />
+        <Setter Property="Padding" Value="16,8" />
+        <Setter Property="CornerRadius" Value="{StaticResource RadiusMd}" />
+        <Setter Property="VerticalAlignment" Value="Center" />
+    </Style>
+
+    <!--
+        说“强调”版：同样一排里的主行动（检查更新）。内边距与圆角必须与
+        BowenAboutButton 一致，否则同一排按钮会一高一矮。
+    -->
+    <Style x:Key="BowenAboutAccentButton" TargetType="Button" BasedOn="{StaticResource AccentButtonStyle}">
+        <Setter Property="MinWidth" Value="0" />
+        <Setter Property="MinHeight" Value="0" />
+        <Setter Property="Padding" Value="16,8" />
+        <Setter Property="CornerRadius" Value="{StaticResource RadiusMd}" />
+        <Setter Property="VerticalAlignment" Value="Center" />
+    </Style>
+
+</ResourceDictionary>

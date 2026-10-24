@@ -204,7 +204,7 @@
 `PlayerViewModel.ToggleMute()` —— 与点击音量图标是同一条，不另写一套。
 
 **静音不是「把音量设成 0」。** 音量字段保持原值，只有送给播放引擎的那个数是 0。好处是滑条停在原值不动、
-恢复时也不必先记住原来多少。规则收在 `Bodian.WinUI/Playback/VolumeState.cs`：一个标记 + 两条规则
+恢复时也不必先记住原来多少。规则收在 `Bowen.WinUI/Playback/VolumeState.cs`：一个标记 + 两条规则
 （切换、显式改音量即解除），**不持有音量数值**，所以 0–100 的播放条那套与 0–1 的 MV 那套共用同一份。
 
 **「改音量即解除静音」这条不能省。** 拖滑条、按 `Ctrl+↑/↓` 都算「用户要听见声音」；
@@ -336,8 +336,8 @@
 | 歌单 `2867496601` | 酷我 `1568684821020_182253281_o.jpg`，200 | 酷我 `1568684821020_182253281_700.jpg`，200 | 列表原地址正常加载，不改后缀 |
 | YOASOBI | `starheads/0`，5489×5489、约 6 MB | `starheads/700`，700×700、约 132 KiB | 列表改用 `starheads/256`，实测正常加载 |
 
-实现见 [`CoverArtUrl.cs`](../src/Bodian.Core/Media/CoverArtUrl.cs) 与
-[`CoverImageCache.cs`](../src/Bodian.WinUI/Media/CoverImageCache.cs)。
+实现见 [`CoverArtUrl.cs`](../src/Bowen.Core/Media/CoverArtUrl.cs) 与
+[`CoverImageCache.cs`](../src/Bowen.WinUI/Media/CoverImageCache.cs)。
 
 ---
 
@@ -403,10 +403,10 @@ Serilog 正持有它的文件句柄。删了要么抛 `IOException`，要么更�
 - **图标目前是占位**（`IconNote` 加一个圆角底）。设计稿定下来之后换成图片资源，
   这一处是 `SettingsPage.xaml` 里那个 96×96 的 `Border`。
 - 按钮圆角用 `RadiusMd`（8）的圆角矩形，**不用 `RadiusPill`** —— 拉满会变成橄榄球，
-  与这一页其它圆角卡片不是一套语言。三个按钮共用 `BodianAboutButton` /
-  `BodianAboutAccentButton` 两个样式，内边距必须一致，否则同一排会一高一矮。
+  与这一页其它圆角卡片不是一套语言。三个按钮共用 `BowenAboutButton` /
+  `BowenAboutAccentButton` 两个样式，内边距必须一致，否则同一排会一高一矮。
 - **按钮三个**：项目主页、GitHub 仓库、检查更新。检查更新用强调色按钮
-  （`BodianAboutAccentButton`），走品牌色。
+  （`BowenAboutAccentButton`），走品牌色。
 - **版本行右侧会挂一句新版本提示**（2026-10-14 加）：自动检查在启动时就跑过了，
   但用户可能一路没看见那个对话框（比如被登录框挡着），这一行是兜底。
 - 「自动检查更新」的开关**是这一列里的一行小字，不是卡片、也不另开分组**（2026-10-14 定）。
@@ -476,8 +476,8 @@ Serilog 正持有它的文件句柄。删了要么抛 `IOException`，要么更�
 离线测试 **1347 项通过，0 失败、0 跳过**（本轮从 1131 增加到 1347）。
 
 ```powershell
-dotnet build src/Bodian.WinUI/Bodian.WinUI.csproj --no-restore --verbosity minimal
-dotnet test --project tests/Bodian.Core.Tests/Bodian.Core.Tests.csproj --no-restore --verbosity minimal
+dotnet build src/Bowen.WinUI/Bowen.WinUI.csproj --no-restore --verbosity minimal
+dotnet test --project tests/Bowen.Core.Tests/Bowen.Core.Tests.csproj --no-restore --verbosity minimal
 ```
 
 **已自动验证**：快捷键键位表的收口（补缺、剔非法键、撞车让位）、存储与原子写、
@@ -538,6 +538,6 @@ YOASOBI 的 256×256 缩略图，以及失败位图移除后重新请求。
 最终处理只在 WinUI 初始化前跳过 `ImmDisableLegacyIME`，不更换输入框或样式，不接管 IMM 上下文、
 候选坐标、caret 或 TSF 文档。托盘流程保持原实现。用户已确认最终版本修好。
 
-用户常用 EXE 为 `src/Bodian.WinUI/bin/Debug/net10.0-windows10.0.26100.0/win-x64/Bodian.WinUI.exe`。
+用户常用 EXE 为 `src/Bowen.WinUI/bin/Debug/net10.0-windows10.0.26100.0/win-x64/BowenMusic.exe`。
 临时构建路径与它不同，旧进程仍在运行时，新 EXE 可能只唤醒旧实例；验收前应确认进程路径与构建版本。
 该处理依赖固定 WinUI 内部导入，升级运行时后需要重新验证，见 [`ime-candidate-window.md`](ime-candidate-window.md)。

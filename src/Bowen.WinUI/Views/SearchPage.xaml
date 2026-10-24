@@ -1,0 +1,594 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Page x:Class="Bowen.WinUI.Views.SearchPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:controls="using:Bowen.WinUI.Controls"
+    xmlns:local="using:Bowen.WinUI"
+    xmlns:models="using:Bowen.Core.Models"
+    xmlns:vm="using:Bowen.WinUI.ViewModels">
+    <Page.Resources>
+        <DataTemplate x:Key="SearchPlaylistTemplate" x:DataType="models:Playlist">
+            <Grid Padding="4,8" ColumnSpacing="16">
+                <Grid.ColumnDefinitions><ColumnDefinition Width="64" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+                <Image controls:Motion.SharedCoverKey="{x:Bind local:Formats.PlaylistCoverKey(Id)}" Source="{x:Bind local:Formats.CoverSource(CoverImage)}" Width="64" Height="64" Stretch="UniformToFill" />
+                <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="4">
+                    <TextBlock Text="{x:Bind Name}" TextTrimming="CharacterEllipsis" />
+                    <StackPanel Orientation="Horizontal" Spacing="4"><TextBlock Text="{x:Bind MusicCount}" /><TextBlock Text="首歌曲" /></StackPanel>
+                </StackPanel>
+            </Grid>
+        </DataTemplate>
+        <DataTemplate x:Key="SearchAlbumTemplate" x:DataType="models:Album">
+            <Grid Padding="4,8" ColumnSpacing="16">
+                <Grid.ColumnDefinitions><ColumnDefinition Width="64" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+                <Image controls:Motion.SharedCoverKey="{x:Bind local:Formats.AlbumCoverKey(Id)}" Source="{x:Bind local:Formats.CoverSource(CoverImage)}" Width="64" Height="64" Stretch="UniformToFill" />
+                <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="4">
+                    <TextBlock Text="{x:Bind Name}" TextTrimming="CharacterEllipsis" />
+                    <TextBlock Text="{x:Bind ArtistText}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" TextTrimming="CharacterEllipsis" />
+                </StackPanel>
+            </Grid>
+        </DataTemplate>
+        <DataTemplate x:Key="SearchArtistTemplate" x:DataType="models:Artist">
+            <Grid Padding="4,8" ColumnSpacing="16">
+                <Grid.ColumnDefinitions><ColumnDefinition Width="64" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+                <Image controls:Motion.SharedCoverKey="{x:Bind local:Formats.ArtistCoverKey(Id)}" Source="{x:Bind local:Formats.CoverSource(CoverImage)}" Width="64" Height="64" Stretch="UniformToFill" />
+                <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="4">
+                    <TextBlock Text="{x:Bind Name}" TextTrimming="CharacterEllipsis" />
+                    <TextBlock Text="{x:Bind Summary}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                </StackPanel>
+            </Grid>
+        </DataTemplate>
+
+        <!--
+            网格态的卡片。**与上面那三份列表模板分开写、不合并** —— 列表那三份还被「综合」页签的
+            混合列表用着（ResultTemplateSelector），改样式会连带把综合页签也改掉。
+
+            ★★ 这三份**只能留在页面里，不能挪进共享资源字典**。踩过：
+              `x:Bind` 放进独立的 ResourceDictionary 会编译报 `WMC1119`（缺 code-behind 类）；
+              给字典补一个 `x:Class` + 空 code-behind 之后**编译能过、运行时绑定全不生效** ——
+              文字与图片是空的，`Visibility` 绑定不生效则退回 `Border` 默认的 `Visible`
+              （症状是一颗本该收起的图标一直显形）。所以卡片模板一律各页一份。
+
+            ★ 同一套卡片还复制在 `CollectedAlbumsPage.xaml` / `CollectedPlaylistsPage.xaml`
+              （「收藏的专辑 / 歌单」两页）以及 `LibraryCategoryPage.xaml`（乐库分类页的专辑网格，
+              是这一套尺寸口径的出处）。**改一处要同步另外几处。**
+
+            尺寸口径：封面 132、卡片宽 132、RowSpacing 6、文字区按 CoverCardLayout 的
+            TextHeight="60" 预留（名称两行 ×20 行高，加一行副标题）。
+        -->
+        <DataTemplate x:Key="SearchAlbumCardTemplate" x:DataType="models:Album">
+            <Grid
+                Width="132"
+                RowSpacing="6"
+                VerticalAlignment="Top">
+                <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
+
+                <Border
+                    Width="132"
+                    Height="132"
+                    Background="{ThemeResource ControlFillColorDefaultBrush}"
+                    CornerRadius="{StaticResource RadiusMd}">
+                    <Grid>
+                        <Image controls:Motion.SharedCoverKey="{x:Bind local:Formats.AlbumCoverKey(Id)}" Source="{x:Bind local:Formats.CoverSource(CoverImage)}" Stretch="UniformToFill" />
+
+                        <Border
+                            Margin="0,0,8,8"
+                            Padding="7,1,7,2"
+                            HorizontalAlignment="Right"
+                            VerticalAlignment="Bottom"
+                            Background="{ThemeResource MediaOverlayBackgroundBrush}"
+                            CornerRadius="{StaticResource RadiusSm}"
+                            Visibility="{x:Bind local:Formats.HasTracks(MusicCount)}">
+                            <TextBlock
+                                FontSize="12"
+                                Foreground="{ThemeResource MediaOverlayForegroundBrush}"
+                                Text="{x:Bind local:Formats.AlbumCount(MusicCount)}" />
+                        </Border>
+                    </Grid>
+                </Border>
+
+                <StackPanel Grid.Row="1" Spacing="2">
+                    <TextBlock
+                        LineHeight="20"
+                        MaxLines="2"
+                        Text="{x:Bind Name}"
+                        TextTrimming="CharacterEllipsis"
+                        TextWrapping="Wrap" />
+                    <TextBlock
+                        Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                        MaxLines="1"
+                        Style="{StaticResource CaptionTextBlockStyle}"
+                        Text="{x:Bind ArtistText}"
+                        TextTrimming="CharacterEllipsis" />
+                </StackPanel>
+            </Grid>
+        </DataTemplate>
+
+        <!--
+            歌单卡。曲目数画在封面右下角那个角标里，与专辑卡同形 —— 它不像专辑有「艺人」那一行可放，
+            单独占一行在卡片上会显得比专辑卡空一块。角标文案用 AlbumCount（就是「N 首」），
+            与歌单列表行、专辑卡角标同一份。
+            歌单名放宽到两行，正好补上少掉那一行的高度（文字区仍是 TextHeight="60"）。
+
+            ★ **没有隐私锁**。列表行模板上有那一颗（那里是「收藏的歌单」，歌单可能被作者改成私密），
+              但搜索结果与收藏列表里的歌单本来就无可收藏之外的情形，卡片上再挂一颗只会让人以为
+              「这个是我的私密歌单」。
+        -->
+        <DataTemplate x:Key="SearchPlaylistCardTemplate" x:DataType="models:Playlist">
+            <Grid
+                Width="132"
+                RowSpacing="6"
+                VerticalAlignment="Top">
+                <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
+
+                <Border
+                    Width="132"
+                    Height="132"
+                    Background="{ThemeResource ControlFillColorDefaultBrush}"
+                    CornerRadius="{StaticResource RadiusMd}">
+                    <Grid>
+                        <controls:CoverImage
+                            PlaylistId="{x:Bind Id}"
+                            PlaylistSource="{x:Bind SourceType}"
+                            SharedCoverKey="{x:Bind local:Formats.PlaylistCoverKey(Id)}"
+                            Source="{x:Bind local:Formats.CoverSource(CoverImage)}" />
+
+                        <Border
+                            Margin="0,0,8,8"
+                            Padding="7,1,7,2"
+                            HorizontalAlignment="Right"
+                            VerticalAlignment="Bottom"
+                            Background="{ThemeResource MediaOverlayBackgroundBrush}"
+                            CornerRadius="{StaticResource RadiusSm}"
+                            Visibility="{x:Bind local:Formats.HasTracks(MusicCount)}">
+                            <TextBlock
+                                FontSize="12"
+                                Foreground="{ThemeResource MediaOverlayForegroundBrush}"
+                                Text="{x:Bind local:Formats.AlbumCount(MusicCount)}" />
+                        </Border>
+                    </Grid>
+                </Border>
+
+                <TextBlock
+                    Grid.Row="1"
+                    LineHeight="20"
+                    MaxLines="2"
+                    Text="{x:Bind Name}"
+                    TextTrimming="CharacterEllipsis"
+                    TextWrapping="Wrap" />
+            </Grid>
+        </DataTemplate>
+
+        <!--
+            歌手卡：圆形头像 + 姓名，**没有第三行**。PersonPicture 自带圆形裁剪与姓名首字占位
+            （没有头像的歌手画首字），不必手写 Ellipse 蒙版 —— 与歌手详情页头部同一个控件。
+            姓名两行、居中，是为了和另外两张卡的文字区一样高，一行行对齐。
+        -->
+        <DataTemplate x:Key="SearchArtistCardTemplate" x:DataType="models:Artist">
+            <Grid
+                Width="132"
+                RowSpacing="6"
+                VerticalAlignment="Top">
+                <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
+
+                <PersonPicture controls:Motion.SharedCoverKey="{x:Bind local:Formats.ArtistCoverKey(Id)}"
+                    Width="132"
+                    Height="132"
+                    DisplayName="{x:Bind Name}"
+                    ProfilePicture="{x:Bind local:Formats.CoverSource(CoverImage)}" />
+
+                <TextBlock
+                    Grid.Row="1"
+                    HorizontalAlignment="Center"
+                    LineHeight="20"
+                    MaxLines="2"
+                    Text="{x:Bind Name}"
+                    TextAlignment="Center"
+                    TextTrimming="CharacterEllipsis"
+                    TextWrapping="Wrap" />
+            </Grid>
+        </DataTemplate>
+        <DataTemplate x:Key="OverviewHeaderTemplate" x:DataType="vm:ListSectionHeader">
+            <!--
+                ★ 整行都可点（code-behind 把 ListSectionHeader 映射到分类页签）。
+                  上下 Margin 必须相等，标题才会在整行的悬浮底里垂直居中；
+                  左右留 8 DIP，标题和「更多」都不贴悬浮底边缘。
+            -->
+            <Grid Margin="0,10,0,10" Padding="8,0">
+                <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
+                <TextBlock Text="{x:Bind Title}" Style="{StaticResource SubtitleTextBlockStyle}" VerticalAlignment="Center" />
+                <HyperlinkButton
+                    Grid.Column="1"
+                    Content="更多"
+                    Tag="{x:Bind Category}"
+                    Click="OnOverviewMoreClick"
+                    Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}">
+                    <HyperlinkButton.Resources>
+                        <!--
+                            默认模板的悬停 / 按下色来自框架内部的静态别名，应用的主题色覆盖不到，
+                            会闪回系统蓝。这里按主题色重新指定，三个状态保持同一支强调色。
+                        -->
+                        <SolidColorBrush x:Key="HyperlinkButtonForegroundPointerOver" Color="{ThemeResource BrandAccentOnSurface}" />
+                        <SolidColorBrush x:Key="HyperlinkButtonForegroundPressed" Color="{ThemeResource BrandAccentOnSurface}" />
+                    </HyperlinkButton.Resources>
+                </HyperlinkButton>
+            </Grid>
+        </DataTemplate>
+        <DataTemplate x:Key="OverviewTrackTemplate" x:DataType="vm:TrackRow">
+            <Grid
+                MinHeight="{StaticResource SizeRowHeight}"
+                Padding="{StaticResource SpaceRowPadding}"
+                Background="Transparent"
+                ColumnSpacing="{StaticResource SpaceRow}"
+                PointerEntered="OnOverviewRowPointerEntered"
+                PointerExited="OnOverviewRowPointerExited">
+                <!--
+                    列宽写的是字面量而不是 token：ColumnDefinition.Width 是 GridLength，
+                    而 token 定义的是 x:Double —— {StaticResource} 返回的是 double 对象，
+                    赋给 GridLength 会类型不匹配。数值与 Tokens.xaml 里的
+                    SizeRowOrdinalColumn / SizeRowDurationColumn / SizeRowActionColumn 一致，
+                    改的时候两处一起改。
+
+                    这份模板与 TrackListView 里那份是复制关系，改一处要同步另一处。
+                    最后一列同理**必须定宽**，用 Auto 会随悬停塌缩、整行抖动。
+                -->
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="40" />
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="0.7*" />
+                    <ColumnDefinition Width="40" />
+                    <ColumnDefinition Width="32" />
+                </Grid.ColumnDefinitions>
+
+                <!--
+                    序号列：三态互斥。正在播放 → 起伏条；悬停 → 播放键；其余 → 序号。
+                    后两个 Visibility 由 TrackRow 算好（起伏条自己管显隐，见 PlayingBars）。
+
+                    ★ 三种状态必须落在同一个位置，所以一律 Center —— 与 TrackListView 那份一致。
+                -->
+                <Grid Grid.Column="0">
+                    <TextBlock
+                        HorizontalAlignment="Center"
+                        VerticalAlignment="Center"
+                        FontSize="{StaticResource FontSizeBody}"
+                        Foreground="{ThemeResource TextFillColorTertiaryBrush}"
+                        Text="{x:Bind OrdinalText}"
+                        Visibility="{x:Bind IndexVisibility, Mode=OneWay}" />
+
+                    <controls:Icon HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="{ThemeResource TextFillColorPrimaryBrush}" Visibility="{x:Bind PlayGlyphVisibility, Mode=OneWay}" Size="14" Data="{StaticResource IconPlay}" />
+
+                    <controls:PlayingBars
+                        HorizontalAlignment="Center"
+                        VerticalAlignment="Center"
+                        IsPlaying="{x:Bind IsCurrent, Mode=OneWay}" />
+                </Grid>
+
+                <!-- 封面。没有封面时留一块底色，行高不跳。 -->
+                <Border
+                    Grid.Column="1"
+                    Width="{StaticResource SizeCoverRow}"
+                    Height="{StaticResource SizeCoverRow}"
+                    VerticalAlignment="Center"
+                    Background="{ThemeResource ControlFillColorDefaultBrush}"
+                    CornerRadius="{StaticResource RadiusMd}">
+                    <Image Source="{x:Bind local:Formats.CoverSource(CoverImage)}" Stretch="UniformToFill" />
+                </Border>
+
+                <StackPanel
+                    Grid.Column="2"
+                    VerticalAlignment="Center"
+                    Spacing="2">
+                    <StackPanel Orientation="Horizontal" Spacing="6">
+                        <!-- 歌名的宽度上限：本列宽度减角标占位。理由与 TrackListView 那份同一段注释。 -->
+                        <controls:MarqueeText
+                            FontSize="{StaticResource FontSizeBodyLarge}"
+                            Text="{x:Bind Title}"
+                            controls:TitleClamp.Reserve="{x:Bind local:Formats.BadgeReserve(PayLabelVisibility, MvLabelVisibility)}" />
+
+                        <!-- 付费标识：让用户在点之前就知道要不要会员 -->
+                        <Border
+                            Padding="6,1"
+                            VerticalAlignment="Center"
+                            Background="{ThemeResource SystemFillColorAttentionBackgroundBrush}"
+                            CornerRadius="{StaticResource RadiusXs}"
+                            Visibility="{x:Bind PayLabelVisibility}">
+                            <TextBlock FontSize="{StaticResource FontSizeCaption}" Text="{x:Bind PayLabel}" />
+                        </Border>
+
+                        <!-- MV 标记。判据是 isMv == 1 || vid > 0，见 Track.HasMv 的注释。 -->
+                        <Border
+                            Padding="6,1"
+                            VerticalAlignment="Center"
+                            Background="{ThemeResource SystemFillColorAttentionBackgroundBrush}"
+                            CornerRadius="{StaticResource RadiusXs}"
+                            Visibility="{x:Bind MvLabelVisibility}">
+                            <TextBlock FontSize="{StaticResource FontSizeCaption}" Text="MV" />
+                        </Border>
+                    </StackPanel>
+
+                    <!-- 歌手名：链路与灰阶在 Controls/TrackLink 里，与 TrackListView 那份共用。 -->
+                    <controls:TrackLink Row="{x:Bind}" Kind="Artist" />
+                </StackPanel>
+
+                <controls:TrackLink
+                    Grid.Column="3"
+                    Kind="Album"
+                    Row="{x:Bind}" />
+
+                <!--
+                    时长。TextBlock 没有 OpenType feature 属性（等宽数字做不到），
+                    所以只能靠固定列宽 + 右对齐。
+                -->
+                <TextBlock
+                    Grid.Column="4"
+                    HorizontalAlignment="Right"
+                    VerticalAlignment="Center"
+                    FontSize="{StaticResource FontSizeCaption}"
+                    Foreground="{ThemeResource TextFillColorTertiaryBrush}"
+                    Text="{x:Bind DurationText}" />
+
+                <controls:TrackMoreButton
+                    Grid.Column="5"
+                    VerticalAlignment="Center"
+                    Row="{x:Bind}" />
+            </Grid>
+        </DataTemplate>
+        <controls:ResultTemplateSelector x:Key="OverviewTemplateSelector"
+            HeaderTemplate="{StaticResource OverviewHeaderTemplate}" TrackTemplate="{StaticResource OverviewTrackTemplate}"
+            PlaylistTemplate="{StaticResource SearchPlaylistTemplate}" AlbumTemplate="{StaticResource SearchAlbumTemplate}"
+            ArtistTemplate="{StaticResource SearchArtistTemplate}" />
+    </Page.Resources>
+    <Grid Style="{StaticResource BowenPageRoot}">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+        <StackPanel Spacing="4">
+            <TextBlock Style="{StaticResource TitleTextBlockStyle}" Text="搜索" />
+            <TextBlock Text="{x:Bind ViewModel.StatusText, Mode=OneWay}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" TextWrapping="Wrap" />
+        </StackPanel>
+
+        <controls:PillTabBar
+            Grid.Row="1"
+            Margin="0,0,0,12"
+            ItemsSource="{x:Bind ViewModel.Categories}"
+            SelectedIndex="{x:Bind ViewModel.SelectedCategory, Mode=TwoWay}" />
+
+        <!--
+            工具栏**只在歌曲页签出现**：综合页签是混合结果列表（歌单/专辑/歌手混在一起），
+            多选与「加入歌单」那套对它没有意义。
+        -->
+        <controls:TrackListToolbar
+            Grid.Row="2"
+            Margin="0,0,0,8"
+            ReloadCommand="{x:Bind ViewModel.ReloadCommand}"
+            SummaryText="{x:Bind ViewModel.TrackCountText, Mode=OneWay}"
+            Target="{x:Bind SearchTracksList}"
+            Visibility="{x:Bind local:Formats.Visible(ViewModel.IsTrackTab), Mode=OneWay}" />
+
+        <!--
+            「歌单 / 专辑 / 歌手」三个页签上方那条工具栏：左计数、右一颗视图切换。
+            与上面那条 TrackListToolbar 互斥可见（那条只在单曲页签出现），排法刻意保持一致 ——
+            计数用的是同一个样式、同一份内边距，切换页签时那一行不会换位置。
+            **只做一条、三个页签共用**：换页签换的是计数单位，不是再摆一条控件。
+        -->
+        <Grid
+            Grid.Row="2"
+            Margin="0,0,0,8"
+            Visibility="{x:Bind local:Formats.Visible(ViewModel.ShowsResultToolbar), Mode=OneWay}">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+
+            <TextBlock
+                Grid.Column="0"
+                Margin="{StaticResource SpaceRowPadding}"
+                Style="{StaticResource BowenPageStatusStrong}"
+                Text="{x:Bind ViewModel.ResultCountText, Mode=OneWay}" />
+
+            <!--
+                图标画的是「点了会变成什么」（见 Formats.ViewToggleIcon），
+                所以它对当前态是反的 —— 别照着图标猜当前是网格还是列表。
+                Tooltip 与无障碍名称共用 ViewToggleLabel 一份文案，两处不许各写各的。
+            -->
+            <Button
+                Grid.Column="1"
+                AutomationProperties.Name="{x:Bind local:Formats.ViewToggleLabel(ViewModel.ViewMode.UseGrid), Mode=OneWay}"
+                Command="{x:Bind ViewModel.ViewMode.ToggleCommand}"
+                Style="{StaticResource BowenIconButton}"
+                ToolTipService.ToolTip="{x:Bind local:Formats.ViewToggleLabel(ViewModel.ViewMode.UseGrid), Mode=OneWay}">
+                <controls:Icon Data="{x:Bind local:Formats.ViewToggleIcon(ViewModel.ViewMode.UseGrid), Mode=OneWay}" Size="16" />
+            </Button>
+        </Grid>
+
+        <!--
+            五个页签的内容都留在可视树上，只切可见性（原来是 Pivot，切走就整个卸载）。
+            ★ 未选中的那些不会跟着翻页：Collapsed 的元素不进布局、容器不被实现，
+              而自动翻页正是挂在 ContainerContentChanging 上的（见 docs/list-paging.md）。
+            四个分页页签各自挂一份末尾提示，天然跟着当前选中的那个走；「综合」不分页，不挂。
+
+            ★ 歌单 / 专辑 / 歌手三个页签各有**列表与网格两个控件**，也都不卸载、只切可见性
+              （Visibility 由「是哪个页签」× 「列表还是网格」两个布尔相与，见 Formats.VisibleBoth）。
+              同一份集合同时喂给两者，但任一时刻只有一个在布局里 —— 能实现容器的只有它，
+              所以不会一边滚一边被另一边再触发一次翻页。
+        -->
+        <!--
+            Padding 与单曲页签的 TrackListView 相同：作用在原生 ItemsPresenter 上，
+            给列表内容和右侧滚动条之间留出独立空间，标题的悬浮底不会伸进滚动条。
+
+            ★ 综合页签没有工具栏，Grid.Row=2 那一行是空的，但页面 RowSpacing 仍会在它两侧
+              各留一段 12，结果第一个分区标题比别的页签低一整段。上 -12 抵消掉其中一段。
+              这个值等于 SpaceSection，改那个 token 时要同步。
+        -->
+        <controls:VirtualizedListView controls:Motion.TabContent="True"
+            Grid.Row="3"
+            x:Name="OverviewList"
+            Margin="0,-12,0,0"
+            Padding="{StaticResource SpaceVerticalScrollContentPadding}"
+            ContainerContentChanging="OnOverviewContainerContentChanging"
+            IsItemClickEnabled="True"
+            ItemClick="OnOverviewItemClick"
+            ItemTemplateSelector="{StaticResource OverviewTemplateSelector}"
+            ItemsSource="{x:Bind ViewModel.OverviewItems}"
+            SelectionMode="None"
+            Visibility="{x:Bind local:Formats.Visible(ViewModel.IsOverviewTab), Mode=OneWay}">
+            <controls:VirtualizedListView.ItemsPanel>
+                <ItemsPanelTemplate><ItemsStackPanel CacheLength="0.5" /></ItemsPanelTemplate>
+            </controls:VirtualizedListView.ItemsPanel>
+            <controls:VirtualizedListView.ItemContainerStyle>
+                <Style TargetType="ListViewItem" BasedOn="{StaticResource DefaultListViewItemStyle}">
+                    <Setter Property="Padding" Value="0" />
+                    <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+                </Style>
+            </controls:VirtualizedListView.ItemContainerStyle>
+        </controls:VirtualizedListView>
+
+        <controls:TrackListView controls:Motion.TabContent="True"
+            x:Name="SearchTracksList"
+            Grid.Row="3"
+            HasMore="{x:Bind ViewModel.HasMore, Mode=OneWay}"
+            ItemsSource="{x:Bind ViewModel.Results}"
+            LoadMoreCommand="{x:Bind ViewModel.LoadMoreCommand}"
+            TrackInvoked="OnTrackInvoked"
+            Visibility="{x:Bind local:Formats.Visible(ViewModel.IsTrackTab), Mode=OneWay}">
+            <controls:TrackListView.Footer>
+                <controls:PagingEndNote
+                    RetryCommand="{x:Bind ViewModel.LoadMoreCommand}"
+                    ShowEnd="{x:Bind ViewModel.ShowEnd, Mode=OneWay}"
+                    ShowRetry="{x:Bind ViewModel.ShowRetry, Mode=OneWay}" />
+            </controls:TrackListView.Footer>
+        </controls:TrackListView>
+
+        <controls:VirtualizedListView controls:Motion.TabContent="True"
+            Grid.Row="3"
+            IsItemClickEnabled="True"
+            ItemClick="OnPlaylistClick"
+            ItemTemplate="{StaticResource SearchPlaylistTemplate}"
+            ItemsSource="{x:Bind ViewModel.Playlists}"
+            SelectionMode="None"
+            Visibility="{x:Bind local:Formats.VisibleBoth(ViewModel.IsPlaylistTab, ViewModel.ViewMode.IsList), Mode=OneWay}"
+            controls:AutoPaging.Command="{x:Bind ViewModel.LoadMoreCommand}"
+            controls:AutoPaging.HasMore="{x:Bind ViewModel.HasMore, Mode=OneWay}">
+            <controls:VirtualizedListView.Footer>
+                <controls:PagingEndNote
+                    RetryCommand="{x:Bind ViewModel.LoadMoreCommand}"
+                    ShowEnd="{x:Bind ViewModel.ShowEnd, Mode=OneWay}"
+                    ShowRetry="{x:Bind ViewModel.ShowRetry, Mode=OneWay}" />
+            </controls:VirtualizedListView.Footer>
+        </controls:VirtualizedListView>
+
+        <GridView controls:Motion.TabContent="True"
+            Grid.Row="3"
+            Style="{StaticResource BowenCoverCardGrid}"
+            controls:CoverCardLayout.CoverSize="132"
+            controls:CoverCardLayout.IsEnabled="True"
+            controls:CoverCardLayout.TextHeight="60"
+            controls:AutoPaging.Command="{x:Bind ViewModel.LoadMoreCommand}"
+            controls:AutoPaging.HasMore="{x:Bind ViewModel.HasMore, Mode=OneWay}"
+            ItemClick="OnPlaylistClick"
+            ItemTemplate="{StaticResource SearchPlaylistCardTemplate}"
+            ItemsSource="{x:Bind ViewModel.Playlists}"
+            Visibility="{x:Bind local:Formats.VisibleBoth(ViewModel.IsPlaylistTab, ViewModel.ViewMode.UseGrid), Mode=OneWay}">
+            <!-- ItemHeight / ItemWidth 必须与上面那三个 CoverCardLayout 值对得上（132+2*4+4 / 132+6+60+2*4+4） -->
+            <GridView.ItemsPanel>
+                <ItemsPanelTemplate><ItemsWrapGrid CacheLength="0.5" ItemHeight="210" ItemWidth="144" Orientation="Horizontal" /></ItemsPanelTemplate>
+            </GridView.ItemsPanel>
+            <GridView.Footer>
+                <controls:PagingEndNote
+                    RetryCommand="{x:Bind ViewModel.LoadMoreCommand}"
+                    ShowEnd="{x:Bind ViewModel.ShowEnd, Mode=OneWay}"
+                    ShowRetry="{x:Bind ViewModel.ShowRetry, Mode=OneWay}" />
+            </GridView.Footer>
+        </GridView>
+
+        <controls:VirtualizedListView controls:Motion.TabContent="True"
+            Grid.Row="3"
+            IsItemClickEnabled="True"
+            ItemClick="OnAlbumClick"
+            ItemTemplate="{StaticResource SearchAlbumTemplate}"
+            ItemsSource="{x:Bind ViewModel.Albums}"
+            SelectionMode="None"
+            Visibility="{x:Bind local:Formats.VisibleBoth(ViewModel.IsAlbumTab, ViewModel.ViewMode.IsList), Mode=OneWay}"
+            controls:AutoPaging.Command="{x:Bind ViewModel.LoadMoreCommand}"
+            controls:AutoPaging.HasMore="{x:Bind ViewModel.HasMore, Mode=OneWay}">
+            <controls:VirtualizedListView.Footer>
+                <controls:PagingEndNote
+                    RetryCommand="{x:Bind ViewModel.LoadMoreCommand}"
+                    ShowEnd="{x:Bind ViewModel.ShowEnd, Mode=OneWay}"
+                    ShowRetry="{x:Bind ViewModel.ShowRetry, Mode=OneWay}" />
+            </controls:VirtualizedListView.Footer>
+        </controls:VirtualizedListView>
+
+        <GridView controls:Motion.TabContent="True"
+            Grid.Row="3"
+            Style="{StaticResource BowenCoverCardGrid}"
+            controls:CoverCardLayout.CoverSize="132"
+            controls:CoverCardLayout.IsEnabled="True"
+            controls:CoverCardLayout.TextHeight="60"
+            controls:AutoPaging.Command="{x:Bind ViewModel.LoadMoreCommand}"
+            controls:AutoPaging.HasMore="{x:Bind ViewModel.HasMore, Mode=OneWay}"
+            ItemClick="OnAlbumClick"
+            ItemTemplate="{StaticResource SearchAlbumCardTemplate}"
+            ItemsSource="{x:Bind ViewModel.Albums}"
+            Visibility="{x:Bind local:Formats.VisibleBoth(ViewModel.IsAlbumTab, ViewModel.ViewMode.UseGrid), Mode=OneWay}">
+            <GridView.ItemsPanel>
+                <ItemsPanelTemplate><ItemsWrapGrid CacheLength="0.5" ItemHeight="210" ItemWidth="144" Orientation="Horizontal" /></ItemsPanelTemplate>
+            </GridView.ItemsPanel>
+            <GridView.Footer>
+                <controls:PagingEndNote
+                    RetryCommand="{x:Bind ViewModel.LoadMoreCommand}"
+                    ShowEnd="{x:Bind ViewModel.ShowEnd, Mode=OneWay}"
+                    ShowRetry="{x:Bind ViewModel.ShowRetry, Mode=OneWay}" />
+            </GridView.Footer>
+        </GridView>
+
+        <controls:VirtualizedListView controls:Motion.TabContent="True"
+            Grid.Row="3"
+            IsItemClickEnabled="True"
+            ItemClick="OnArtistClick"
+            ItemTemplate="{StaticResource SearchArtistTemplate}"
+            ItemsSource="{x:Bind ViewModel.Artists}"
+            SelectionMode="None"
+            Visibility="{x:Bind local:Formats.VisibleBoth(ViewModel.IsArtistTab, ViewModel.ViewMode.IsList), Mode=OneWay}"
+            controls:AutoPaging.Command="{x:Bind ViewModel.LoadMoreCommand}"
+            controls:AutoPaging.HasMore="{x:Bind ViewModel.HasMore, Mode=OneWay}">
+            <controls:VirtualizedListView.Footer>
+                <controls:PagingEndNote
+                    RetryCommand="{x:Bind ViewModel.LoadMoreCommand}"
+                    ShowEnd="{x:Bind ViewModel.ShowEnd, Mode=OneWay}"
+                    ShowRetry="{x:Bind ViewModel.ShowRetry, Mode=OneWay}" />
+            </controls:VirtualizedListView.Footer>
+        </controls:VirtualizedListView>
+
+        <GridView controls:Motion.TabContent="True"
+            Grid.Row="3"
+            Style="{StaticResource BowenCoverCardGrid}"
+            controls:CoverCardLayout.CoverSize="132"
+            controls:CoverCardLayout.IsEnabled="True"
+            controls:CoverCardLayout.TextHeight="60"
+            controls:AutoPaging.Command="{x:Bind ViewModel.LoadMoreCommand}"
+            controls:AutoPaging.HasMore="{x:Bind ViewModel.HasMore, Mode=OneWay}"
+            ItemClick="OnArtistClick"
+            ItemTemplate="{StaticResource SearchArtistCardTemplate}"
+            ItemsSource="{x:Bind ViewModel.Artists}"
+            Visibility="{x:Bind local:Formats.VisibleBoth(ViewModel.IsArtistTab, ViewModel.ViewMode.UseGrid), Mode=OneWay}">
+            <GridView.ItemsPanel>
+                <ItemsPanelTemplate><ItemsWrapGrid CacheLength="0.5" ItemHeight="210" ItemWidth="144" Orientation="Horizontal" /></ItemsPanelTemplate>
+            </GridView.ItemsPanel>
+            <GridView.Footer>
+                <controls:PagingEndNote
+                    RetryCommand="{x:Bind ViewModel.LoadMoreCommand}"
+                    ShowEnd="{x:Bind ViewModel.ShowEnd, Mode=OneWay}"
+                    ShowRetry="{x:Bind ViewModel.ShowRetry, Mode=OneWay}" />
+            </GridView.Footer>
+        </GridView>
+
+        <Grid Grid.Row="4" Style="{StaticResource BowenPageFooter}">
+            <ProgressRing Style="{StaticResource BowenPageBusyRing}" IsActive="{x:Bind ViewModel.IsBusy, Mode=OneWay}" />
+        </Grid>
+    </Grid>
+</Page>

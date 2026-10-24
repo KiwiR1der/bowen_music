@@ -27,7 +27,7 @@
 
 同日微信输入法候选框兼容处理已获用户确认。最终只保留默认关闭的初始化兼容选项，
 不替换 WinUI 控件或改变既有托盘流程；独立输出的 XAML 资源路径错误已修正。
-用户通常从 `src/Bodian.WinUI/bin/Debug/net10.0-windows10.0.26100.0/win-x64/Bodian.WinUI.exe` 启动，
+用户通常从 `src/Bowen.WinUI/bin/Debug/net10.0-windows10.0.26100.0/win-x64/BowenMusic.exe` 启动，
 此前部分反馈可能来自旧构建。实现、验收及版本核对见 [`ime-candidate-window.md`](ime-candidate-window.md)。
 
 **上一状态（2026-10-05）**：**P0–P7 代码完成**，P6 桌面歌词于本日获得用户确认。
@@ -112,7 +112,7 @@
 
 **项目许可证：GPL-3.0。** 这决定了哪些第三方代码可以直接移植 —— 见 `lyrics-ui.md` 的许可边界一节（**GPL-3.0 可抄，AGPL-3.0 不可**）。
 
-**代码侧命名统一为 `Bodian`**（解决方案 `Bodian.sln`、项目 `Bodian.Core` / `Bodian.WinUI` / `Bodian.Core.Tests`）。
+**代码侧命名统一为 `Bowen`**（解决方案 `Bowen.sln`、项目 `Bowen.Core` / `Bowen.WinUI` / `Bowen.Core.Tests`）。
 
 > **2026-10-08 更正**：这条当时写的配置目录是 `%LOCALAPPDATA%\Bodian\`。应用改名「波纹音乐」后，
 > 配置目录已改为 **`%LOCALAPPDATA%\Bowen\`**。当时带过一次性的目录迁移（把旧目录整个搬过去，
@@ -228,7 +228,7 @@ P0 里花点时间确认：分别用空串和一个已有的免费听场景对�
 
 | 项目 | 内容 | 状态 |
 | --- | --- | --- |
-| 解决方案结构 | **`Bodian.Core`（纯 `net10.0`，零 UI 依赖，可单测）+ `Bodian.WinUI` + `Bodian.Core.Tests`** | ✅ |
+| 解决方案结构 | **`Bowen.Core`（纯 `net10.0`，零 UI 依赖，可单测）+ `Bowen.WinUI` + `Bowen.Core.Tests`** | ✅ |
 | `BodianHttpTransport` | 签名、请求头、信封解析（`code` 200/402/11012/11027/20018）、gzip、超时、8 MiB 上限。**唯一**碰 `HttpClient` 和 md5 的地方 | ✅ |
 | `BodianSession` | uid/token、`revision` 计数、`11012` 触发清会话事件 | ✅ |
 | 凭据落盘 | **DPAPI**（`System.Security.Cryptography.ProtectedData`，**需独立 NuGet 包**）。实现类要标 `[SupportedOSPlatform("windows")]` | ✅ |

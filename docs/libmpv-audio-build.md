@@ -88,7 +88,7 @@ MV 使用 WinUI 的 `MediaPlayer`，不依赖这个 DLL 的视频解码能力。
 | 可复现构建脚本 | `tools/mpv/build_audio_mpv.py` | 是 |
 | 原生播放与无损对照脚本 | `tools/mpv/verify_audio_mpv.py` | 是 |
 | 固定源码版本与归档校验和 | `tools/mpv/sources.lock.json` | 是 |
-| 播放初始化兼容调整 | `src/Bodian.WinUI/Playback/LibMpvPlaybackService.cs` | 是 |
+| 播放初始化兼容调整 | `src/Bowen.WinUI/Playback/LibMpvPlaybackService.cs` | 是 |
 | 候选 DLL | `artifacts/native-mpv/output/libmpv-2.dll` | 否 |
 | 构建清单 | `artifacts/native-mpv/output/build-manifest.json` | 否 |
 | 实际启用组件清单 | `artifacts/native-mpv/output/audio-profile.json` | 否 |
@@ -98,7 +98,7 @@ MV 使用 WinUI 的 `MediaPlayer`，不依赖这个 DLL 的视频解码能力。
 | 各阶段配置与编译日志 | `artifacts/native-mpv/logs/` | 否 |
 | 下载的源码归档 | `artifacts/native-mpv/downloads/` | 否 |
 | 隔离的工具链与 Python 环境 | `artifacts/native-mpv/bootstrap/`、`artifacts/native-mpv/venv/` | 否 |
-| Debug 客户端输出 DLL | `src/Bodian.WinUI/bin/Debug/net10.0-windows10.0.26100.0/win-x64/libmpv-2.dll` | 否 |
+| Debug 客户端输出 DLL | `src/Bowen.WinUI/bin/Debug/net10.0-windows10.0.26100.0/win-x64/libmpv-2.dll` | 否 |
 
 `artifacts/` 是本机可再生目录，重新克隆仓库不会得到这里的备份、工具链或验证报告。
 固定来源与本次验收结果已写入本文；换机器时按下面的构建和参考库获取步骤重新生成。
@@ -206,14 +206,14 @@ Copy-Item -LiteralPath $candidatePath -Destination $currentPath -Force
 if ((Get-FileHash -LiteralPath $currentPath -Algorithm SHA256).Hash.ToLowerInvariant() -ne $candidateHash) {
     throw '安装后的 DLL 校验失败。'
 }
-dotnet build src/Bodian.WinUI/Bodian.WinUI.csproj --no-restore -c Debug -v minimal
+dotnet build src/Bowen.WinUI/Bowen.WinUI.csproj --no-restore -c Debug -v minimal
 ```
 
 构建后核对输出目录的 DLL。构建或复制失败时不要跳过错误继续使用旧输出；若运行中的客户端
 占用了输出目录的 DLL，关闭客户端再重试。
 
 ```powershell
-$outputPath = 'src/Bodian.WinUI/bin/Debug/net10.0-windows10.0.26100.0/win-x64/libmpv-2.dll'
+$outputPath = 'src/Bowen.WinUI/bin/Debug/net10.0-windows10.0.26100.0/win-x64/libmpv-2.dll'
 $outputHash = (Get-FileHash -LiteralPath $outputPath -Algorithm SHA256).Hash.ToLowerInvariant()
 if ($outputHash -ne $candidateHash) {
     throw '客户端输出目录尚未使用已验证的候选 DLL。'
@@ -238,8 +238,8 @@ if ((Get-FileHash -LiteralPath $referencePath -Algorithm SHA256).Hash.ToLowerInv
     throw '完整版参考库的 SHA256 不一致，请勿回退。'
 }
 Copy-Item -LiteralPath $referencePath -Destination 'libmpv/libmpv-2.dll' -Force
-dotnet build src/Bodian.WinUI/Bodian.WinUI.csproj --no-restore -c Debug -v minimal
-$outputPath = 'src/Bodian.WinUI/bin/Debug/net10.0-windows10.0.26100.0/win-x64/libmpv-2.dll'
+dotnet build src/Bowen.WinUI/Bowen.WinUI.csproj --no-restore -c Debug -v minimal
+$outputPath = 'src/Bowen.WinUI/bin/Debug/net10.0-windows10.0.26100.0/win-x64/libmpv-2.dll'
 if ((Get-FileHash -LiteralPath $outputPath -Algorithm SHA256).Hash.ToLowerInvariant() -ne $referenceHash) {
     throw '客户端输出目录尚未更新为完整版。'
 }
@@ -249,10 +249,10 @@ if ((Get-FileHash -LiteralPath $outputPath -Algorithm SHA256).Hash.ToLowerInvari
 
 ## 客户端加载与兼容调整
 
-[`Bodian.WinUI.csproj`](../src/Bodian.WinUI/Bodian.WinUI.csproj) 把此 DLL 复制到输出目录；托管绑定从 `MpvApi.RootPath`
+[`Bowen.WinUI.csproj`](../src/Bowen.WinUI/Bowen.WinUI.csproj) 把此 DLL 复制到输出目录；托管绑定从 `MpvApi.RootPath`
 （`AppContext.BaseDirectory`）加载它。缺文件时仍可构建和启动，首次播放会显示可读错误。
 
-关闭 Lua 后不存在 `ytdl` 选项，因此 [`LibMpvPlaybackService`](../src/Bodian.WinUI/Playback/LibMpvPlaybackService.cs) 会检测 `options/ytdl`
+关闭 Lua 后不存在 `ytdl` 选项，因此 [`LibMpvPlaybackService`](../src/Bowen.WinUI/Playback/LibMpvPlaybackService.cs) 会检测 `options/ytdl`
 是否存在后再关闭该脚本，兼容完整版与音频精简版。
 
 ## 构建问题与排查

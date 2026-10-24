@@ -112,7 +112,7 @@ Core 回归增加通知合并、布局预算以及页面布局结构的用例，
 $env:BODIAN_LYRICS_DIAGNOSTICS = '1'
 $env:BODIAN_UI_PERF_SCENARIO = 'search-list'
 $env:BODIAN_UI_PERF_ITEMS = '10000'
-& './src/Bodian.WinUI/bin/Release/net10.0-windows10.0.26100.0/win-x64/Bodian.WinUI.exe'
+& './src/Bowen.WinUI/bin/Release/net10.0-windows10.0.26100.0/win-x64/BowenMusic.exe'
 ```
 
 它不请求搜索接口，不写搜索历史，使用负数 id 的本地样本；正常启动没有样本数据。
@@ -205,7 +205,7 @@ UI 验证包含三轮歌词全屏/最小化恢复、三轮歌词进出、MV 三�
 
 ### 正式产物的 30 秒测量
 
-使用正式 `src/Bodian.WinUI/bin/Release/.../Bodian.WinUI.exe`，同一歌曲与普通“我喜欢的”页。
+使用正式 `src/Bowen.WinUI/bin/Release/.../BowenMusic.exe`，同一歌曲与普通“我喜欢的”页。
 桌面歌词与小窗未创建，实际采集时不切页、不切主题、不滚动，也不同时编译。
 CPU 按 12 个逻辑核归一化，逐秒记录；内存为采样结束时的私有工作集。
 

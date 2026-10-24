@@ -1,0 +1,771 @@
+using System.Collections.ObjectModel;
+using Bowen.Core.Api;
+using Bowen.Core.Models;
+using Bowen.Core.Services;
+using Bowen.Core.Services.Abstractions;
+using Bowen.WinUI.Media;
+using Bowen.WinUI.Playback;
+using Bowen.WinUI.Services;
+using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.Input;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.UI.Dispatching;
+using Microsoft.UI.Xaml.Media;
+
+namespace Bowen.WinUI.ViewModels;
+
+/// <summary>
+/// 底部播放条。**单例**，跨页面常驻。
+/// </summary>
+/// <remarks>
+/// 因为是单例，<b>不要在页面卸载时退订引擎事件</b> —— 那会导致从别的页面回来后进度条不动。
+/// 订阅在构造函数里做一次，生命周期与进程一致。
+/// </remarks>
+public sealed partial class PlayerViewModel : ObservableObject, IVolumeSource
+{
+    private readonly PlaybackCoordinator _coordinator;
+    private readonly IPlaybackService _engine;
+    private readonly NotificationViewModel _notifications;
+    private readonly BodianSession _session;
+    private readonly IClipboardService _clipboard;
+    private readonly ILogger<PlayerViewModel> _logger;
+
+    /// <summary>静音标记与「改音量即解除静音」那条规则。</summary>
+    private readonly VolumeState _volumeState = new();
+
+    private readonly IVolumeSettingsStore? _volumeSettings;
+    private readonly DispatcherQueueTimer? _volumeSaveTimer;
+
+    /// <summary>正在把读盘的值灌进来。<b>只挡落盘，不挡送引擎。</b></summary>
+    private bool _loadingVolume;
+
+    /// <summary>播放条封面默认的解码尺寸。</summary>
+    private const int DefaultCoverDecodePixels = 256;
+
+    private int _coverDecodePixels = DefaultCoverDecodePixels;
+
+    /// <summary>音量落盘的防抖时长。见 <see cref="OnVolumeChanged"/>。</summary>
+    private static readonly TimeSpan VolumeSaveDelay = TimeSpan.FromSeconds(1);
+
+    public PlayerViewModel(
+        PlaybackCoordinator coordinator,
+        IPlaybackService engine,
+        TrackStatisticsViewModel statistics,
+        NotificationViewModel notifications,
+        BodianSession session,
+        IClipboardService clipboard,
+        ILogger<PlayerViewModel>? logger = null,
+        IVolumeSettingsStore? volumeSettings = null)
+    {
+        ArgumentNullException.ThrowIfNull(coordinator);
+        ArgumentNullException.ThrowIfNull(engine);
+        ArgumentNullException.ThrowIfNull(statistics);
+        ArgumentNullException.ThrowIfNull(notifications);
+        ArgumentNullException.ThrowIfNull(session);
+        ArgumentNullException.ThrowIfNull(clipboard);
+        Statistics = statistics;
+
+        _coordinator = coordinator;
+        _engine = engine;
+        _notifications = notifications;
+        _session = session;
+        _clipboard = clipboard;
+        _logger = logger ?? NullLogger<PlayerViewModel>.Instance;
+        _volumeSettings = volumeSettings;
+
+        _coordinator.QualityOptionsChanged += (_, _) => RefreshQualityOptions();
+        _coordinator.QualityChanged += (_, e) =>
+        {
+            QualityText = AudioQualityTable.Describe(e.Source);
+            PositionSeconds = e.Position.TotalSeconds;
+            IsPlaying = _engine.State == PlaybackState.Playing;
+
+            if (e.Source.WasDowngraded)
+            {
+                _notifications.Show(QualityText);
+            }
+
+            RefreshQualityOptions();
+        };
+        _coordinator.QualityChangeFailed += (_, e) => _notifications.Show(e.Message, NoticeSeverity.Error);
+        _coordinator.Started += OnStarted;
+        _coordinator.Blocked += OnBlocked;
+        _coordinator.AuditionEnded += OnAuditionEnded;
+        _coordinator.QueueExhausted += OnQueueExhausted;
+        _coordinator.Queue.Changed += OnQueueChanged;
+        _coordinator.ScopeSwitched += OnScopeSwitched;
+        Mode = _coordinator.Mode;
+
+        _engine.PositionChanged += OnPositionChanged;
+        _engine.StateChanged += OnEngineStateChanged;
+        _engine.Failed += OnEngineFailed;
+        RefreshQualityOptions();
+
+        _volumeSaveTimer = DispatcherQueue.GetForCurrentThread()?.CreateTimer();
+        if (_volumeSaveTimer is not null)
+        {
+            _volumeSaveTimer.Interval = VolumeSaveDelay;
+            _volumeSaveTimer.IsRepeating = false;
+            _volumeSaveTimer.Tick += (_, _) => PersistVolume();
+        }
+
+        RestoreVolume();
+
+        // 上次退出时停在队列里的那一首，铺到播放条上 —— 但不自动播放。
+        if (_coordinator.RestoredState is { } restored)
+        {
+            ApplyRestoredTrack(restored.Track, restored.Position.TotalSeconds);
+        }
+    }
+
+    public TrackStatisticsViewModel Statistics { get; }
+
+    public ObservableCollection<AudioQualityOption> QualityOptions { get; } = [];
+
+    [ObservableProperty]
+    public partial AudioQualityOption? SelectedQualityOption { get; set; }
+
+    /// <summary>当前正在用的档位，供音质胶囊取色。还没取到音源时为 <c>null</c>。</summary>
+    [ObservableProperty]
+    public partial AudioQuality? CurrentQuality { get; set; }
+
+    [ObservableProperty]
+    public partial bool CanChangeQuality { get; set; } = true;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasQualityStatus))]
+    public partial string QualityStatus { get; set; } = "";
+
+    public bool HasQualityStatus => QualityStatus.Length > 0;
+
+    public Task SwitchQualityAsync(AudioQuality quality) => _coordinator.SwitchQualityAsync(quality);
+
+    private void RefreshQualityOptions()
+    {
+        var track = _coordinator.CurrentTrack;
+        var audition = _coordinator.CurrentPolicy?.IsAudition == true;
+        var busy = _coordinator.IsChangingQuality;
+        var current = _coordinator.CurrentSource is { } source
+            ? AudioQualityTable.ServedQuality(source) : _coordinator.PreferredQuality;
+        CanChangeQuality = !busy;
+        CurrentQuality = current;
+        QualityStatus = busy ? "正在切换音质…" : audition ? "试听片段不支持音质切换" : "";
+        SelectedQualityOption = null;
+        QualityOptions.Clear();
+        AudioQualityOption? selected = null;
+        AudioQuality[] order = [AudioQuality.Standard, AudioQuality.High, AudioQuality.Lossless];
+        foreach (var quality in order)
+        {
+            var variant = track?.AudioVariants.Where(v => AudioQualityTable.IsSupportedVariant(v) && v.Quality == quality)
+                .OrderByDescending(v => v.BitrateKbps).FirstOrDefault();
+            var available = track is null || track.AvailableQualities.Contains(quality);
+            var size = variant?.SizeBytes ?? 0;
+            if (current == quality && _coordinator.CurrentSource is { SizeBytes: > 0 } actual) { size = actual.SizeBytes; }
+            var option = new AudioQualityOption(quality, AudioQualityTable.DisplayName(quality),
+                available ? AudioQualityTable.FormatSize(size) : "暂无音源", available && !audition && !busy,
+                current == quality);
+            QualityOptions.Add(option);
+            if (current == quality) { selected = option; }
+        }
+        SelectedQualityOption = selected;
+    }
+
+    /// <summary>播放条是否该显示。</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(NowPlayingTitleText))]
+    [NotifyPropertyChangedFor(nameof(HasNowPlayingArtist))]
+    public partial bool HasTrack { get; set; }
+
+    /// <summary>当前这首歌有没有 MV。驱动播放条上那颗 MV 按钮的显隐（没有就折叠，不置灰）。</summary>
+    [ObservableProperty]
+    public partial bool HasMv { get; set; }
+
+    /// <summary>
+    /// 当前曲目。供外壳构造 MV 页用。
+    /// </summary>
+    /// <remarks>
+    /// <b>刻意不是 public</b>：XAML 类型信息生成器会为公开属性里的类型生成激活代码，
+    /// 而 <see cref="Track"/> 有 <c>required</c> 成员 —— 生成器造不出实例，直接编译失败。
+    /// 同一个坑见 <c>MvPage.Track</c>。
+    /// </remarks>
+    internal Track? CurrentTrack { get; private set; }
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(NowPlayingTitleText))]
+    public partial string Title { get; set; } = "";
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(NowPlayingArtistText))]
+    [NotifyPropertyChangedFor(nameof(HasNowPlayingArtist))]
+    public partial string ArtistText { get; set; } = "";
+
+    [ObservableProperty]
+    public partial string AlbumText { get; set; } = "";
+
+    /// <summary>
+    /// 托盘菜单顶部第一行：歌名。
+    /// </summary>
+    /// <remarks>
+    /// <b>歌手另起一行</b>：菜单宽度固定在 160，两段挤在一行时歌名要和歌手分宽度，
+    /// 稍微长一点的歌名就被省略号切掉了；分开之后歌名独占整行。
+    /// 没有曲目时给一句占位而不是空串 —— 菜单里的空行看起来像渲染坏了。
+    /// </remarks>
+    public string NowPlayingTitleText => HasTrack ? Title : "未在播放";
+
+    /// <summary>托盘菜单顶部第二行是否有歌手可显示。</summary>
+    public bool HasNowPlayingArtist => HasTrack && ArtistText.Length > 0;
+
+    /// <summary>托盘菜单顶部第二行：歌手。</summary>
+    public string NowPlayingArtistText => HasNowPlayingArtist ? ArtistText : "";
+
+    /// <summary>封面。为 <c>null</c> 时界面显示占位底色。</summary>
+    [ObservableProperty]
+    public partial ImageSource? CoverImage { get; set; }
+
+    /// <summary>
+    /// 当前封面的**原始地址**。
+    /// </summary>
+    /// <remarks>
+    /// 与 <see cref="CoverImage"/> 是两回事：那个是给界面直接显示的 <c>BitmapImage</c>，
+    /// 而氛围背景要拿地址自己去解码取色 —— 从 <c>ImageSource</c> 里拿不回地址。
+    /// 取色那一步会把它改写成 <c>.jpg</c> 小图，见 <c>CoverPaletteLoader</c>。
+    /// </remarks>
+    [ObservableProperty]
+    public partial Uri? CurrentCoverUri { get; set; }
+
+    /// <summary>
+    /// 付费标识（<c>VIP</c> / <c>付费</c> / 空）。**只是展示** ——
+    /// 能不能播由服务端的 checkRight 裁决，不看这个。
+    /// </summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasPayLabel))]
+    public partial string PayLabel { get; set; } = "";
+
+    public bool HasPayLabel => PayLabel.Length > 0;
+
+    /// <summary>实际产品音质、大小及降级提示，不在界面暴露格式或码率参数。</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(QualityLabel))]
+    public partial string QualityText { get; set; } = "";
+
+    public string QualityLabel => QualityText.Length == 0 ? "音质"
+        : IsAudition ? "试听"
+        : _coordinator.CurrentSource is { } source && AudioQualityTable.ServedQuality(source) is { } quality
+            ? AudioQualityTable.DisplayName(quality) : "音质未知";
+
+    [ObservableProperty]
+    public partial bool IsPlaying { get; set; }
+
+    /// <summary>
+    /// 当前曲目的 <c>musicId</c>。曲目列表用它决定哪一行显示「正在播放」。
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <b>这是「正在播放」的唯一权威来源。</b> 页面 ViewModel 上那个同名的 <c>CurrentTrack</c>
+    /// 语义是「本页最后被点播的曲目」—— <b>自动下一首不会更新它，被拒绝的曲目也会写进去</b>，
+    /// 拿它做高亮会在自动切歌时停在原地。
+    /// </para>
+    /// <para>
+    /// 播不成的曲目也照样赋值：用户得看见「刚才点的是这一首、它正在播不了」，
+    /// 这与播放条的行为一致（播放条在被拒时同样会显示曲目信息）。
+    /// </para>
+    /// </remarks>
+    [ObservableProperty]
+    public partial long? CurrentTrackId { get; set; }
+
+    /// <summary>当前放的是试听片段。</summary>
+    [ObservableProperty]
+    public partial bool IsAudition { get; set; }
+
+    [ObservableProperty]
+    public partial double PositionSeconds { get; set; }
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ProgressMaximum))]
+    public partial double DurationSeconds { get; set; }
+
+    /// <summary>
+    /// 进度条的上限。
+    /// </summary>
+    /// <remarks>
+    /// <b>不能让它是 0。</b> Slider 在 <c>Maximum</c> 与 <c>Minimum</c> 相等时值域为零，
+    /// 轨道宽度算出来是 0，视觉上就是「根本没有进度条」——而 <see cref="DurationSeconds"/>
+    /// 在拿到真实时长之前恰好是 0。给它一个非零保底，控件就始终可见。
+    /// </remarks>
+    public double ProgressMaximum => Math.Max(DurationSeconds, 1);
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsMuted))]
+    public partial double Volume { get; set; } = 100;
+
+    /// <summary>是否静音。音量按钮据此在中/静音两个图标之间切。</summary>
+    /// <remarks>
+    /// <b>两条路都算静音</b>：显式点了静音开关，或者音量被拖到 0。
+    /// 后半条是原有语义，保留 —— 滑条拉到 0 时用户看到的就该是静音图标。
+    /// </remarks>
+    public bool IsMuted => _volumeState.Muted || Volume <= 0;
+
+    /// <inheritdoc />
+    public void ToggleMute()
+    {
+        _volumeState.Toggle();
+        _engine.SetVolume(_volumeState.EffectiveVolume(Volume));
+        OnPropertyChanged(nameof(IsMuted));
+    }
+
+    [ObservableProperty]
+    public partial bool CanGoNext { get; set; }
+
+    [ObservableProperty]
+    public partial bool CanGoPrevious { get; set; }
+
+    /// <summary>
+    /// 当前播放模式。
+    /// </summary>
+    /// <remarks>
+    /// <b>不从命令里赋值，只跟着队列走</b>：模式是队列的状态，面板和系统媒体控件也可能改它，
+    /// 各入口自己刷一遍迟早会漏。这里统一在 <see cref="OnQueueChanged"/> 里同步。
+    /// </remarks>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsSequentialMode))]
+    [NotifyPropertyChangedFor(nameof(IsListLoopMode))]
+    [NotifyPropertyChangedFor(nameof(IsSingleLoopMode))]
+    [NotifyPropertyChangedFor(nameof(IsShuffleMode))]
+    [NotifyPropertyChangedFor(nameof(PlayModeText))]
+    public partial PlayMode Mode { get; set; }
+
+    /// <summary>四个模式图标是叠在同一个按钮里的，靠这四个开关选一个显示。</summary>
+    public bool IsSequentialMode => Mode == PlayMode.Sequential;
+
+    public bool IsListLoopMode => Mode == PlayMode.ListLoop;
+
+    public bool IsSingleLoopMode => Mode == PlayMode.SingleLoop;
+
+    public bool IsShuffleMode => Mode == PlayMode.Shuffle;
+
+    public string PlayModeText => Mode.DisplayName();
+
+    /// <summary>
+    /// 用户正在拖动进度条。由界面在按下/松开时设置。
+    /// </summary>
+    /// <remarks>
+    /// 拖动期间不能再用引擎的进度覆盖滑块 —— 否则手指还没松开，滑块就被拽回去了。
+    /// </remarks>
+    public bool IsSeeking { get; set; }
+
+    /// <summary>进度条拖完时由界面调用。</summary>
+    /// <remarks>
+    /// <b>引擎里没有加载文件时这次拖动不作数。</b> mpv 放完最后一首后回到 idle，
+    /// <c>time-pos</c> 属性不存在，设它会抛 <c>property unavailable</c> 并弹一条红条；
+    /// 而引擎的失败处理还会把状态砸成 <see cref="PlaybackState.Idle"/>，把进度条打到 0。
+    /// 这个状态下本来也没有「跳转」可言，直接吞掉这次拖动。
+    /// </remarks>
+    public Task SeekToAsync(double seconds)
+    {
+        IsSeeking = false;
+
+        if (!HasTrack || _engine.State is PlaybackState.Idle or PlaybackState.Stopped)
+        {
+            // 滑块已经被拖走了，而引擎不会再发进度把它拉回来 —— 手动把当前进度重发一次拨回原位。
+            OnPropertyChanged(nameof(PositionSeconds));
+
+            return Task.CompletedTask;
+        }
+
+        return _engine.SeekAsync(TimeSpan.FromSeconds(seconds));
+    }
+
+    [RelayCommand]
+    private async Task TogglePlayPauseAsync()
+    {
+        if (!HasTrack)
+        {
+            return;
+        }
+
+        _logger.LogDebug(
+            "切换播放：界面认为 IsPlaying={IsPlaying}，引擎实际状态={State}",
+            IsPlaying,
+            _engine.State);
+
+        if (IsPlaying)
+        {
+            await _engine.PauseAsync();
+        }
+        else
+        {
+            // ★ 不能直接调引擎的 PlayAsync()：放完最后一首后 mpv 已回到 idle，
+            //   设 pause=false 是空操作（界面还会被乐观更新成「正在播放」）。协调器负责判断
+            //   该重新加载哪一首，见 PlaybackCoordinator.PlayAsync。
+            await _coordinator.PlayAsync();
+        }
+    }
+
+    [RelayCommand]
+    private Task NextAsync() => _coordinator.NextAsync();
+
+    [RelayCommand]
+    private Task PreviousAsync() => _coordinator.PreviousAsync();
+
+    /// <summary>按「顺序播放 → 列表循环 → 列表随机」切到下一个模式。</summary>
+    [RelayCommand]
+    private void CyclePlayMode() => _coordinator.CyclePlayMode();
+
+    /// <summary>
+    /// 直接切到指定模式。托盘菜单的模式子菜单按项指定时用它 ——
+    /// 播放条那颗按钮仍然是「循环切下一个」（见 <see cref="CyclePlayMode"/>），两者语义不同。
+    /// </summary>
+    /// <remarks>
+    /// <b>这里不写 <c>Mode = mode</c></b>：模式是队列的状态，<see cref="Mode"/> 的注释已经写死
+    /// 「只跟着队列走」。多写一处赋值就是第二个真相来源，主界面切模式时两边会不同步。
+    /// </remarks>
+    [RelayCommand]
+    private void SetPlayMode(PlayMode mode) => _coordinator.SetPlayMode(mode);
+
+    /// <summary>喜欢 / 取消喜欢当前曲目。已喜欢时点按是取消。</summary>
+    [RelayCommand]
+    private async Task ToggleFavoriteAsync()
+    {
+        var outcome = await Statistics.ToggleFavoriteAsync();
+
+        // 成功与「已在处理中」都不发提示：心形图标自己会变，再弹一条只是噪音。
+        // 空串会被通知服务忽略。
+        _notifications.Show(
+            outcome switch
+            {
+                LikedSongsOutcome.Succeeded => "",
+                LikedSongsOutcome.NotAuthenticated => "登录后可以喜欢。",
+                LikedSongsOutcome.NoLikedPlaylist => "账号还没有「我喜欢的」歌单，暂时无法喜欢。",
+                LikedSongsOutcome.AlreadyPending => "",
+                _ => "操作没成功，请稍后再试。",
+            },
+            NoticeSeverity.Error);
+    }
+
+    /// <summary>
+    /// 分享当前曲目：先上报（分享数 +1），再把本地拼的链接复制到剪贴板。
+    /// </summary>
+    /// <remarks>
+    /// 顺序照官方：「先上报并取文案 → 再拼链」。上报失败不影响复制 ——
+    /// 链接不发请求，只有分享计数依赖服务端。
+    /// </remarks>
+    [RelayCommand]
+    private async Task ShareAsync()
+    {
+        if (CurrentTrackId is not { } musicId || musicId <= 0) return;
+
+        var outcome = await Statistics.ReportShareAsync();
+
+        try
+        {
+            _clipboard.SetText(ShareLinks.BuildTrackLink(musicId, _session.Uid));
+            _logger.LogInformation("已复制分享链接：歌曲 {MusicId}，上报结果 {Outcome}", musicId, outcome);
+            _notifications.Show(
+                outcome == ShareOutcome.Unsupported ? "该歌曲暂不支持分享，链接已复制。" : "已复制分享链接",
+                NoticeSeverity.Success);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "复制分享链接失败：歌曲 {MusicId}", musicId);
+            _notifications.Show("复制链接失败。", NoticeSeverity.Error);
+        }
+    }
+
+    /// <remarks>
+    /// <b>两条路都在这一个方法里，顺序不能反。</b> 用户显式改了音量（拖滑条、或 Ctrl+↑/↓ 走
+    /// <c>ShortcutService</c>）就说明他要听见声音，静音标记要在这一刻解除；而真正送引擎的是
+    /// <see cref="VolumeState.EffectiveVolume"/> —— 顺序反过来会在解除静音的那一次把音量送成 0。
+    /// </remarks>
+    partial void OnVolumeChanged(double value)
+    {
+        if (_volumeState.OnVolumeSet(value))
+        {
+            OnPropertyChanged(nameof(IsMuted));
+        }
+
+        _engine.SetVolume(_volumeState.EffectiveVolume(value));
+
+        // 启动时读回来的那一次不写回去 —— 就是项目里那个「装载中」守卫。
+        // 它只挡落盘，不挡上面的 SetVolume：引擎永远立刻响应。
+        if (_loadingVolume) { return; }
+
+        // 拖动滑条时每像素都会走到这里，攒 1 秒再写。
+        _volumeSaveTimer?.Stop();
+        _volumeSaveTimer?.Start();
+    }
+
+    /// <summary>
+    /// 把上次的音量读回来灌进播放条。
+    /// </summary>
+    /// <remarks>
+    /// <b>赋 <see cref="Volume"/> 就顺带把它送进了引擎</b>（走 <see cref="OnVolumeChanged"/>），
+    /// 不需要另外调引擎 —— 引擎此刻还没初始化原生库，那里只会记住字段，首次播放时再补写进去。
+    /// 「装载中」守卫保证这次赋值不会被当成用户改动而写回磁盘。
+    /// </remarks>
+    private void RestoreVolume()
+    {
+        _loadingVolume = true;
+        try
+        {
+            var saved = _volumeSettings?.Load().Level ?? VolumeSettings.DefaultLevel;
+            Volume = double.IsFinite(saved)
+                ? Math.Clamp(saved, VolumeSettings.MinimumLevel, VolumeSettings.MaximumLevel)
+                : VolumeSettings.DefaultLevel;
+        }
+        finally { _loadingVolume = false; }
+    }
+
+    /// <summary>把当前音量写盘。由防抖计时器触发；失败只记日志，不回滚滑块。</summary>
+    private void PersistVolume() => _volumeSettings?.Save(new VolumeSettings(Volume));
+
+    // ── 引擎事件 ────────────────────────────────────────────────────────────
+
+    private void OnPositionChanged(object? sender, PlaybackPositionChangedEventArgs e)
+    {
+        if (IsSeeking)
+        {
+            return;
+        }
+
+        PositionSeconds = e.Position.TotalSeconds;
+
+        if (e.Duration > TimeSpan.Zero)
+        {
+            DurationSeconds = e.Duration.TotalSeconds;
+        }
+    }
+
+    private void OnEngineStateChanged(object? sender, PlaybackStateChangedEventArgs e)
+    {
+        IsPlaying = e.State == PlaybackState.Playing;
+
+        if (e.State == PlaybackState.Idle)
+        {
+            PositionSeconds = 0;
+        }
+    }
+
+    private void OnEngineFailed(object? sender, PlaybackFailedEventArgs e)
+    {
+        _notifications.Show(e.Message, NoticeSeverity.Error);
+    }
+
+    // ── 协调器事件 ──────────────────────────────────────────────────────────
+
+    private void OnStarted(object? sender, PlaybackStartedEventArgs e)
+    {
+        HasTrack = true;
+        CurrentTrack = e.Track;
+        HasMv = e.Track.HasMv;
+        Title = e.Track.Title;
+        ArtistText = e.Track.ArtistText;
+        ApplyTrackDetails(e.Track);
+        // 先启动共享详情请求，再通知歌词页切歌，评论角标才能复用同一请求。
+        CurrentTrackId = e.Track.Id;
+        IsAudition = e.Policy.IsAudition;
+        QualityText = AudioQualityTable.Describe(e.Source, e.Policy.IsAudition);
+        PositionSeconds = 0;
+
+        // 试听时进度条的上限是试听终点，不是整曲时长 ——
+        // 否则会出现「走到 4:29 却停在 0:29」的错觉。
+        DurationSeconds = e.Policy.StopAt?.TotalSeconds ?? 0;
+
+        IsPlaying = _engine.State == PlaybackState.Playing;
+        RefreshQualityOptions();
+        UpdateQueueButtons();
+    }
+
+    /// <summary>
+    /// 换了账号、队列跟着换了一份：播放条上那一首也要跟着换。
+    /// </summary>
+    /// <remarks>
+    /// <b>少了这一下，条上停的还是上一个账号那一首。</b> 协调器换号时先把当前曲目清掉
+    /// （它属于上一个账号），再装上从新作用域恢复出来的那首，而播放条只在构造时读过一次
+    /// <see cref="PlaybackCoordinator.RestoredState"/>，于是显示与「按下播放会放哪一首」对不上。
+    /// <para>
+    /// <b>新账号队列为空时必须清空播放条。</b> 旧实现保留上一首，结果切到一个空队列后，
+    /// 条上还挂着不属于当前账号的歌；虽然引擎已经停了，用户仍会以为还能接着播。
+    /// </para>
+    /// </remarks>
+    private void OnScopeSwitched(object? sender, QueueScopeSwitchedEventArgs e)
+    {
+        if (_coordinator.RestoredState is { } restored)
+        {
+            ApplyRestoredTrack(restored.Track, restored.Position.TotalSeconds);
+            return;
+        }
+
+        ClearCurrentTrack();
+    }
+
+    /// <summary>把播放条恢复成「没有曲目」的空白状态。</summary>
+    private void ClearCurrentTrack()
+    {
+        HasTrack = false;
+        HasMv = false;
+        CurrentTrack = null;
+        Title = "";
+        ArtistText = "";
+        AlbumText = "";
+        CoverImage = null;
+        CurrentCoverUri = null;
+        PayLabel = "";
+        QualityText = "";
+        IsPlaying = false;
+        IsAudition = false;
+        CurrentTrackId = null;
+        PositionSeconds = 0;
+        DurationSeconds = 0;
+
+        // 统计角标也属于上一首 / 上一个账号，不清会留着一颗心形和旧计数。
+        Statistics.Reset();
+        RefreshQualityOptions();
+        UpdateQueueButtons();
+    }
+
+    private void OnBlocked(object? sender, PlaybackBlockedEventArgs e)
+    {
+        HasTrack = true;
+        CurrentTrack = e.Track;
+        HasMv = e.Track.HasMv;
+        Title = e.Track.Title;
+        ArtistText = e.Track.ArtistText;
+        ApplyTrackDetails(e.Track);
+        // 先启动共享详情请求，再通知歌词页切歌，评论角标才能复用同一请求。
+        CurrentTrackId = e.Track.Id;
+        QualityText = "";
+        IsPlaying = false;
+        IsAudition = false;
+        PositionSeconds = 0;
+        DurationSeconds = 0;
+
+        _notifications.Show(
+            e.Reason switch
+            {
+                PlaybackDenialReason.NotAuthenticated => "登录后可播放完整歌曲",
+                PlaybackDenialReason.NoPermission => "该歌曲暂无播放权限",
+                PlaybackDenialReason.NoUsableQuality => "该歌曲在当前客户端没有可用音质",
+                PlaybackDenialReason.TrackUnavailable => "该歌曲已下架，无法播放",
+                PlaybackDenialReason.AuditionUnavailable => "该歌曲只能试听，但试听片段取不到",
+                PlaybackDenialReason.NoStreamUrl => e.Detail is { Length: > 0 } detail
+                    ? $"取不到音源：{detail}"
+                    : "取不到音源地址",
+                _ => "暂时无法播放这首歌",
+            },
+            NoticeSeverity.Error);
+
+        UpdateQueueButtons();
+    }
+
+    /// <summary>
+    /// 把「上次退出时停在队列这一首、这个位置」铺到播放条上。
+    /// </summary>
+    /// <remarks>
+    /// <b>与播不成时那条路径是同一个状态：有曲目信息、但引擎里什么都没加载。</b>
+    /// 不铺这一下的后果不是「不好看」—— 没有曲目时播放键是禁用的，用户根本没有入口把恢复出来的
+    /// 这首放起来，也就无从「点播放从上次停的地方继续」。
+    /// <para>
+    /// <b>刻意不铺音质描述、不置「正在播放」。</b> 前者要等真取了音源才知道；后者为真是撒谎，
+    /// 引擎此刻是闲置的。
+    /// </para>
+    /// </remarks>
+    private void ApplyRestoredTrack(Track track, double positionSeconds)
+    {
+        HasTrack = true;
+        CurrentTrack = track;
+        HasMv = track.HasMv;
+        Title = track.Title;
+        ArtistText = track.ArtistText;
+        ApplyTrackDetails(track);
+        CurrentTrackId = track.Id;
+        IsAudition = false;
+        PositionSeconds = positionSeconds;
+        DurationSeconds = track.Duration.TotalSeconds;
+        IsPlaying = false;
+        RefreshQualityOptions();
+
+        // 少了这句，上一首/下一首按钮永远是灰的：两个可用性只在队列变更事件里刷新，
+        // 而恢复那一次变更发生在订阅之前。
+        UpdateQueueButtons();
+    }
+
+    private void OnAuditionEnded(object? sender, EventArgs e)
+    {
+        IsPlaying = false;
+        _notifications.Show("试听片段已结束，登录后可播放完整歌曲");
+    }
+
+    private void OnQueueExhausted(object? sender, EventArgs e)
+    {
+        IsPlaying = false;
+
+        // 队列被清空之后，这一首放完就没有任何可播的了。播放条若继续挂着它，
+        // 播放键按下去只会空转（协调器没有可重播的队列项），所以整条回到空白态。
+        if (_coordinator.Queue.Count == 0)
+        {
+            ClearCurrentTrack();
+            return;
+        }
+
+        _notifications.Show("已经是最后一首了");
+    }
+
+    private void OnQueueChanged(object? sender, EventArgs e)
+    {
+        UpdateQueueButtons();
+        Mode = _coordinator.Mode;
+    }
+
+    private void UpdateQueueButtons()
+    {
+        CanGoNext = _coordinator.Queue.HasNext;
+        CanGoPrevious = _coordinator.Queue.HasPrevious;
+    }
+
+    /// <summary>
+    /// 把曲目上的展示信息铺到播放条上（专辑 / 封面 / 付费标识）。
+    /// </summary>
+    /// <remarks>
+    /// 播不成的时候也要铺 —— 用户得知道刚才想播的是哪一首、以及它为什么播不了。
+    /// </remarks>
+    internal void SetCoverDecodePixels(int pixels)
+    {
+        pixels = Math.Clamp(pixels, 128, 1024);
+        if (_coverDecodePixels == pixels) return;
+        _coverDecodePixels = pixels;
+        CoverImage = CoverImageCache.Get(CurrentCoverUri, pixels);
+    }
+
+    /// <summary>
+    /// 把解码档位降回播放条的尺寸，<b>但不动当前这张图</b>。
+    /// </summary>
+    /// <remarks>
+    /// <b>不能在这里重新取图。</b> 歌词页开着的时候用户可能翻过评论、切过页面，
+    /// 那些头像与封面共用 <see cref="Media.CoverImageCache"/>，当前曲目的 256px 封面很容易
+    /// 被挤出去；这时再 <c>Get(256)</c> 会新建一张位图异步解码，播放条封面在解码完成前是空的，
+    /// 表现就是收起歌词时「封面闪一下」。保持现有位图，等下一首切歌时自然会按新档位取图。
+    /// </remarks>
+    internal void ResetCoverDecodePixels() => _coverDecodePixels = DefaultCoverDecodePixels;
+
+    private void ApplyTrackDetails(Track track)
+    {
+        AlbumText = track.AlbumName ?? "";
+
+        // BitmapImage 自己异步加载；地址失效时图是空的，不影响布局。
+        CoverImage = CoverImageCache.Get(track.CoverImage, _coverDecodePixels);
+
+        // 氛围背景靠这个自己去解码取色。
+        CurrentCoverUri = track.CoverImage;
+
+        PayLabel = track.RequiresVip ? "VIP"
+            : track.RequiresPurchase ? "付费"
+            : "";
+        _ = Statistics.LoadAsync(track);
+    }
+
+}
+
+/// <summary>音质弹层里的一档。</summary>
+/// <param name="IsCurrent">是否当前正在用的档位。弹层里当前档摆满、其余收暗。</param>
+public sealed record AudioQualityOption(AudioQuality Quality, string Name, string SizeText, bool IsEnabled, bool IsCurrent);

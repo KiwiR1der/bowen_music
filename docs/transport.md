@@ -17,21 +17,21 @@
 ```
 bodain_winui/
 ├── global.json                        SDK 钉版 + 测试平台选择
-├── Bodian.sln
+├── Bowen.sln
 ├── src/
 │   ├── Directory.Build.props          ★ 放这里，不放仓库根（见 1.3）
 │   ├── Directory.Packages.props       ★ 同上
-│   ├── Bodian.Core/                   net10.0，零 UI 依赖
-│   └── Bodian.WinUI/                  net10.0-windows10.0.26100.0
+│   ├── Bowen.Core/                   net10.0，零 UI 依赖
+│   └── Bowen.WinUI/                  net10.0-windows10.0.26100.0
 ├── tests/
 │   ├── Directory.Build.props          Import ..\src\ 那份
 │   ├── Directory.Packages.props       Import ..\src\ 那份
-│   └── Bodian.Core.Tests/             net10.0，xunit.v3
+│   └── Bowen.Core.Tests/             net10.0，xunit.v3
 ├── docs/  fixtures/                   （P0 产物，P1 不动）
 └── tools/Bodian.Probe/                （P0 探针，P1 不动、不改、不删）
 ```
 
-`tools/Bodian.Probe` **不进 `Bodian.sln`**。它是一次性工具，进解决方案会让每次构建都被它拖住，也会让"客户端工程"的边界变模糊。
+`tools/Bodian.Probe` **不进 `Bowen.sln`**。它是一次性工具，进解决方案会让每次构建都被它拖住，也会让"客户端工程"的边界变模糊。
 
 ### 1.2 四项已核实的环境事实 ✅（2026-09-30 实测）
 
@@ -148,14 +148,14 @@ NU1008: Projects that use central package version management should not define
 包名的版本号已对 nuget.org 逐个 `HEAD` 确认存在。**实际文件为权威**：本节是设计期快照，
 持续新增的包请以 `src/Directory.Packages.props` 为准。
 
-### 1.7 `src/Bodian.Core/Bodian.Core.csproj`
+### 1.7 `src/Bowen.Core/Bowen.Core.csproj`
 
 ```xml
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <!-- ★ 刻意不带 -windows：协议 / 签名 / 歌词解码 / DPAPI 全部可单测 -->
     <TargetFramework>net10.0</TargetFramework>
-    <RootNamespace>Bodian.Core</RootNamespace>
+    <RootNamespace>Bowen.Core</RootNamespace>
     <IsAotCompatible>true</IsAotCompatible>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
   </PropertyGroup>
@@ -166,7 +166,7 @@ NU1008: Projects that use central package version management should not define
   </ItemGroup>
 
   <ItemGroup>
-    <InternalsVisibleTo Include="Bodian.Core.Tests" />
+    <InternalsVisibleTo Include="Bowen.Core.Tests" />
   </ItemGroup>
 </Project>
 ```
@@ -176,7 +176,7 @@ NU1008: Projects that use central package version management should not define
 - `IsAotCompatible=true` 打开裁剪/AOT 分析器，把任何反射式 JSON 用法变成警告；配合 `TreatWarningsAsErrors` 变成编译错误。这是「DTO 必须走源生成」的强制手段
 - `InternalsVisibleTo` 让测试能碰 `internal` 的 DTO 与 transport，从而不必为了测试把它们 `public` 化
 
-### 1.8 `src/Bodian.WinUI/Bodian.WinUI.csproj`
+### 1.8 `src/Bowen.WinUI/Bowen.WinUI.csproj`
 
 ```xml
 <Project Sdk="Microsoft.NET.Sdk">
@@ -185,7 +185,7 @@ NU1008: Projects that use central package version management should not define
     <TargetFramework>net10.0-windows10.0.26100.0</TargetFramework>
     <TargetPlatformMinVersion>10.0.19041.0</TargetPlatformMinVersion>
     <UseWinUI>true</UseWinUI>
-    <RootNamespace>Bodian.WinUI</RootNamespace>
+    <RootNamespace>Bowen.WinUI</RootNamespace>
     <ApplicationManifest>app.manifest</ApplicationManifest>
 
     <!-- ★ RuntimeIdentifier 单数且不可省：自包含要把对应架构的原生 DLL 拷进输出目录 -->
@@ -240,7 +240,7 @@ NU1008: Projects that use central package version management should not define
   </Target>
 
   <ItemGroup>
-    <ProjectReference Include="..\Bodian.Core\Bodian.Core.csproj" />
+    <ProjectReference Include="..\Bowen.Core\Bowen.Core.csproj" />
   </ItemGroup>
 </Project>
 ```
@@ -256,7 +256,7 @@ NU1008: Projects that use central package version management should not define
 
 `RuntimeIdentifier` 为何不可省：开 `WindowsAppSDKSelfContained=true` 后不带 RID 构建会直接失败（`WindowsAppSDKSelfContained requires a supported Windows architecture`）。多架构出包时用复数的 `<RuntimeIdentifiers>` 声明集合，但每次构建仍须指定单个 RID。
 
-### 1.9 `tests/Bodian.Core.Tests/Bodian.Core.Tests.csproj`
+### 1.9 `tests/Bowen.Core.Tests/Bowen.Core.Tests.csproj`
 
 ```xml
 <Project Sdk="Microsoft.NET.Sdk">
@@ -264,7 +264,7 @@ NU1008: Projects that use central package version management should not define
     <TargetFramework>net10.0</TargetFramework>
     <!-- ★ xunit.v3 的 buildTransitive targets 会对非 Exe 直接 Error -->
     <OutputType>Exe</OutputType>
-    <RootNamespace>Bodian.Core.Tests</RootNamespace>
+    <RootNamespace>Bowen.Core.Tests</RootNamespace>
     <IsPackable>false</IsPackable>
     <!-- xunit 自身大量用反射，不要开 AOT 分析器 -->
     <IsAotCompatible>false</IsAotCompatible>
@@ -277,7 +277,7 @@ NU1008: Projects that use central package version management should not define
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\src\Bodian.Core\Bodian.Core.csproj" />
+    <ProjectReference Include="..\..\src\Bowen.Core\Bowen.Core.csproj" />
   </ItemGroup>
 
   <!-- ★ 测试定位仓库根：编译期注入，不靠遍历输出目录 -->
@@ -301,10 +301,10 @@ xunit.v3 的配置要点（来自包自带的 `buildTransitive`，多数由包�
 
 ---
 
-## 2. `Bodian.Core` 的分层与类清单
+## 2. `Bowen.Core` 的分层与类清单
 
 ```
-src/Bodian.Core/
+src/Bowen.Core/
 ├── Api/
 │   ├── BodianTransportOptions.cs      终结点 / 请求头 / 超时 / 上限 / 代理
 │   ├── BodianHttpVerb.cs              Get | Post
@@ -361,7 +361,7 @@ public sealed class DpapiCredentialStore : ICredentialStore
 
 那为什么还要 `ICredentialStore` 抽象？**不是为了绕开编译问题**（标注之后本来就能编），而是两个别的目的：
 
-- **可测性**：绝大多数服务层测试不该碰真实磁盘和 DPAPI（慢，且会污染 `%LOCALAPPDATA%\Bodian`），用内存实现替换
+- **可测性**：绝大多数服务层测试不该碰真实磁盘和 DPAPI（慢，且会污染 `%LOCALAPPDATA%\Bowen`），用内存实现替换
 - **可替换性**：若日后改成 MSIX 打包，`PasswordVault` 或 `ApplicationData` 可以换进来而不动 Core
 
 因为测试就在 Windows 上跑，`DpapiCredentialStore` 本身**也能被真实单测**（一次 Protect → Unprotect 往返）。测试项目是平台中立的 `net10.0`，所以测试类同样要标 `[SupportedOSPlatform("windows")]` 或用一个 `[WindowsFact]` 保护，让测试套件在没有 DPAPI 的机器上仍能跑完。
@@ -371,7 +371,7 @@ public sealed class DpapiCredentialStore : ICredentialStore
 ### 2.2 传输层的公开 API
 
 ```csharp
-namespace Bodian.Core.Api;
+namespace Bowen.Core.Api;
 
 public sealed record BodianTransportOptions
 {
@@ -614,7 +614,7 @@ internal sealed class AudioUrlDto
 ## 4. 分页
 
 ```csharp
-namespace Bodian.Core.Api.Paging;
+namespace Bowen.Core.Api.Paging;
 
 /// <summary>首页页号各家不同：只有 search/* 从 0，其余全从 1。</summary>
 public sealed record PagingConvention(
@@ -767,14 +767,14 @@ internal static class Fixtures
 
 | 测试 | 说明 |
 | --- | --- |
-| `DpapiCredentialStore_RoundTrip` | `[WindowsFact]`：写临时路径 → 读回 → 值相等 → 密文里**不含明文 token**。**不碰** `%LOCALAPPDATA%\Bodian` |
+| `DpapiCredentialStore_RoundTrip` | `[WindowsFact]`：写临时路径 → 读回 → 值相等 → 密文里**不含明文 token**。**不碰** `%LOCALAPPDATA%\Bowen` |
 | `FileDeviceIdentity_ReusesExisting` | 临时目录：写入合法 devid → `GetOrCreate` 必须**原样返回**（重生成是账号风控信号）；写入非法内容 → 重生成且是 32 位小写十六进制 |
 
 **C 组 · 必须发真实请求的：零。**
 
 gzip 解压是 `SocketsHttpHandler` 的行为，stub handler 在解压链之上，**测不到**。诚实的做法是在「handler 配置」测试里断言 `AutomaticDecompression == All`，把真正的 gzip 验证留到 P2 的首次真实请求。**不要**为了测它去起 `HttpListener` 打本机回环——那测到的是回环而不是 CDN，还破坏了「真实请求为零」。
 
-### 5.5 测试基础设施（`tests/Bodian.Core.Tests/Support/`）
+### 5.5 测试基础设施（`tests/Bowen.Core.Tests/Support/`）
 
 | 文件 | 职责 |
 | --- | --- |
@@ -791,7 +791,7 @@ gzip 解压是 `SocketsHttpHandler` 的行为，stub handler 在解压链之上�
 ## 6. 歌词入口（P1 范围）
 
 ```csharp
-namespace Bodian.Core.Lyrics;
+namespace Bowen.Core.Lyrics;
 
 public static class BodianLyricPayload
 {
@@ -828,7 +828,7 @@ P1 只做这三件事 + 5.4 的那几条测试。**AWLRC 解析与统一歌词�
 
 ---
 
-## 7. `Bodian.WinUI` 的组合根
+## 7. `Bowen.WinUI` 的组合根
 
 P1 的 WinUI 只做**能启动的空窗口 + DI 组合根**，不做导航、页面、ViewModel。
 
@@ -844,7 +844,7 @@ public partial class App : Application
     public App()
     {
         // ★ 必须在任何窗口创建之前
-        NativeMethods.SetCurrentProcessExplicitAppUserModelID("Bodian.WinUI");
+        NativeMethods.SetCurrentProcessExplicitAppUserModelID("Bowen.WinUI");
 
         InitializeComponent();
         var builder = Host.CreateApplicationBuilder();
@@ -854,7 +854,7 @@ public partial class App : Application
         var serilog = new LoggerConfiguration()
             .MinimumLevel.Information()
             .WriteTo.File(
-                Path.Combine(AppPaths.LocalAppData, "logs", "bodian-.log"),
+                Path.Combine(AppPaths.LocalAppData, "logs", "bowen-.log"),
                 rollingInterval: RollingInterval.Day,
                 retainedFileCountLimit: 7)
             .CreateLogger();
@@ -901,36 +901,36 @@ P1 明确不做：导航服务、页面、ViewModel、`CommunityToolkit.Mvvm`、
 cd /f/My_Project/bodain_winui
 
 # 1. 整个解决方案 0 警告 0 错误（Core 开了 TreatWarningsAsErrors）
-dotnet build Bodian.sln -c Debug
+dotnet build Bowen.sln -c Debug
 
 # 2. 红线自检：P0 探针必须仍能独立构建
 dotnet build tools/Bodian.Probe -c Debug
 
 # 3. 单测（global.json 已选 MTP）
-dotnet test --project tests/Bodian.Core.Tests/Bodian.Core.Tests.csproj
+dotnet test --project tests/Bowen.Core.Tests/Bowen.Core.Tests.csproj
 #    失败数必须为 0；跳过数应为 0（本机是 Windows，[WindowsFact] 不该被跳过）
-#    备用路径：直接跑 tests/Bodian.Core.Tests/bin/Debug/net10.0/Bodian.Core.Tests.exe
+#    备用路径：直接跑 tests/Bowen.Core.Tests/bin/Debug/net10.0/Bowen.Core.Tests.exe
 
 # 4. WinUI 启动（「构建通过 ≠ 能跑」）
-timeout 8 ./src/Bodian.WinUI/bin/Debug/net10.0-windows10.0.26100.0/win-x64/Bodian.WinUI.exe; echo "exit=$?"
+timeout 8 ./src/Bowen.WinUI/bin/Debug/net10.0-windows10.0.26100.0/win-x64/BowenMusic.exe; echo "exit=$?"
 #    期望 exit=124 —— 跑满 8 秒被 timeout 杀掉 = 窗口一直开着
 #    退出码 0 或非零都说明 GUI 提前退出了，有问题
-ls ./src/Bodian.WinUI/bin/Debug/net10.0-windows10.0.26100.0/win-x64 | wc -l   # 期望 ~246
-tasklist | grep -i bodian || echo "无残留进程"
+ls ./src/Bowen.WinUI/bin/Debug/net10.0-windows10.0.26100.0/win-x64 | wc -l   # 期望 ~246
+tasklist | grep -i bowen || echo "无残留进程"
 
 # 5. 脱敏在真实宿主里生效
 #    ★ 必须排除 <redacted> 再判泄露：脱敏后的文本本身也长成 token=<redacted>，
 #      直接 grep 'token=...' 会**误报**。
-if grep -riE '(token|freeSign|devid|qimei36)=[^&"[:space:]]+' "$LOCALAPPDATA/Bodian/logs/" | grep -v '<redacted>'
+if grep -riE '(token|freeSign|devid|qimei36)=[^&"[:space:]]+' "$LOCALAPPDATA/Bowen/logs/" | grep -v '<redacted>'
 then echo "!!! 泄露"; else echo "OK：日志里没有凭据明文"; fi
 
 # 6. devid 与 P0 探针是同一个（启动日志里有一行「设备标识 <32 位小写十六进制>」）
-grep -o '设备标识 [0-9a-f]\{32\}' "$LOCALAPPDATA/Bodian/logs/"*.log
-cat "$LOCALAPPDATA/Bodian/devid.txt"        # 两者必须相同
+grep -o '设备标识 [0-9a-f]\{32\}' "$LOCALAPPDATA/Bowen/logs/"*.log
+cat "$LOCALAPPDATA/Bowen/devid.txt"        # 两者必须相同
 
 # 7. 零改动确认
 git status --short                   # tools/Bodian.Probe/ 与 fixtures/ 应无输出
-dotnet sln Bodian.sln list           # 恰好 3 个项目
+dotnet sln Bowen.sln list           # 恰好 3 个项目
 ```
 
 **扩展性验证（各跑一次）**：
@@ -982,7 +982,7 @@ P1 已实现并全部验证通过。以下是**与本文初稿不同**的地方�
 | --- | --- | --- | --- |
 | DPAPI 的平台标注 | 「不触发 CA1416」 | **必须标 `[SupportedOSPlatform("windows")]`** | 初稿结论错了，见 2.1 节的更正 |
 | `BodianSession.Anonymous` | `static` 共享实例 | **`CreateAnonymous()` 工厂** | 共享的可变单例会让一处登出影响所有使用方，那类 bug 很难查 |
-| `BodianHttpTransport` | `internal sealed class` | **`public sealed class`** | DI 注册要用它；改成 `internal` 就得再加一层工厂或 `InternalsVisibleTo("Bodian.WinUI")`，不值得 |
+| `BodianHttpTransport` | `internal sealed class` | **`public sealed class`** | DI 注册要用它；改成 `internal` 就得再加一层工厂或 `InternalsVisibleTo("Bowen.WinUI")`，不值得 |
 | 信封 | `(Code, Message, RequestId, Data)` | 多一个 **`SessionRevision`** | 让调用方能判断「响应回来时会话是否已经变过」，这是 2.2 节那条机制的落点 |
 | 超时异常 | 「抛 `OperationCanceledException`」 | **抛 `TimeoutException`** | 与「调用方主动取消」区分开；后者仍然原样抛 `OperationCanceledException` |
 | 移动端签名 | 留 TODO | **留 TODO**（未实现） | 符合已拍板的范围决策；`BodianSigner` 的类注释里写明了为什么 |

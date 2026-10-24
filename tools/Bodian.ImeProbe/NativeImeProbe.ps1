@@ -4,7 +4,7 @@ Add-Type -AssemblyName System.Windows.Forms
 Add-Type -AssemblyName System.Drawing
 [System.Windows.Forms.Application]::EnableVisualStyles()
 
-$nativeLogDirectory = Join-Path $env:LOCALAPPDATA 'Bodian\ime-probe'
+$nativeLogDirectory = Join-Path $env:LOCALAPPDATA 'Bowen\ime-probe'
 [IO.Directory]::CreateDirectory($nativeLogDirectory) | Out-Null
 $nativeLogPath = Join-Path $nativeLogDirectory ('native-{0}-{1}.log' -f (Get-Date -Format 'yyyyMMdd-HHmmss'), $PID)
 $nativeLogWriter = New-Object IO.StreamWriter($nativeLogPath, $false, (New-Object Text.UTF8Encoding($false)))

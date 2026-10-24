@@ -31,11 +31,11 @@ LoginPage（一个居中 ContentDialog，顶部 PillTabBar 两个页签）
 
 `LoginOutcome.Success(Uid, Nickname)` 的语义是「会话已写入并落盘」。发验证码根本不碰会话，
 借用它会让调用方以为已经登录了。所以另开
-[`SmsSendOutcome`](../src/Bodian.Core/Models/Login/SmsSendOutcome.cs)：`Sent` / `Failed`。
+[`SmsSendOutcome`](../src/Bowen.Core/Models/Login/SmsSendOutcome.cs)：`Sent` / `Failed`。
 
 ### 手机号格式校验在 Core，不在 ViewModel
 
-`MobileNumber`（[`Services/MobileNumber.cs`](../src/Bodian.Core/Services/MobileNumber.cs)）
+`MobileNumber`（[`Services/MobileNumber.cs`](../src/Bowen.Core/Services/MobileNumber.cs)）
 是纯函数，和 `SessionIdentity` 同一种东西，放在 Core 里才能离屏单测。
 界面只用它开关按钮，不写第二套判断。
 

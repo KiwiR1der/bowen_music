@@ -161,25 +161,25 @@ VIP / 付费标识位于顶部「歌名 - 歌手」标题旁，左下角改为�
 
 | 位置 | 职责 |
 | --- | --- |
-| `src/Bodian.WinUI/Views/LyricsPage.xaml(.cs)` | 沉浸布局、响应式字号、播放控制、快捷键、操作区显隐 |
-| `src/Bodian.WinUI/MainWindow.xaml(.cs)` | 独立 `ImmersiveHost`、标题栏切换、全屏呈现器恢复；不保存全屏尺寸 |
-| `src/Bodian.WinUI/Services/NavigationService.cs` | 根据页面选择普通或沉浸宿主，继续使用同一返回栈 |
-| `src/Bodian.WinUI/Controls/LyricsBackdrop.cs` | 封面解码、模糊、淡入淡出与切歌结果代次检查 |
-| `src/Bodian.WinUI/Controls/AlbumCoverReflection.cs` | 水面镜像、渐隐、条带波纹、缓存与生命周期 |
-| `src/Bodian.WinUI/Controls/AudioSpectrumView.cs` | 112 根频谱柱、30 fps 刷新、插值与升降平滑 |
-| `src/Bodian.WinUI/Playback/AudioSpectrumSource.cs` | 默认输出设备的 WASAPI 回环采样、启停和无数据处理 |
-| `src/Bodian.Core/Playback/AudioSpectrumAnalyzer.cs` | 2048 点 FFT、窗口函数及 48 个对数频段 |
-| `src/Bodian.WinUI/Controls/LyricsCanvasView.xaml(.cs)` | 透明合成表面、绘制生命周期、播放时钟及滚轮/拖动/点击事件 |
-| `src/Bodian.WinUI/LyricRenderer/LyricsRenderer.cs` | 播放焦点与浏览焦点、逐字渐变、长音、边缘羽化及点击命中 |
-| `src/Bodian.WinUI/LyricRenderer/LyricsLayout.cs` | 文本排版、字形到音节映射、独立长音排版、缓存资源释放 |
-| `src/Bodian.WinUI/LyricRenderer/LyricsScrollAnimator.cs` | 逐句弹簧、AMLL 延迟曲线、单元内同动 |
-| `src/Bodian.Core/Models/Lyrics/LyricSpring.cs` | 解析式弹簧（AMLL 参数）、速度接续、延迟目标 |
-| `src/Bodian.WinUI/LyricRenderer/LyricsLineGlyphMask.cs` | 未唱、悬停与高亮共用的固定字形像素 |
-| `src/Bodian.WinUI/LyricRenderer/LyricsActiveLineImage.cs` | 逐字颜色纹理与同一字形遮罩裁出的长音发光 |
-| `src/Bodian.Core/Models/Lyrics/LyricMotionMath.cs` | 弹簧、单向高亮、浏览行选择、字形扫光的纯数学 |
-| `tests/Bodian.Core.Tests/LyricMotionMathTests.cs` | 帧率差异、目标切换、时间校正、浏览焦点及字宽分配回归 |
-| `tests/Bodian.Core.Tests/AudioSpectrumAnalyzerTests.cs` | 静音、频率峰值、分块采样及立体声回归 |
-| `tests/Bodian.Core.Tests/LyricsClockContinuityTests.cs` | 上报瞬间连续性、80 ms 快音节、延迟抖动、未完成校正、暂停与明确跳转 |
+| `src/Bowen.WinUI/Views/LyricsPage.xaml(.cs)` | 沉浸布局、响应式字号、播放控制、快捷键、操作区显隐 |
+| `src/Bowen.WinUI/MainWindow.xaml(.cs)` | 独立 `ImmersiveHost`、标题栏切换、全屏呈现器恢复；不保存全屏尺寸 |
+| `src/Bowen.WinUI/Services/NavigationService.cs` | 根据页面选择普通或沉浸宿主，继续使用同一返回栈 |
+| `src/Bowen.WinUI/Controls/LyricsBackdrop.cs` | 封面解码、模糊、淡入淡出与切歌结果代次检查 |
+| `src/Bowen.WinUI/Controls/AlbumCoverReflection.cs` | 水面镜像、渐隐、条带波纹、缓存与生命周期 |
+| `src/Bowen.WinUI/Controls/AudioSpectrumView.cs` | 112 根频谱柱、30 fps 刷新、插值与升降平滑 |
+| `src/Bowen.WinUI/Playback/AudioSpectrumSource.cs` | 默认输出设备的 WASAPI 回环采样、启停和无数据处理 |
+| `src/Bowen.Core/Playback/AudioSpectrumAnalyzer.cs` | 2048 点 FFT、窗口函数及 48 个对数频段 |
+| `src/Bowen.WinUI/Controls/LyricsCanvasView.xaml(.cs)` | 透明合成表面、绘制生命周期、播放时钟及滚轮/拖动/点击事件 |
+| `src/Bowen.WinUI/LyricRenderer/LyricsRenderer.cs` | 播放焦点与浏览焦点、逐字渐变、长音、边缘羽化及点击命中 |
+| `src/Bowen.WinUI/LyricRenderer/LyricsLayout.cs` | 文本排版、字形到音节映射、独立长音排版、缓存资源释放 |
+| `src/Bowen.WinUI/LyricRenderer/LyricsScrollAnimator.cs` | 逐句弹簧、AMLL 延迟曲线、单元内同动 |
+| `src/Bowen.Core/Models/Lyrics/LyricSpring.cs` | 解析式弹簧（AMLL 参数）、速度接续、延迟目标 |
+| `src/Bowen.WinUI/LyricRenderer/LyricsLineGlyphMask.cs` | 未唱、悬停与高亮共用的固定字形像素 |
+| `src/Bowen.WinUI/LyricRenderer/LyricsActiveLineImage.cs` | 逐字颜色纹理与同一字形遮罩裁出的长音发光 |
+| `src/Bowen.Core/Models/Lyrics/LyricMotionMath.cs` | 弹簧、单向高亮、浏览行选择、字形扫光的纯数学 |
+| `tests/Bowen.Core.Tests/LyricMotionMathTests.cs` | 帧率差异、目标切换、时间校正、浏览焦点及字宽分配回归 |
+| `tests/Bowen.Core.Tests/AudioSpectrumAnalyzerTests.cs` | 静音、频率峰值、分块采样及立体声回归 |
+| `tests/Bowen.Core.Tests/LyricsClockContinuityTests.cs` | 上报瞬间连续性、80 ms 快音节、延迟抖动、未完成校正、暂停与明确跳转 |
 
 `LyricsCanvasView` 通过 `CanvasComposition.CreateCompositionGraphicsDevice` 创建
 `CompositionDrawingSurface`，像素格式为 `B8G8R8A8UIntNormalized`，使用预乘透明度。
@@ -232,8 +232,8 @@ VIP / 付费标识位于顶部「歌名 - 歌手」标题旁，左下角改为�
 ## 验证
 
 ```powershell
-dotnet build Bodian.sln -c Debug --no-restore
-dotnet test --project tests/Bodian.Core.Tests/Bodian.Core.Tests.csproj --no-restore
+dotnet build Bowen.sln -c Debug --no-restore
+dotnet test --project tests/Bowen.Core.Tests/Bowen.Core.Tests.csproj --no-restore
 ```
 
 构建通过，保留既有 `AiPlaylistPage.xaml:28` 的 `WMC1506` 绑定警告。
@@ -260,10 +260,10 @@ dotnet test --project tests/Bodian.Core.Tests/Bodian.Core.Tests.csproj --no-rest
 不要把默认 Debug 输出与这个目录的更新混用，更新一个目录不会同步另一个目录。
 
 ```powershell
-dotnet publish src/Bodian.WinUI/Bodian.WinUI.csproj -c Release -r win-x64 --self-contained true -p:PublishTrimmed=false -o artifacts/Bodian.WinUI
+dotnet publish src/Bowen.WinUI/Bowen.WinUI.csproj -c Release -r win-x64 --self-contained true -p:PublishTrimmed=false -o artifacts/Bowen.WinUI
 
-$compiledXaml = Join-Path $PWD 'src\Bodian.WinUI\obj\Release\net10.0-windows10.0.26100.0\win-x64'
-$runOutput = Join-Path $PWD 'artifacts\Bodian.WinUI'
+$compiledXaml = Join-Path $PWD 'src\Bowen.WinUI\obj\Release\net10.0-windows10.0.26100.0\win-x64'
+$runOutput = Join-Path $PWD 'artifacts\Bowen.WinUI'
 Get-ChildItem -LiteralPath $compiledXaml -Recurse -Filter '*.xbf' | ForEach-Object {
     $relativePath = [System.IO.Path]::GetRelativePath($compiledXaml, $_.FullName)
     $targetPath = Join-Path $runOutput $relativePath

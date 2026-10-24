@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Application
+    x:Class="Bowen.WinUI.App"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <Application.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+
+                <!--
+                    ★ 顺序是硬要求，不能调换。
+                    合并字典的查找是「后合并的优先」—— 我们的字典排在 XamlControlsResources
+                    之后，它的键才能盖住系统默认值。这是覆盖系统画刷的唯一机制。
+                    （反过来说：任何新的 token 字典都要加在这一行下面。）
+                -->
+                <XamlControlsResources xmlns="using:Microsoft.UI.Xaml.Controls" />
+
+                <!-- 主题无关标量：尺寸 / 圆角 / 间距 / 字号 -->
+                <ResourceDictionary Source="ms-appx:///Themes/Tokens.xaml" />
+
+                <!-- 会员胶囊的三套品牌配色。与主题无关，理由见该文件顶部 -->
+                <ResourceDictionary Source="ms-appx:///Themes/VipBadge.xaml" />
+
+                <!-- 音质三档的胶囊配色。同上，与主题无关 -->
+                <ResourceDictionary Source="ms-appx:///Themes/Quality.xaml" />
+
+                <!-- 图标几何（Fluent System Icons，MIT）。与主题无关，颜色走 Foreground -->
+                <ResourceDictionary Source="ms-appx:///Themes/Icons.xaml" />
+
+                <!-- 浅色 / 深色 / 高对比度三套颜色 -->
+                <ResourceDictionary Source="ms-appx:///Themes/Theme.xaml" />
+
+                <!-- 页面骨架的共享样式。必须在 Tokens 之后（要用里面的尺寸 token） -->
+                <ResourceDictionary Source="ms-appx:///Themes/Styles/Pages.xaml" />
+
+                <!-- 播放条与歌词页共用的按钮外观。同样要用 Tokens 里的尺寸 token -->
+                <ResourceDictionary Source="ms-appx:///Themes/Styles/Player.xaml" />
+
+            </ResourceDictionary.MergedDictionaries>
+        </ResourceDictionary>
+    </Application.Resources>
+
+</Application>

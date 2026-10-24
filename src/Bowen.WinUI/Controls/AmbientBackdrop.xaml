@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<UserControl
+    x:Class="Bowen.WinUI.Controls.AmbientBackdrop"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    HorizontalAlignment="Stretch"
+    VerticalAlignment="Stretch"
+    HorizontalContentAlignment="Stretch"
+    VerticalContentAlignment="Stretch"
+    IsHitTestVisible="False">
+
+    <!-- 封面颜色变化时更新小尺寸背景图，窗口缩放复用已有像素。 -->
+    <Grid x:Name="Host" Opacity="{ThemeResource AmbientOpacity}">
+        <Image x:Name="BackdropImage" Stretch="Fill" />
+    </Grid>
+</UserControl>

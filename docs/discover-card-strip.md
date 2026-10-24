@@ -75,7 +75,7 @@
 
 `Controls/CardStripPaging.cs` 不引用任何 WinUI 类型，所以能链进测试项目离屏验
 （与 `PagedList` 同一种做法）。宽度为 0、宽度不足一步、换宽度时的锚点、末页夹取全在这里，
-用例见 `tests/Bodian.Core.Tests/CardStripPagingTests.cs`。
+用例见 `tests/Bowen.Core.Tests/CardStripPagingTests.cs`。
 
 **步长按 Layout 取**：四种排法的卡片宽度各不相同（`Themes/Tokens.xaml` 里 `SizeHome*` 那一族），
 再各自加上 `SpaceHomeCardGap`。**算「一页放得下几张」时还要先减掉左右两段 `SpaceHomePagerMargin`**，
@@ -197,8 +197,8 @@ view.SyncPage(resetToFirst: true); // ← 可能在这里早退
 日志里的原话：
 
 ```
-The source object type ('Bodian.WinUI.ViewModels.HomeTrackColumn')
-being cast to type 'Bodian.Core.Models.Home.HomeCard' is not a projected type
+The source object type ('Bowen.WinUI.ViewModels.HomeTrackColumn')
+being cast to type 'Bowen.Core.Models.Home.HomeCard' is not a projected type
    at HomeSectionView.HomeSectionView_obj19_Bindings.SetDataRoot(...)
 ```
 

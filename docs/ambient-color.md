@@ -81,7 +81,7 @@ suitability = (0.35 + 0.65 * saturation)
 
 ### 3.1 白底封面赢过小面积彩色
 
-本机日志 `%LOCALAPPDATA%\Bowen\logs\bodian-20261023.log` 里，大量记录是：
+本机日志 `%LOCALAPPDATA%\Bowen\logs\bowen-20261023.log` 里，大量记录是：
 
 ```
 氛围取色：解码 60×60，主色 #FEFEFE
@@ -211,12 +211,12 @@ suitability = (0.35 + 0.65 * saturation)
 
 | 文件 | 改动 |
 | --- | --- |
-| `src/Bodian.Core/Media/ColorQuantizer.cs` | `Dominant` 改成两段式：先筛面积与饱和度达标的彩色桶，没有再退回原主色 |
-| `src/Bodian.WinUI/Media/CoverPaletteLoader.cs` | 采样边长 60 → 96 |
-| `src/Bodian.Core/Media/ColorPalette.cs` | 新增 `Blend`，在两个调色板之间按通道插值 |
-| `src/Bodian.Core/Media/AmbientBackground.cs` | 新增写入调用方缓冲区的 `Render` 重载，过渡时复用像素数组 |
-| `src/Bodian.WinUI/Controls/AmbientBackdrop.xaml.cs` | 650ms 调色板过渡，40ms 一帧；渲染请求序号与信号量处理连续切歌 |
-| `tests/Bodian.Core.Tests/CoverPaletteTests.cs` | 白底小棕块、单像素噪点、`Blend` 端点/中点/钳制/长度校验 |
-| `tests/Bodian.Core.Tests/AmbientBackgroundTests.cs` | 复用缓冲区渲染与缓冲区过小 |
+| `src/Bowen.Core/Media/ColorQuantizer.cs` | `Dominant` 改成两段式：先筛面积与饱和度达标的彩色桶，没有再退回原主色 |
+| `src/Bowen.WinUI/Media/CoverPaletteLoader.cs` | 采样边长 60 → 96 |
+| `src/Bowen.Core/Media/ColorPalette.cs` | 新增 `Blend`，在两个调色板之间按通道插值 |
+| `src/Bowen.Core/Media/AmbientBackground.cs` | 新增写入调用方缓冲区的 `Render` 重载，过渡时复用像素数组 |
+| `src/Bowen.WinUI/Controls/AmbientBackdrop.xaml.cs` | 650ms 调色板过渡，40ms 一帧；渲染请求序号与信号量处理连续切歌 |
+| `tests/Bowen.Core.Tests/CoverPaletteTests.cs` | 白底小棕块、单像素噪点、`Blend` 端点/中点/钳制/长度校验 |
+| `tests/Bowen.Core.Tests/AmbientBackgroundTests.cs` | 复用缓冲区渲染与缓冲区过小 |
 
-验证：`Bodian.Core.Tests` 1685 项通过，0 失败；WinUI 构建 0 警告 0 错误。
+验证：`Bowen.Core.Tests` 1685 项通过，0 失败；WinUI 构建 0 警告 0 错误。

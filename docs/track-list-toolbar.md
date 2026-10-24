@@ -67,7 +67,7 @@ PlayCurrentAsync()            // 播它
 `SummaryText`（左上那行文案，见 §2.3），以及可选的两个 ——
 `RemovablePlaylistId` / `IsLikedPlaylist`（见 §4.3）。
 
-**服务走 App 资源键 `BodianTrackActions`**，与 `TrackMoreButton` 共用同一个
+**服务走 App 资源键 `BowenTrackActions`**，与 `TrackMoreButton` 共用同一个
 `TrackActionsService` 实例。本控件是 XAML 实例化的，构造函数必须无参、拿不到 DI 容器 ——
 与 `TrackListView.NowPlaying` 是同一处例外。取不到服务就把批量区整个收起来，
 **不留点不动的按钮**。
@@ -117,15 +117,15 @@ PlayCurrentAsync()            // 播它
 > 但不是本控件；见 [`search.md`](search.md) § 结果工具栏与视图切换），页头再报一次就是同屏两个数字。
 
 > ★ `PlaylistTracksViewModel.StatusText` 里手写「共 N 首」而不用 `Formats.TrackCount` ——
-> 本文件被链进 `tests/Bodian.Core.Tests` 离屏编译，而 `Formats.cs` 依赖 WinUI 的 `Visibility`，
+> 本文件被链进 `tests/Bowen.Core.Tests` 离屏编译，而 `Formats.cs` 依赖 WinUI 的 `Visibility`，
 > 链不进去。改文案时两处要一起改。
 
 **左侧那格缩进了 `SpaceRowPadding` 的左半（4）。** 曲目行的行内边距就是它，计数因此和
 下面的列表内容左对齐 —— 不缩进的话它贴在页面最左边，比列表内容凸出去一小截。
 两个控件共用同一份 token，改一处两边一起动。
 
-**样式是 `BodianPageStatusStrong`（14px + 主色），不是页面级小字说明那份。**
-最初八页统一用了 `BodianPageStatus`（11px + 次级灰），但歌手详情那两行下面紧挨着列表与卡片，
+**样式是 `BowenPageStatusStrong`（14px + 主色），不是页面级小字说明那份。**
+最初八页统一用了 `BowenPageStatus`（11px + 次级灰），但歌手详情那两行下面紧挨着列表与卡片，
 小字淡灰显得和内容脱节 —— 改成正文重之后，同样的落差在另外七页也存在，于是八页统一成这一份。
 
 （中途为「只改一页」加过一个 `SummaryTextStyle` 依赖属性，全站统一后它没有调用点了，已删。
@@ -181,7 +181,7 @@ PlayCurrentAsync()            // 播它
 
 ### 4.1 批量写入器
 
-`src/Bodian.Core/Services/PlaylistMusicWriter.cs`。喜欢、加入歌单、移出歌单三条路都落到
+`src/Bowen.Core/Services/PlaylistMusicWriter.cs`。喜欢、加入歌单、移出歌单三条路都落到
 `service/playlist/music` 上，只是目标歌单与增/删不同，所以节奏控制与失败统计收在一份。
 
 > ★ **默认逐首，不是分块。** 接口签名收的是 id 列表（`BodianApi` 里限 1–100 首），
@@ -264,7 +264,7 @@ PlayCurrentAsync()            // 播它
 
 ## 6. 样式
 
-`Themes/Styles/Pages.xaml` 新增 `BodianIconButton`（28×28、透明底、无边框、`RadiusSm`、
+`Themes/Styles/Pages.xaml` 新增 `BowenIconButton`（28×28、透明底、无边框、`RadiusSm`、
 `MinWidth/MinHeight=0`），配套 token `SizeIconButton`。现状已经有四处内联的同一套 Setter，
 本轮的工具栏又添了几颗，值得抽。
 
@@ -327,5 +327,5 @@ PlayCurrentAsync()            // 播它
 | 把批量路径切成分块 | **要等真实服务端实测**，见 §4.1。改一个常量的事 |
 | 行尾「更多」里的「下一首播放」去重 | 已统一的是「加入播放队列」（走 `PlayQueue.Append`）。`InsertNext` 是「插到当前之后」，语义上更像显式动作，没动 |
 | 网格页的工具栏与多选 | 见 §5，那几页不是歌曲列表 |
-| 把既有内联的图标按钮换成 `BodianIconButton` | 纯外观替换，与本次的行为改动混在一起会让排查变难，单独开一次 |
+| 把既有内联的图标按钮换成 `BowenIconButton` | 纯外观替换，与本次的行为改动混在一起会让排查变难，单独开一次 |
 | 多选态的行拖拽框选 | LyciaMusic 靠拖拽选一片，本项目只做点行勾选 |

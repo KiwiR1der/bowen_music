@@ -39,8 +39,8 @@
 宽度 380 是按**默认窗口**算的：默认内容区约 825 逻辑像素，`ItemsWrapGrid` 格子取 400 时
 两张正好 800，右边不留大片空白。曾经是 440 —— 那样默认窗口只放得下一张，右边空出将近一张卡的宽度。
 
-**表头**：整行一颗 `Button`（`BangSectionHeaderButton`，套用 `BodianCardPagerButton` 那套
-「透明底 + VSM 换底色」的写法），内容是「折叠箭头（次级色）+ 组名（`BodianModuleTitle`）+
+**表头**：整行一颗 `Button`（`BangSectionHeaderButton`，套用 `BowenCardPagerButton` 那套
+「透明底 + VSM 换底色」的写法），内容是「折叠箭头（次级色）+ 组名（`BowenModuleTitle`）+
 这一组有几个榜（Tertiary 小字）」。点击收起 / 展开。
 
 **交互只有一条**：点卡片任意位置 → 进该榜详情页（压栈，侧栏继续高亮「排行榜」）。
@@ -136,7 +136,7 @@ UWP 时代两者都行，WinUI 3 不行：把 CVS 直接赋给 `ItemsSource` 会
 
 ## 验收
 
-Core 层没动，`dotnet test --project tests/Bodian.Core.Tests/Bodian.Core.Tests.csproj`
+Core 层没动，`dotnet test --project tests/Bowen.Core.Tests/Bowen.Core.Tests.csproj`
 仍是 **1062 通过 / 0 失败**（含上面那条性能契约测试）。
 
 已用 UI Automation 核实（读元素树与坐标，不截图）：
@@ -161,8 +161,8 @@ Core 层没动，`dotnet test --project tests/Bodian.Core.Tests/Bodian.Core.Test
 
 | 文件 | 作用 |
 | --- | --- |
-| `src/Bodian.WinUI/Views/BangListPage.xaml` / `.xaml.cs` | 卡片网格、表头样式与折叠、事件 |
-| `src/Bodian.WinUI/ViewModels/BangListViewModel.cs` | `BangItemViewModel` / `BangSectionViewModel` / 分组源 |
-| `src/Bodian.WinUI/Themes/Tokens.xaml` | 卡片尺寸令牌 |
-| `src/Bodian.WinUI/Views/BangDetailPage.xaml` | 单榜详情（未改动，唯一能点播的地方） |
-| `tests/Bodian.Core.Tests/ViewPerformanceContractTests.cs` | 挡 `ItemsControl` 的那条契约 |
+| `src/Bowen.WinUI/Views/BangListPage.xaml` / `.xaml.cs` | 卡片网格、表头样式与折叠、事件 |
+| `src/Bowen.WinUI/ViewModels/BangListViewModel.cs` | `BangItemViewModel` / `BangSectionViewModel` / 分组源 |
+| `src/Bowen.WinUI/Themes/Tokens.xaml` | 卡片尺寸令牌 |
+| `src/Bowen.WinUI/Views/BangDetailPage.xaml` | 单榜详情（未改动，唯一能点播的地方） |
+| `tests/Bowen.Core.Tests/ViewPerformanceContractTests.cs` | 挡 `ItemsControl` 的那条契约 |

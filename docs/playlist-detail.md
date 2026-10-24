@@ -45,7 +45,7 @@ https://h5app.kuwo.cn/m/bodian/collection.html?uid={分享者uid}&playlistId={id
 
 ## 2. 实现分层
 
-### Core（`src/Bodian.Core/`）
+### Core（`src/Bowen.Core/`）
 
 | 文件 | 内容 |
 | --- | --- |
@@ -68,7 +68,7 @@ https://h5app.kuwo.cn/m/bodian/collection.html?uid={分享者uid}&playlistId={id
   现在匿名**照发** —— 歌单详情是公开端点，创建者、简介、播放数匿名也该看得到，匿名时只是
   `collectTime` 不出现、`IsCollected` 落成 `false`，与「匿名不能收藏」自洽。
 
-### UI（`src/Bodian.WinUI/`）
+### UI（`src/Bowen.WinUI/`）
 
 | 位置 | 改动 |
 | --- | --- |
@@ -143,7 +143,7 @@ https://h5app.kuwo.cn/m/bodian/collection.html?uid={分享者uid}&playlistId={id
 
 ## 4. 验证
 
-- 构建：`dotnet build Bodian.sln -c Debug` → **0 错误**，1 个既有 `WMC1506` 警告（`AiPlaylistPage`）。
+- 构建：`dotnet build Bowen.sln -c Debug` → **0 错误**，1 个既有 `WMC1506` 警告（`AiPlaylistPage`）。
 - 离线测试：**942** 项通过（原 923）。新增/改写：
 
 | 测试 | 内容 |

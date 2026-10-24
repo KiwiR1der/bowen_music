@@ -62,11 +62,11 @@
 ## 验证与后续范围
 
 ```powershell
-dotnet build Bodian.sln -c Debug --no-restore
-dotnet test --project tests/Bodian.Core.Tests/Bodian.Core.Tests.csproj --no-restore
+dotnet build Bowen.sln -c Debug --no-restore
+dotnet test --project tests/Bowen.Core.Tests/Bowen.Core.Tests.csproj --no-restore
 ```
 
-默认程序位置：`src/Bodian.WinUI/bin/Debug/net10.0-windows10.0.26100.0/win-x64/Bodian.WinUI.exe`。
+默认程序位置：`src/Bowen.WinUI/bin/Debug/net10.0-windows10.0.26100.0/win-x64/BowenMusic.exe`。
 
 2026-10-02 最终验证：677 个离线测试通过；编译 0 错误，仅有原有的 `AiPlaylistPage.xaml` WMC1506 警告。公开读取样本为 `fixtures/comments-{new,hot}-118990.json` 和 `comments-replies-867666.json`，测试没有真实网络请求。覆盖接口字段、请求头隔离、取消和迟到响应、分页／重试、草稿、点赞成功／失败、零评论和不支持的 id、角标边界与图片连续平移／缩放。实际窗口确认了《发如雪》《花の塔》的列表可打开，深色底色、实心矢量及 `423` 角标显示正常。平移计算测试不等于实际帧率测试。
 

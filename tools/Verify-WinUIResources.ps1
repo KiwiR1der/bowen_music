@@ -2,14 +2,14 @@
 [CmdletBinding()]
 param(
     [Parameter(Mandatory = $true)][string]$OutputDirectory,
-    [string]$ProjectDirectory = (Join-Path $PSScriptRoot '..\src\Bodian.WinUI'),
+    [string]$ProjectDirectory = (Join-Path $PSScriptRoot '..\src\Bowen.WinUI'),
     [string]$PriDumpFile
 )
 
 $ErrorActionPreference = 'Stop'
 $projectRoot = (Resolve-Path -LiteralPath $ProjectDirectory).Path
 $outputRoot = (Resolve-Path -LiteralPath $OutputDirectory).Path
-$priPath = Join-Path $outputRoot 'Bodian.WinUI.pri'
+$priPath = Join-Path $outputRoot 'BowenMusic.pri'
 if (-not (Test-Path -LiteralPath $priPath)) { throw "Resource index missing: $priPath" }
 
 if (-not $PriDumpFile) {
@@ -42,7 +42,7 @@ $failures = [Collections.Generic.List[string]]::new()
 foreach ($xamlFile in $xamlFiles) {
     $relative = [IO.Path]::GetRelativePath($projectRoot, $xamlFile)
     $relative = [IO.Path]::ChangeExtension($relative, '.xbf').Replace('\', '/')
-    $uri = 'ms-resource://Bodian.WinUI/Files/' + $relative
+    $uri = 'ms-resource://BowenMusic/Files/' + $relative
     $resource = $resources[$uri]
     if ($null -eq $resource) { $failures.Add("Missing XAML index: $relative"); continue }
     $candidates = @($resource.SelectNodes('Candidate'))
@@ -58,7 +58,7 @@ foreach ($xamlFile in $xamlFiles) {
     }
 }
 foreach ($resource in $resources.Values) {
-    if (-not $resource.GetAttribute('uri').StartsWith('ms-resource://Bodian.WinUI/Files/')) { continue }
+    if (-not $resource.GetAttribute('uri').StartsWith('ms-resource://BowenMusic/Files/')) { continue }
     foreach ($candidate in $resource.SelectNodes('Candidate')) {
         if ($candidate.GetAttribute('type') -ne 'Path') { continue }
         $value = $candidate.SelectSingleNode('Value')

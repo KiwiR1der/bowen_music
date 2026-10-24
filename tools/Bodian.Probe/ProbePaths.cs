@@ -5,7 +5,7 @@ namespace Bodian.Probe;
 /// </summary>
 /// <remarks>
 /// <para>
-/// <b>目录名必须与 <c>Bodian.Core.Services.AppPaths</c> 里的逐字一致。</b>
+/// <b>目录名必须与 <c>Bowen.Core.Services.AppPaths</c> 里的逐字一致。</b>
 /// 探针刻意不引用 Core（签名器、设备标识都是独立副本，见 <c>BodianSigner.cs</c> 的注释），
 /// 所以路径也在这儿再写一份 —— 两边不一致会让 <c>devid.txt</c> 与 <c>session.dat</c>
 /// 各写各的，「探针与客户端共用设备标识」那个前提就没了。

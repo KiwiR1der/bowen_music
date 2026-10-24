@@ -80,20 +80,20 @@ private bool IsActive => IsOpen || IsDesktopLyricsOpen;
 
 | 位置 | 职责 |
 | --- | --- |
-| `Bodian.Core/Models/DesktopLyricsSettings.cs` | 外观偏好、默认值与规范化 |
-| `Bodian.Core/Models/DesktopLyricsWindowGeometry.cs` | 完整窗口约束、四边吸附、物理像素拉伸 |
-| `Bodian.Core/Models/DesktopLyricsLayoutMetrics.cs` | 当前视口下的行高、字号和双行范围 |
-| `Bodian.Core/Services/Abstractions/IDesktopLyrics*Store.cs` | 设置与位置存储接口 |
-| `Bodian.Core/Services/Implementations/*DesktopLyrics*Store.cs` | 外观与独立位置记录 |
-| `Bodian.WinUI/ViewModels/DesktopLyricsViewModel.cs` | 开关、偏好与持久化 |
-| `Bodian.WinUI/Services/DesktopLyricsWindowHost.cs` | 窗口懒创建、显隐与退出销毁 |
-| `Bodian.WinUI/Views/DesktopLyricsWindow.xaml(.cs)` | 布局、命中、悬停、设置面板、窗口操作 |
-| `Bodian.WinUI/Services/DesktopLyricsResizeCursor.cs` | 原生边缘、捕获与光标恢复 |
-| `Bodian.WinUI/Controls/DesktopLyricsCanvasView.cs` | 合成表面、播放时钟和资源恢复 |
-| `Bodian.WinUI/LyricRenderer/DesktopLyricsRenderLoop.cs` | 帧节奏、缓存更新与后台绘制 |
-| `Bodian.WinUI/LyricRenderer/DesktopLyricsLineRenderer.cs` | 原字号字形遮罩、颜色纹理与长句滚动 |
-| `Bodian.Core/Models/Lyrics/LyricHorizontalScroll.cs` | 长句滚动范围和歌词进度计算，小窗与桌面歌词共用 |
-| `Bodian.WinUI/Controls/TransparentBackdrop.cs` | DWM 透明和背景擦除挂载点 |
+| `Bowen.Core/Models/DesktopLyricsSettings.cs` | 外观偏好、默认值与规范化 |
+| `Bowen.Core/Models/DesktopLyricsWindowGeometry.cs` | 完整窗口约束、四边吸附、物理像素拉伸 |
+| `Bowen.Core/Models/DesktopLyricsLayoutMetrics.cs` | 当前视口下的行高、字号和双行范围 |
+| `Bowen.Core/Services/Abstractions/IDesktopLyrics*Store.cs` | 设置与位置存储接口 |
+| `Bowen.Core/Services/Implementations/*DesktopLyrics*Store.cs` | 外观与独立位置记录 |
+| `Bowen.WinUI/ViewModels/DesktopLyricsViewModel.cs` | 开关、偏好与持久化 |
+| `Bowen.WinUI/Services/DesktopLyricsWindowHost.cs` | 窗口懒创建、显隐与退出销毁 |
+| `Bowen.WinUI/Views/DesktopLyricsWindow.xaml(.cs)` | 布局、命中、悬停、设置面板、窗口操作 |
+| `Bowen.WinUI/Services/DesktopLyricsResizeCursor.cs` | 原生边缘、捕获与光标恢复 |
+| `Bowen.WinUI/Controls/DesktopLyricsCanvasView.cs` | 合成表面、播放时钟和资源恢复 |
+| `Bowen.WinUI/LyricRenderer/DesktopLyricsRenderLoop.cs` | 帧节奏、缓存更新与后台绘制 |
+| `Bowen.WinUI/LyricRenderer/DesktopLyricsLineRenderer.cs` | 原字号字形遮罩、颜色纹理与长句滚动 |
+| `Bowen.Core/Models/Lyrics/LyricHorizontalScroll.cs` | 长句滚动范围和歌词进度计算，小窗与桌面歌词共用 |
+| `Bowen.WinUI/Controls/TransparentBackdrop.cs` | DWM 透明和背景擦除挂载点 |
 
 主窗口、播放条和 `App.xaml.cs` 完成开关入口、依赖注入与退出清理；图标几何统一存于 `Themes/Icons.xaml`，来源与展示方式见 [icons.md](icons.md)。
 
@@ -103,14 +103,14 @@ private bool IsActive => IsOpen || IsDesktopLyricsOpen;
 - **2026-10-05，用户验收**：用户确认当前桌面歌词实现，并要求更新文档、提交改动。
 - **2026-10-06，长歌词验收**：用户确认小窗与桌面歌词的横向滚动效果，并要求同步正常调试输出目录、更新文档和提交。长句保持字号，桌面歌词的扫色与横向位置同步，下一句预览停在句首。
 - **2026-10-06，构建与回归**：独立输出目录 `artifacts/lyrics-scroll-check/` 构建通过，0 错误，仅保留既有的 `AiPlaylistPage.xaml:28` `WMC1506` 警告；完整离线测试 **1400 项通过，0 失败、0 跳过**。新增 `LyricHorizontalScrollTests` 覆盖短句静止、长句首尾与可见范围、异常尺寸、逐行与逐字时间、音节间隙、暂停／恢复、跳转、换句及窗口宽度变化。
-- **2026-10-06，正常启动目录同步**：将已验证构建同步到 `src/Bodian.WinUI/bin/Debug/net10.0-windows10.0.26100.0/win-x64/`，包括 `Bodian.WinUI.exe`、应用与 Core 程序集、调试符号和 XAML 资源；389 个产物全部通过 SHA256 一致性核验，构建产物不入库。
+- **2026-10-06，正常启动目录同步**：将已验证构建同步到 `src/Bowen.WinUI/bin/Debug/net10.0-windows10.0.26100.0/win-x64/`，包括可执行文件、应用与 Core 程序集、调试符号和 XAML 资源；389 个产物全部通过 SHA256 一致性核验，构建产物不入库。
 - **2026-10-05，构建**：正常启动目录构建通过，0 错误；保留既有 `AiPlaylistPage.xaml:28` 的 `WMC1506` 绑定警告。
 - **2026-10-05，回归**：仅含暂存文件的独立副本完整离线测试 **1131 项通过，0 失败、0 跳过**。覆盖设置和位置存储、旧白色高亮兼容、视口双行布局、物理像素拉伸、边缘吸附、放大后缩小以及播放时钟连续性。验证命令如下。
 - **2026-10-05，字形像素**：以下为横向滚动接入前的离屏检查。使用正式字形渲染器在 100%、125%、150%、200% DPI 下离屏绘制。每组连续 60 帧扫色的逐像素 alpha 一致；暂停后整图像素一致，切换高亮色不改变字形轮廓。窄窗双行均有文字像素，四次窄／宽循环恢复相同字形。该检查不依赖桌面截图。
 
 ```powershell
-dotnet build src/Bodian.WinUI/Bodian.WinUI.csproj --no-restore
-dotnet test --project tests/Bodian.Core.Tests/Bodian.Core.Tests.csproj --no-restore
+dotnet build src/Bowen.WinUI/Bowen.WinUI.csproj --no-restore
+dotnet test --project tests/Bowen.Core.Tests/Bowen.Core.Tests.csproj --no-restore
 ```
 
 本地字形验证产物位于忽略目录 `artifacts/desktop-lyrics-visual-review/`，不随产品提交。早期透明窗口试验与双层 `TextBlock` 代码保留在本地，正式入口不再引用。

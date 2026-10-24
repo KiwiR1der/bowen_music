@@ -88,7 +88,7 @@ POST service/playlist/uploadPic/{playlistId}   signed
 
 ## 2. 实现分层
 
-### Core（`src/Bodian.Core/`）
+### Core（`src/Bowen.Core/`）
 
 | 文件 | 改动 |
 | --- | --- |
@@ -102,7 +102,7 @@ POST service/playlist/uploadPic/{playlistId}   signed
 | `Api/BodianApi.cs` | `UpdatePlaylistAsync` / `UploadPlaylistCoverAsync` + `ExtractImageUrl` |
 | `Media/ImageViewportState.cs` | 新增 `CoverMode`（cover 语义）与 `SourceRect()` |
 
-### UI（`src/Bodian.WinUI/`）
+### UI（`src/Bowen.WinUI/`）
 
 | 文件 | 改动 |
 | --- | --- |
@@ -250,7 +250,7 @@ OneWay 绑定也就不会把视觉状态收回去。结果是那个 chip 一直�
 ### 离线
 
 ```bash
-dotnet test --project tests/Bodian.Core.Tests/Bodian.Core.Tests.csproj
+dotnet test --project tests/Bowen.Core.Tests/Bowen.Core.Tests.csproj
 ```
 
 覆盖：PUT 的 method / 裸路径 / 五个键、请求体**不含隐私键**、名字 trim 与空白拦截、

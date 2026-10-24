@@ -205,13 +205,13 @@ private bool IsActive => IsOpen || IsDesktopLyricsOpen || IsMiniPlayerOpen;
 
 | 位置 | 职责 |
 | --- | --- |
-| `Bodian.Core/Models/MiniPlayerDock.cs` | 贴边方向、面板方向枚举与面板方案记录 |
-| `Bodian.Core/Models/MiniPlayerGeometry.cs` | 贴边判定、收起／展开、唤醒区、回弹闩锁、面板与抽屉方向。纯函数，可离线测 |
-| `Bodian.Core/Services/Abstractions/IMiniPlayerPlacementStore.cs` | 空接口 |
-| `Bodian.Core/Services/Implementations/MiniPlayerPlacementStore.cs` | 只换路径的转发层 |
-| `Bodian.WinUI/ViewModels/MiniPlayerViewModel.cs` | 开关与两条命令，并把开关转给 `LyricsViewModel` |
-| `Bodian.WinUI/Views/MiniPlayerWindow.xaml(.cs)` | 布局、拖动、贴边收起、面板方向、窗口操作 |
-| `Bodian.WinUI/Services/MiniPlayerWindowHost.cs` | 窗口懒创建、显隐与退出销毁 |
+| `Bowen.Core/Models/MiniPlayerDock.cs` | 贴边方向、面板方向枚举与面板方案记录 |
+| `Bowen.Core/Models/MiniPlayerGeometry.cs` | 贴边判定、收起／展开、唤醒区、回弹闩锁、面板与抽屉方向。纯函数，可离线测 |
+| `Bowen.Core/Services/Abstractions/IMiniPlayerPlacementStore.cs` | 空接口 |
+| `Bowen.Core/Services/Implementations/MiniPlayerPlacementStore.cs` | 只换路径的转发层 |
+| `Bowen.WinUI/ViewModels/MiniPlayerViewModel.cs` | 开关与两条命令，并把开关转给 `LyricsViewModel` |
+| `Bowen.WinUI/Views/MiniPlayerWindow.xaml(.cs)` | 布局、拖动、贴边收起、面板方向、窗口操作 |
+| `Bowen.WinUI/Services/MiniPlayerWindowHost.cs` | 窗口懒创建、显隐与退出销毁 |
 
 拖动时的矩形约束**直接转调** `DesktopLyricsWindowGeometry.Constrain`，没有抄第二份。
 
@@ -257,7 +257,7 @@ private bool IsActive => IsOpen || IsDesktopLyricsOpen || IsMiniPlayerOpen;
 
 - **2026-10-06，长歌词验收**：用户确认小窗与桌面歌词的横向滚动效果，并要求同步正常调试输出目录、更新文档和提交。小窗长句保持 13 DIP 字号，短句居中；悬停、贴边收起、暂停和隐藏时停止逐帧滚动。
 - **2026-10-06，构建与回归**：独立输出目录 `artifacts/lyrics-scroll-check/` 构建通过，0 错误，仅保留既有的 `AiPlaylistPage.xaml:28` `WMC1506` 警告；完整离线测试 **1400 项通过，0 失败、0 跳过**。`LyricHorizontalScrollTests` 覆盖滚动范围、逐字时间与音节间隙、暂停／恢复、跳转、换句以及尺寸变化。
-- **2026-10-06，正常启动目录同步**：已将验证构建的可执行文件、程序集、调试符号和 XAML 资源同步到 `src/Bodian.WinUI/bin/Debug/net10.0-windows10.0.26100.0/win-x64/`；389 个产物均与验证构建 SHA256 一致。
+- **2026-10-06，正常启动目录同步**：已将验证构建的可执行文件、程序集、调试符号和 XAML 资源同步到 `src/Bowen.WinUI/bin/Debug/net10.0-windows10.0.26100.0/win-x64/`；389 个产物均与验证构建 SHA256 一致。
 
 以下为 2026-10-05 基础实现的验证记录：
 
@@ -320,8 +320,8 @@ private bool IsActive => IsOpen || IsDesktopLyricsOpen || IsMiniPlayerOpen;
 28. 125% 缩放下重复 18–22；多显示器时在第二块屏（负坐标那块）再走一遍。
 
 ```powershell
-dotnet build src/Bodian.WinUI/Bodian.WinUI.csproj --no-restore
-dotnet test --project tests/Bodian.Core.Tests/Bodian.Core.Tests.csproj --no-restore
+dotnet build src/Bowen.WinUI/Bowen.WinUI.csproj --no-restore
+dotnet test --project tests/Bowen.Core.Tests/Bowen.Core.Tests.csproj --no-restore
 ```
 
 ---

@@ -27,7 +27,7 @@ Windows 10 Pro 19045，.NET SDK 10.0.400）；**压缩后的体积取自 v0.1.0 
 想要小体积下载的人走 `noruntime` 便携版，那条路上缺运行时的预期是明确的。
 
 **`noruntime` 要的是 .NET 运行时，不是桌面运行时。** 实测它的
-`Bodian.WinUI.runtimeconfig.json` 只声明了 `Microsoft.NETCore.App 10.0.0`，
+`BowenMusic.runtimeconfig.json` 只声明了 `Microsoft.NETCore.App 10.0.0`，
 没有 `Microsoft.WindowsDesktop.App`（WinUI 3 不用 WPF/WinForms 那套）。
 所以让用户装最小的那个「.NET Runtime 10」就够，不必拉几百 MB 的桌面运行时。
 
@@ -79,7 +79,7 @@ git push origin v0.1.0
 
 ### 为什么完整性校验那一步是必需的
 
-`Bodian.WinUI.csproj` 里 `libmpv-2.dll` 是**条件拷贝**：
+`Bowen.WinUI.csproj` 里 `libmpv-2.dll` 是**条件拷贝**：
 
 ```xml
 <None Include="$(LibMpvDir)libmpv-2.dll" Condition="Exists(...)" ... />
@@ -95,12 +95,12 @@ CI 跑的就是下面这些，本机可以完整复现（`gh` 那步除外）：
 
 ```powershell
 # 1. 测试
-dotnet test --project tests/Bodian.Core.Tests/Bodian.Core.Tests.csproj -c Release
+dotnet test --project tests/Bowen.Core.Tests/Bowen.Core.Tests.csproj -c Release
 
 # 2. 两个变体
-dotnet publish src/Bodian.WinUI/Bodian.WinUI.csproj -c Release -r win-x64 `
+dotnet publish src/Bowen.WinUI/Bowen.WinUI.csproj -c Release -r win-x64 `
   --self-contained true  -p:DistributionBuild=true -o artifacts/release/publish
-dotnet publish src/Bodian.WinUI/Bodian.WinUI.csproj -c Release -r win-x64 `
+dotnet publish src/Bowen.WinUI/Bowen.WinUI.csproj -c Release -r win-x64 `
   --self-contained false -p:DistributionBuild=true -o artifacts/release/publish-noruntime
 
 # 3. 便携 zip（在 publish 目录里打，条目才不会多一层目录）
@@ -116,7 +116,7 @@ $root = (Resolve-Path '.').Path
   "/DAPP_SOURCE=$((Resolve-Path artifacts/release/publish).Path)" `
   "/DOUTFILE=$((Resolve-Path artifacts/release).Path)\BowenMusic_0.1.0_x64_setup.exe" `
   "/DAPP_LICENSE=$root\LICENSE" `
-  "/DAPP_ICON=$root\src\Bodian.WinUI\Assets\Ripple.ico" `
+  "/DAPP_ICON=$root\src\Bowen.WinUI\Assets\Ripple.ico" `
   installer/BowenMusic.nsi
 ```
 
@@ -137,10 +137,10 @@ CI 传绝对路径，不依赖 makensis 的调用目录。
 
 1. 安装器 `CreateShortCut` 建一条普通快捷方式 —— 装完立刻能从开始菜单找到并启动；
 2. 应用启动时 `StartMenuShortcutInstaller.EnsureInstalled` 读到它，发现**缺 AUMID**，
-   重写成带 `Bodian.WinUI` AUMID 的那条（`IsUpToDate` 同时比对目标路径与 AUMID）。
+   重写成带 `Bowen.WinUI` AUMID 的那条（`IsUpToDate` 同时比对目标路径与 AUMID）。
 
 第 2 步是必要的：NSIS 的 `CreateShortCut` 写不了 `PKEY_AppUserModel_ID`，
-而 SMTC 面板要靠它把进程和快捷方式对上 —— 缺了面板上显示的就是 `Bodian.WinUI.exe` 这个名字。
+而 SMTC 面板要靠它把进程和快捷方式对上 —— 缺了面板上显示的就是 `BowenMusic.exe` 这个名字。
 
 **安装前会先关掉正在运行的实例。** 判据用 `tasklist ... /FO CSV /NH` 的输出而不是默认表格：
 默认输出的「没有匹配任务」提示随系统语言变，按它判断会在中文 Windows 上失效。

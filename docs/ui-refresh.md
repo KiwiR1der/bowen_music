@@ -11,7 +11,7 @@
 | | |
 | --- | --- |
 | 参照物 LyciaMusic | **AGPL-3.0** |
-| 本项目 Bodian | **GPL-3.0** |
+| 本项目 Bowen | **GPL-3.0** |
 
 `roadmap.md` §许可 已写明：「**GPL-3.0 可抄，AGPL-3.0 不可**」（两者单向兼容）。
 
@@ -72,7 +72,7 @@
 ## 2. 落地结构
 
 ```
-src/Bodian.WinUI/Themes/
+src/Bowen.WinUI/Themes/
   Tokens.xaml    主题无关标量：尺寸 / 圆角 / 间距 / 字号 + ControlCornerRadius 覆盖
   Theme.xaml     浅色 / 深色 / 高对比度三套（内联 ThemeDictionaries）
 ```
@@ -249,12 +249,12 @@ error CS9035: 必须在对象初始值设定项中设置所需的成员 'Track.I
 
 十三个页面各自写了一遍 `<Grid Padding="24,16" RowSpacing="…">` + 16px 的 `ProgressRing`，
 行间距有三种值（12 / 10 / 8）。现在收敛到 `Themes/Styles/Pages.xaml`：
-`BodianPageRoot` / `BodianPageTitle` / `BodianPageStatus` / `BodianPageBusyRing` / `BodianPageFooter`。
+`BowenPageRoot` / `BowenPageTitle` / `BowenPageStatus` / `BowenPageBusyRing` / `BowenPageFooter`。
 
-（2026-10-04 再追加 `BodianIconButton` —— 28×28 的透明底图标按钮；
+（2026-10-04 再追加 `BowenIconButton` —— 28×28 的透明底图标按钮；
 列表工具栏与侧栏的刷新/新建都用它，见 [`track-list-toolbar.md`](track-list-toolbar.md) §6。）
 
-（2026-10-03 追加 `BodianPageEndNote` —— 列表末尾的「没有更多了哦~」小字，
+（2026-10-03 追加 `BowenPageEndNote` —— 列表末尾的「没有更多了哦~」小字，
 由 `Controls/PagingEndNote.xaml` 使用，见 [`list-paging.md`](list-paging.md)。）
 
 顺带归一化了圆角（10 / 8 / 6 / 4 混用 → token 阶梯）与封面尺寸（散落 13 档 → 对到 token）。
@@ -486,7 +486,7 @@ Win2D 走 WIC 在干净的 Win10 上会**静默失败**（开发机装过扩展�
 
 **原布局验证（2026-10-01）**：
 
-- `dotnet build src/Bodian.WinUI/Bodian.WinUI.csproj --no-restore --verbosity minimal` 成功，0 错误；
+- `dotnet build src/Bowen.WinUI/Bowen.WinUI.csproj --no-restore --verbosity minimal` 成功，0 错误；
   仍有 `AiPlaylistPage.xaml:28` 的既有 `WMC1506` 绑定警告。
 - 实际启动应用，检查按钮尺寸与中心线；本机 125% 缩放下，36px 图标按钮均为 45×45 物理像素，中心线一致。
 - 使用 UI Automation 检查两条原生滑块在 0%、25%、50%、75%、100% 的位置，确认行程线性。
@@ -622,9 +622,9 @@ Content、RightHeader 三块整体设成 `TitleBarDeactivatedOpacity`（默认 0
 宿主卸载时关闭弹窗、移除成功事件订阅并取消轮询。当前外壳仍要求登录，不提供跳过登录的空页面。
 
 **编译记录（2026-10-01）**：用户关闭程序后，运行
-`dotnet build src/Bodian.WinUI/Bodian.WinUI.csproj --no-restore --verbosity minimal`，
+`dotnet build src/Bowen.WinUI/Bowen.WinUI.csproj --no-restore --verbosity minimal`，
 默认输出目录构建成功，0 错误、1 个既有 `AiPlaylistPage.xaml:28` `WMC1506` 绑定警告。
-产物为 `src/Bodian.WinUI/bin/Debug/net10.0-windows10.0.26100.0/win-x64/Bodian.WinUI.exe`。
+产物为该输出目录下的可执行文件。
 
 **验收方式**：按用户要求，不再自动启动程序、操作界面或执行扫码测试。主题弹层最终的深浅模式
 通透度与居中登录弹窗仍待用户验收；需手动检查退出登录后的居中位置、刷新二维码、深浅主题显示
@@ -639,12 +639,12 @@ Content、RightHeader 三块整体设成 `TitleBarDeactivatedOpacity`（默认 0
 这个资源同时参与导航项背景和收起／展开按钮的原生模板布局，较大的横向边距会让紧凑面板里的
 背景越界后被裁掉。恢复原生几何后，48 DIP 宽的收起侧栏可以完整显示背景和两侧圆角。
 
-曲目页统一使用继承 `BodianPageRoot` 的 `BodianTrackPageRoot`，左边距由 24 DIP 减到 12 DIP，
+曲目页统一使用继承 `BowenPageRoot` 的 `BowenTrackPageRoot`，左边距由 24 DIP 减到 12 DIP，
 顶部、底部与右侧边距不变。覆盖我喜欢的、最近播放、搜索、歌单详情、专辑详情、AI 歌单、
 榜单详情和榜单列表；其他页面继续使用原页边距。
 
-> **2026-10-04 已推翻**：左边距改回 24 DIP，`BodianTrackPageRoot` 与 `SpaceTrackPagePadding`
-> 一并删除，这 9 个页面改用 `BodianPageRoot`。12 DIP 让它们比标题栏的返回键 / 搜索框靠前
+> **2026-10-04 已推翻**：左边距改回 24 DIP，`BowenTrackPageRoot` 与 `SpaceTrackPagePadding`
+> 一并删除，这 9 个页面改用 `BowenPageRoot`。12 DIP 让它们比标题栏的返回键 / 搜索框靠前
 > 12 DIP，跨页跳转时左边缘会横跳。理由与落地见 §22.1。
 
 共享 `TrackListView` 移除列表左侧与行容器重复的内边距，右侧单独保留滚动条安全区（见 §12.1）；
@@ -780,8 +780,8 @@ Core 侧的 `purchasedList` 接口、DTO、fixture 与测试保留，理由与�
 - 菜单的状态与动作在 `ViewModels/TrackActionsViewModel.cs`，它**只依赖 Core 的模型和两个自制接口**
   （`ITrackNavigator` / `INoticeSink`），因此能被 link 进离线测试工程，四条动作的分支全都有单测。
 - 真正拿导航与提示去干活的 `Services/TrackActionsService.cs` 是单例，靠
-  `Application.Current.Resources["BodianTrackActions"]` 交给控件 ——
-  与 `BodianNowPlaying` 同一处例外（XAML 实例化的控件拿不到 DI 容器）。
+  `Application.Current.Resources["BowenTrackActions"]` 交给控件 ——
+  与 `BowenNowPlaying` 同一处例外（XAML 实例化的控件拿不到 DI 容器）。
 - 选歌单是**同一个 Flyout 内换面板**，不是弹第二个 Flyout：二级弹层在会被回收的行容器里定位不可靠。
 - 弹层宽度**随内容走**，不写死（四个动作都是短文案，定宽会留出一片空白），
   上限 240 DIP —— 再宽就让歌单名按 `TextTrimming` 截断。
@@ -1275,7 +1275,7 @@ WinUI 构建成功，0 错误，仅保留原有的 `AiPlaylistPage.xaml:27` `WMC
 
 ### 21.1 固定封面与紧凑悬浮背景
 
-两个页面共用 `Themes/Styles/Pages.xaml` 中的 `BodianCoverCardItem`。
+两个页面共用 `Themes/Styles/Pages.xaml` 中的 `BowenCoverCardItem`。
 悬浮状态由原生 `GridViewItem` 模板绘制，圆角取 `RadiusMd`，四周 `Padding=4`，
 容器 `Margin=0,0,4,4`。容器和内容均顶部对齐，悬浮背景高度随内容收紧。
 
@@ -1312,8 +1312,8 @@ WinUI 构建成功，0 错误，仅保留原有的 `AiPlaylistPage.xaml:27` `WMC
 ### 21.3 验证
 
 ```powershell
-dotnet build src/Bodian.WinUI/Bodian.WinUI.csproj --no-restore --verbosity minimal
-dotnet test --project tests/Bodian.Core.Tests/Bodian.Core.Tests.csproj --no-build --no-restore --verbosity minimal
+dotnet build src/Bowen.WinUI/Bowen.WinUI.csproj --no-restore --verbosity minimal
+dotnet test --project tests/Bowen.Core.Tests/Bowen.Core.Tests.csproj --no-build --no-restore --verbosity minimal
 ```
 
 WinUI 构建通过，0 错误，保留原有 `AiPlaylistPage.xaml:27` 的 `WMC1506` 警告。
@@ -1342,8 +1342,8 @@ WinUI 构建通过，0 错误，保留原有 `AiPlaylistPage.xaml:27` 的 `WMC15
 展开 `200 + 24 = 224`，收起 `48 + 24 = 72`。标题栏与页面内容在两种侧栏状态下都是同一条竖线，
 不需要按状态另算。右侧本来就是 24，标题栏左右也都是 24，24 才是这个应用的事实标准。
 
-落地：`SpacePagePadding` 成为唯一来源；删掉 `SpaceTrackPagePadding` 与 `BodianTrackPageRoot`
-（合并后它已是个没有 Setter 的空壳），9 个页面改用 `BodianPageRoot`。
+落地：`SpacePagePadding` 成为唯一来源；删掉 `SpaceTrackPagePadding` 与 `BowenTrackPageRoot`
+（合并后它已是个没有 Setter 的空壳），9 个页面改用 `BowenPageRoot`。
 
 曲目行的 `SpaceRowPadding` 左 4 不动：行悬浮背景的左缘与页面标题同线，行内文字再内缩 4。
 那是行内的第二层内边距，不属于基准线。
@@ -1388,8 +1388,8 @@ WinUI 构建通过，0 错误，保留原有 `AiPlaylistPage.xaml:27` 的 `WMC15
 ### 22.5 验证
 
 ```powershell
-dotnet build src/Bodian.WinUI/Bodian.WinUI.csproj --verbosity minimal
-dotnet test --project tests/Bodian.Core.Tests/Bodian.Core.Tests.csproj --no-restore --verbosity minimal
+dotnet build src/Bowen.WinUI/Bowen.WinUI.csproj --verbosity minimal
+dotnet test --project tests/Bowen.Core.Tests/Bowen.Core.Tests.csproj --no-restore --verbosity minimal
 ```
 
 WinUI 构建通过，0 错误，保留原有 `AiPlaylistPage.xaml:28` 的 `WMC1506` 警告。
@@ -1516,8 +1516,8 @@ WinUI 构建通过，0 错误，保留原有 `AiPlaylistPage.xaml:28` 的 `WMC15
 ### 23.7 验证
 
 ```powershell
-dotnet build src/Bodian.WinUI/Bodian.WinUI.csproj --no-restore --verbosity minimal
-dotnet test --project tests/Bodian.Core.Tests/Bodian.Core.Tests.csproj --no-restore --verbosity minimal
+dotnet build src/Bowen.WinUI/Bowen.WinUI.csproj --no-restore --verbosity minimal
+dotnet test --project tests/Bowen.Core.Tests/Bowen.Core.Tests.csproj --no-restore --verbosity minimal
 ```
 
 WinUI 构建通过，0 错误 0 警告；1062 项离线测试通过，0 失败、0 跳过。
@@ -1927,7 +1927,7 @@ MDL2 的墨水量与本套路径不是逐颗一致，整体观感仍需人工比
 
 ### 30.1 两份图标
 
-`src/Bodian.WinUI/Assets/` 下三份，都由 `snippet/波纹音乐.ico` 加工而来：
+`src/Bowen.WinUI/Assets/` 下三份，都由 `snippet/波纹音乐.ico` 加工而来：
 
 | 文件 | 用途 |
 | --- | --- |
@@ -1982,7 +1982,8 @@ MDL2 的墨水量与本套路径不是逐颗一致，整体观感仍需人工比
 桌面歌词的空态文案、关于页都从它取。界面侧统一走 `Formats.AppName` 转发，
 免得将来再改一次名又漏掉某一句。
 
-`AUMID` 保持不变（`Bodian.WinUI`）—— 改它会让已有的开始菜单快捷方式与 SMTC 会话失联。
+`AUMID` 当时保持不变（`Bodian.WinUI`）—— 改它会让已有的开始菜单快捷方式与 SMTC 会话失联。
+**2026-10-24 起已改为 `Bowen.WinUI`**：开始菜单快捷方式会在首次启动时自动重写，任务栏固定项需要重新固定。
 
 `AppIdentity.LegacyShortcutFileNames` 列出改名前用过的快捷方式文件名，
 安装新快捷方式时顺手删掉，否则开始菜单里会同时躺着「Bodian」与「波纹音乐」两条、
@@ -2106,7 +2107,7 @@ WinUI 构建通过，0 错误，1438 项离线测试通过。
 **验证**：用户复测确认 —— 二维码显示时圈消失、刷新按钮即时可点、扫码后弹窗自动关闭并进入「我喜欢的」。
 WinUI 构建通过，0 错误，1 个既有 `AiPlaylistPage.xaml:28` `WMC1506` 警告；1438 项离线测试通过。
 
-**未验证**：本轮改动全在 `Bodian.WinUI` 且属线程边界行为，而 `tests/` 下只有 `Bodian.Core.Tests`
+**未验证**：本轮改动全在 `Bowen.WinUI` 且属线程边界行为，而 `tests/` 下只有 `Bowen.Core.Tests`
 （用 `<Compile Include>` 链源码，只覆盖不含 WinUI 类型的 VM），**没有回归测试可加**。
 
 **用户验收时顺带撞到的另一件事**：退出应用后立刻双击 exe 没有反应。已确认与本节两处修复无关，
@@ -2124,7 +2125,7 @@ WinUI 构建通过，0 错误，1 个既有 `AiPlaylistPage.xaml:28` `WMC1506` �
 所以那条图标分支打出现起就没真正显示过。这次补的是状态，不是资源。
 
 `IVolumeSource` 因此多了一个动词 `ToggleMute()`（`IsMuted` 保持只读）。
-标记与规则收在 `Bodian.WinUI/Playback/VolumeState.cs`，两个视图模型共用；细节与「改音量即解除静音」
+标记与规则收在 `Bowen.WinUI/Playback/VolumeState.cs`，两个视图模型共用；细节与「改音量即解除静音」
 那条边界写在 [`settings.md`](settings.md) §3.7。
 
 ### 34.2 点击改成静音之后，键盘入口要补回来

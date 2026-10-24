@@ -185,7 +185,7 @@ WinUI 类型、拿不到 `XamlRoot`（同 [`ui-refresh.md`](ui-refresh.md) §15 
 | 批量动作 | 走什么 |
 | --- | --- |
 | 加入喜欢 / 移出喜欢 | `ILikedSongsService.SetLikedManyAsync` —— **必须走它**，直连歌单接口会让它手里的喜欢状态缓存与服务端长期对不上 |
-| 加入歌单 / 移出歌单 | `ITrackBatchActions` → `Bodian.Core/Services/PlaylistMusicWriter.cs` |
+| 加入歌单 / 移出歌单 | `ITrackBatchActions` → `Bowen.Core/Services/PlaylistMusicWriter.cs` |
 
 节奏控制（默认逐首、失败继续、进度回调）与「多元素尚未实测」那条保留意见，
 见 [`track-list-toolbar.md`](track-list-toolbar.md) §4。

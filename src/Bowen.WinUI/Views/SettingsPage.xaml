@@ -1,0 +1,594 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Page
+    x:Class="Bowen.WinUI.Views.SettingsPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:controls="using:Bowen.WinUI.Controls"
+    xmlns:local="using:Bowen.WinUI"
+    xmlns:models="using:Bowen.Core.Models"
+    xmlns:vm="using:Bowen.WinUI.ViewModels">
+
+    <Page.Resources>
+        <!--
+            ★ 这份模板必须留在页面里，不能挪进共享资源字典（踩过，理由见 SearchPage.xaml 那段长注释）：
+              `x:Bind` 放进 ResourceDictionary 会报 `WMC1119`；补 `x:Class` 之后编译能过、
+              但运行时绑定全不生效。
+
+            分类名随图标轨态整批显隐，状态挂在数据项上（SettingsCategoryItem.ShowLabel），
+            这样模板不必去够页面级的状态。
+        -->
+        <DataTemplate x:Key="SettingsCategoryTemplate" x:DataType="vm:SettingsCategoryItem">
+            <StackPanel
+                Orientation="Horizontal"
+                Spacing="12"
+                ToolTipService.ToolTip="{x:Bind Label}">
+                <controls:Icon
+                    Data="{x:Bind local:Formats.IconPaths(IconKey)}"
+                    Size="{StaticResource SizeIconSm}"
+                    VerticalAlignment="Center" />
+                <TextBlock
+                    VerticalAlignment="Center"
+                    Text="{x:Bind Label}"
+                    TextWrapping="Wrap"
+                    Visibility="{x:Bind local:Formats.Visible(ShowLabel), Mode=OneWay}" />
+            </StackPanel>
+        </DataTemplate>
+
+        <!--
+            快捷键一行。右侧是一颗显示当前手势的按钮，点了开录制对话框。
+            末行不画分割线（IsLast）。
+
+            ★ 与上面那份分类模板同一个理由留在页面里，不能挪进共享字典。
+        -->
+        <DataTemplate x:Key="ShortcutRowTemplate" x:DataType="vm:ShortcutRowViewModel">
+            <StackPanel>
+                <controls:SettingsRow Header="{x:Bind Title}">
+                    <controls:SettingsRow.RightContent>
+                        <Button
+                            MinWidth="112"
+                            AutomationProperties.Name="{x:Bind Title}"
+                            Click="OnRebindShortcutClick"
+                            Content="{x:Bind GestureText, Mode=OneWay}"
+                            HorizontalAlignment="Right"
+                            Tag="{x:Bind Action}" />
+                    </controls:SettingsRow.RightContent>
+                </controls:SettingsRow>
+                <Border
+                    Style="{StaticResource BowenSettingsRowDivider}"
+                    Visibility="{x:Bind local:Formats.VisibleWhenFalse(IsLast)}" />
+            </StackPanel>
+        </DataTemplate>
+
+        <!-- 存储一项：占用大小 + 清理按钮，下面一行是上一次的结果。 -->
+        <DataTemplate x:Key="StorageRowTemplate" x:DataType="vm:StorageRowViewModel">
+            <StackPanel>
+                <controls:SettingsRow Description="{x:Bind Description}" Header="{x:Bind Title}">
+                    <controls:SettingsRow.RightContent>
+                        <StackPanel
+                            Orientation="Horizontal"
+                            Spacing="12"
+                            VerticalAlignment="Center">
+                            <TextBlock
+                                VerticalAlignment="Center"
+                                Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                Text="{x:Bind SizeText, Mode=OneWay}" />
+                            <Button
+                                Click="OnClearStorageClick"
+                                Content="清理"
+                                IsEnabled="{x:Bind CanClear, Mode=OneWay}"
+                                Tag="{x:Bind Kind}" />
+                        </StackPanel>
+                    </controls:SettingsRow.RightContent>
+                </controls:SettingsRow>
+
+                <TextBlock
+                    Margin="8,0,0,8"
+                    FontSize="{StaticResource FontSizeBody}"
+                    Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                    Text="{x:Bind ResultText, Mode=OneWay}"
+                    Visibility="{x:Bind local:Formats.Visible(HasResult), Mode=OneWay}" />
+
+                <Border
+                    Style="{StaticResource BowenSettingsRowDivider}"
+                    Visibility="{x:Bind local:Formats.VisibleWhenFalse(IsLast)}" />
+            </StackPanel>
+        </DataTemplate>
+    </Page.Resources>
+
+    <Grid
+        Style="{StaticResource BowenPageRoot}"
+        SizeChanged="OnPageSizeChanged">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+
+        <TextBlock Grid.Row="0" Style="{StaticResource BowenPageTitle}" Text="设置" />
+
+        <Grid Grid.Row="1" ColumnSpacing="24">
+            <Grid.ColumnDefinitions>
+                <!--
+                    ★ 列宽写的是字面量，不能引 `SizeSettingsRailWidth`：那是 x:Double，
+                      ColumnDefinition.Width 要 GridLength，StaticResource 转不过去。
+                      运行时的两档宽度由代码从 Tokens 里读，见 SettingsPage.xaml.cs。
+                -->
+                <ColumnDefinition x:Name="RailColumn" Width="200" />
+                <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
+
+        <!--
+            分类栏的选中高亮块：把设置页分类当成一条不能收起的侧栏，用侧栏那一套
+            （Controls/SelectionPill 负责量位置与滑动）。
+
+            包一层 Top 对齐的 Grid 是为了让画布高度等于分类栏高度 —— Canvas 自己不按子元素撑高，
+            直接放进单元格会铺满整格，栏内滚动时块会溢到栏外（ClipToBounds 也裁不到）。
+            这一层必须排在列表**之前**（画在下面），项的文字才压在高亮块之上。
+        -->
+        <Grid Grid.Column="0" VerticalAlignment="Top">
+            <Canvas IsHitTestVisible="False" controls:Motion.ClipToBounds="True">
+                <!--
+                    刻意不写 Visibility="Collapsed"：Collapsed 出生会让它的 Loaded 事件不触发，
+                    而 AppMotion 起动画前要判 element.IsLoaded，判不过就永远不起飞、只留一次瞬跳。
+                    没设位置时它是 0 尺寸，本来也画不出来；真正要收起时由 SelectionPill 设 Collapsed。
+                -->
+                <Border
+                    Background="{ThemeResource SelectionPillBrush}"
+                    CornerRadius="{StaticResource RadiusSm}"
+                    controls:SelectionPill.Owner="{x:Bind Rail}" />
+            </Canvas>
+
+        <ListView
+            x:Name="Rail"
+            VerticalAlignment="Top"
+            Background="Transparent"
+            ItemContainerStyle="{StaticResource BowenSettingsRailItem}"
+            ItemTemplate="{StaticResource SettingsCategoryTemplate}"
+            ItemsSource="{x:Bind ViewModel.Categories}"
+            SelectedIndex="{x:Bind ViewModel.SelectedCategoryIndex, Mode=TwoWay}"
+            SelectionChanged="OnCategoryMotionChanged"
+            Style="{StaticResource BowenSettingsRail}">
+            <ListView.Resources>
+                <ResourceDictionary>
+                    <x:Boolean x:Key="ListViewItemSelectionIndicatorVisualEnabled">False</x:Boolean>
+                    <x:Boolean x:Key="ListViewItemSelectionCheckMarkVisualEnabled">False</x:Boolean>
+
+                    <!--
+                        项自己那块底色的圆角。★ 必须覆写这个 token：模板里 ListViewItemPresenter 的
+                        CornerRadius 绑的是 {ThemeResource ListViewItemCornerRadius}（默认 4），
+                        项样式上那句 CornerRadius="RadiusSm" 根本不生效。
+                        浮动高亮块写的是 RadiusSm（6），两边不同值的话悬停选中项会看到双层圆角。
+                        值只能是字面量：CornerRadius 资源之间没法互相引用。
+                    -->
+                    <CornerRadius x:Key="ListViewItemCornerRadius">6</CornerRadius>
+
+                    <!--
+                        选中底改由上面那块浮动 Border 画，这里把项自己那层压成透明 ——
+                        不压的话会出现「旧项瞬间亮着 + 浮动块慢慢追上」的双高亮。
+
+                        只写浅色/深色两档，高对比度那档留空（用系统自带的那套）：那一档浮动块是
+                        透明刷，系统配色下不做自绘高亮。空字典是刻意的，不是漏写。
+
+                        选中态设透明、hover/pressed 取与未选中态同一档：叠在 10% 的块上观感与原来
+                        接近（原来 14% / 18%），而且悬停选中项仍有反馈 —— 三项都设透明的话，
+                        悬停当前分类会完全没有反应。
+
+                        色号与 Theme.xaml 里的 NavigationViewItemBackgroundSelected 一致，
+                        侧栏、分类栏与页内页签条的选中底色因此是同一个深浅。
+                    -->
+                    <ResourceDictionary.ThemeDictionaries>
+                        <ResourceDictionary x:Key="Light">
+                            <SolidColorBrush x:Key="ListViewItemBackgroundSelected" Color="Transparent" />
+                            <SolidColorBrush x:Key="ListViewItemBackgroundSelectedPointerOver" Color="#0D000000" />
+                            <SolidColorBrush x:Key="ListViewItemBackgroundSelectedPressed" Color="#14000000" />
+                        </ResourceDictionary>
+                        <ResourceDictionary x:Key="Dark">
+                            <SolidColorBrush x:Key="ListViewItemBackgroundSelected" Color="Transparent" />
+                            <SolidColorBrush x:Key="ListViewItemBackgroundSelectedPointerOver" Color="#0DFFFFFF" />
+                            <SolidColorBrush x:Key="ListViewItemBackgroundSelectedPressed" Color="#14FFFFFF" />
+                        </ResourceDictionary>
+                        <ResourceDictionary x:Key="HighContrast" />
+                    </ResourceDictionary.ThemeDictionaries>
+                </ResourceDictionary>
+            </ListView.Resources>
+        </ListView>
+        </Grid>
+
+            <!--
+                六个分区都常驻可视树、只切 Visibility —— 与关注的歌手页那两份列表同一个做法。
+                条数是固定的六份、内容也短，不需要虚拟化。
+            -->
+            <ScrollViewer
+                Grid.Column="1"
+                HorizontalScrollBarVisibility="Disabled"
+                HorizontalScrollMode="Disabled"
+                VerticalScrollBarVisibility="Auto"
+                VerticalScrollMode="Auto">
+                <StackPanel Padding="0,0,0,16" Spacing="20">
+
+                    <StackPanel controls:Motion.TabContent="True" Spacing="8" Visibility="{x:Bind local:Formats.Visible(ViewModel.IsAppearanceSelected), Mode=OneWay}">
+                        <TextBlock Style="{StaticResource BowenSettingsGroupTitle}" Text="外观" />
+                        <Border Style="{StaticResource BowenSettingsCard}">
+                            <StackPanel>
+                                <controls:SettingsRow Description="跟随系统、浅色或深色" Header="主题">
+                                    <controls:SettingsRow.RightContent>
+                                        <ComboBox
+                                            ItemsSource="{x:Bind ViewModel.ThemeOptions}"
+                                            SelectedIndex="{x:Bind ViewModel.ThemeIndex, Mode=TwoWay}" />
+                                    </controls:SettingsRow.RightContent>
+                                </controls:SettingsRow>
+                                <Border Style="{StaticResource BowenSettingsRowDivider}" />
+                                <controls:SettingsRow Description="搜索结果、收藏这些页的默认排布；在页面上切只影响当前这一次" Header="列表显示">
+                                    <controls:SettingsRow.RightContent>
+                                        <ComboBox
+                                            ItemsSource="{x:Bind ViewModel.ListDisplayOptions}"
+                                            SelectedIndex="{x:Bind ViewModel.ListDisplayIndex, Mode=TwoWay}" />
+                                    </controls:SettingsRow.RightContent>
+                                </controls:SettingsRow>
+                                <Border Style="{StaticResource BowenSettingsRowDivider}" />
+                                <controls:SettingsRow Header="输入法兼容模式（实验）" Description="中文候选框无法显示时可尝试开启；更改后需完全退出并重新打开应用">
+                                    <controls:SettingsRow.RightContent>
+                                        <ToggleSwitch
+                                            IsOn="{x:Bind ViewModel.InputMethod.Enabled, Mode=TwoWay}"
+                                            MinWidth="0" OffContent="" OnContent=""
+                                            AutomationProperties.Name="输入法兼容模式" />
+                                    </controls:SettingsRow.RightContent>
+                                </controls:SettingsRow>
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
+
+                    <StackPanel controls:Motion.TabContent="True" Spacing="8" Visibility="{x:Bind local:Formats.Visible(ViewModel.IsPlaybackSelected), Mode=OneWay}">
+                        <TextBlock Style="{StaticResource BowenSettingsGroupTitle}" Text="播放" />
+                        <Border Style="{StaticResource BowenSettingsCard}">
+                            <StackPanel>
+                                <controls:SettingsRow Description="以后取音源用的档位；改它不会打断正在播放的这首" Header="默认音质">
+                                    <controls:SettingsRow.RightContent>
+                                        <ComboBox
+                                            ItemsSource="{x:Bind ViewModel.QualityOptions}"
+                                            SelectedIndex="{x:Bind ViewModel.QualityIndex, Mode=TwoWay}" />
+                                    </controls:SettingsRow.RightContent>
+                                </controls:SettingsRow>
+                                <Border Style="{StaticResource BowenSettingsRowDivider}" />
+                                <controls:SettingsRow Description="顺序播完即停、列表循环、单曲循环或列表随机" Header="播放模式">
+                                    <controls:SettingsRow.RightContent>
+                                        <ComboBox
+                                            ItemsSource="{x:Bind ViewModel.PlayModeOptions}"
+                                            SelectedIndex="{x:Bind ViewModel.PlayModeIndex, Mode=TwoWay}" />
+                                    </controls:SettingsRow.RightContent>
+                                </controls:SettingsRow>
+                                <Border Style="{StaticResource BowenSettingsRowDivider}" />
+                                <controls:SettingsRow Description="退出后下次打开接着上次的列表；不自动播放，点播放键从上次停的地方继续" Header="记住播放列表">
+                                    <controls:SettingsRow.RightContent>
+                                        <ToggleSwitch
+                                            IsOn="{x:Bind ViewModel.RestoreQueue.Enabled, Mode=TwoWay}"
+                                            MinWidth="0" OffContent="" OnContent=""
+                                            AutomationProperties.Name="记住播放列表" />
+                                    </controls:SettingsRow.RightContent>
+                                </controls:SettingsRow>
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
+
+                    <StackPanel controls:Motion.TabContent="True" Spacing="8" Visibility="{x:Bind local:Formats.Visible(ViewModel.IsLyricsSelected), Mode=OneWay}">
+                        <TextBlock Style="{StaticResource BowenSettingsGroupTitle}" Text="歌词" />
+                        <Border Style="{StaticResource BowenSettingsCard}">
+                            <controls:SettingsRow Description="歌词带译文时默认一起显示，歌词页那颗按钮仍可临时改" Header="默认显示译文">
+                                <controls:SettingsRow.RightContent>
+                                    <ToggleSwitch
+                                        IsOn="{x:Bind ViewModel.DefaultShowTranslation, Mode=TwoWay}"
+                                        MinWidth="0"
+                                        OffContent=""
+                                        OnContent="" />
+                                </controls:SettingsRow.RightContent>
+                            </controls:SettingsRow>
+                        </Border>
+
+                        <!--
+                            桌面歌词这一段与歌词条自己的设置面板是同一份数据：两处改哪边都同步，
+                            因为绑的是同一个 DesktopLyricsViewModel 单例。
+                        -->
+                        <TextBlock Style="{StaticResource BowenSettingsGroupTitle}" Text="桌面歌词" />
+                        <Border Style="{StaticResource BowenSettingsCard}">
+                            <StackPanel>
+                                <controls:SettingsRow Description="在桌面上浮一条跟随播放的歌词" Header="显示桌面歌词">
+                                    <controls:SettingsRow.RightContent>
+                                        <ToggleSwitch
+                                            IsOn="{x:Bind ViewModel.DesktopLyrics.IsEnabled, Mode=TwoWay}"
+                                            MinWidth="0"
+                                            OffContent=""
+                                            OnContent="" />
+                                    </controls:SettingsRow.RightContent>
+                                </controls:SettingsRow>
+                                <Border Style="{StaticResource BowenSettingsRowDivider}" />
+                                <controls:SettingsRow IsRowEnabled="{x:Bind ViewModel.DesktopLyricsRowsEnabled, Mode=OneWay}" Header="歌词字号">
+                                    <controls:SettingsRow.RightContent>
+                                        <Slider
+                                            Width="200"
+                                            Maximum="{x:Bind models:DesktopLyricsSettings.MaximumFontSize}"
+                                            Minimum="{x:Bind models:DesktopLyricsSettings.MinimumFontSize}"
+                                            StepFrequency="1"
+                                            Value="{x:Bind ViewModel.DesktopLyrics.FontSize, Mode=TwoWay}" />
+                                    </controls:SettingsRow.RightContent>
+                                </controls:SettingsRow>
+                                <Border Style="{StaticResource BowenSettingsRowDivider}" />
+                                <controls:SettingsRow IsRowEnabled="{x:Bind ViewModel.DesktopLyricsRowsEnabled, Mode=OneWay}" Description="已唱部分的高亮色，未唱部分固定白色" Header="歌词颜色">
+                                    <controls:SettingsRow.RightContent>
+                                        <ComboBox
+                                            ItemsSource="{x:Bind ViewModel.ColorOptions}"
+                                            SelectedIndex="{x:Bind ViewModel.DesktopLyricsColorIndex, Mode=TwoWay}" />
+                                    </controls:SettingsRow.RightContent>
+                                </controls:SettingsRow>
+                                <Border Style="{StaticResource BowenSettingsRowDivider}" />
+                                <controls:SettingsRow IsRowEnabled="{x:Bind ViewModel.DesktopLyricsRowsEnabled, Mode=OneWay}" Description="同时显示当前句与下一句" Header="双行歌词">
+                                    <controls:SettingsRow.RightContent>
+                                        <ToggleSwitch
+                                            IsOn="{x:Bind ViewModel.DesktopLyrics.DualLine, Mode=TwoWay}"
+                                            MinWidth="0"
+                                            OffContent=""
+                                            OnContent="" />
+                                    </controls:SettingsRow.RightContent>
+                                </controls:SettingsRow>
+                                <Border Style="{StaticResource BowenSettingsRowDivider}" />
+                                <controls:SettingsRow IsRowEnabled="{x:Bind ViewModel.DesktopLyricsAlignmentEnabled, Mode=OneWay}" Description="只在开了双行时可选" Header="双行对齐">
+                                    <controls:SettingsRow.RightContent>
+                                        <ComboBox
+                                            ItemsSource="{x:Bind ViewModel.AlignmentOptions}"
+                                            SelectedIndex="{x:Bind ViewModel.DesktopLyricsAlignmentIndex, Mode=TwoWay}" />
+                                    </controls:SettingsRow.RightContent>
+                                </controls:SettingsRow>
+                                <Border Style="{StaticResource BowenSettingsRowDivider}" />
+                                <controls:SettingsRow IsRowEnabled="{x:Bind ViewModel.DesktopLyricsRowsEnabled, Mode=OneWay}" Description="锁上后不能拖动，也不能拉伸宽度" Header="锁定位置">
+                                    <controls:SettingsRow.RightContent>
+                                        <ToggleSwitch
+                                            IsOn="{x:Bind ViewModel.DesktopLyrics.Locked, Mode=TwoWay}"
+                                            MinWidth="0"
+                                            OffContent=""
+                                            OnContent="" />
+                                    </controls:SettingsRow.RightContent>
+                                </controls:SettingsRow>
+                                <Border Style="{StaticResource BowenSettingsRowDivider}" />
+                                <controls:SettingsRow IsRowEnabled="{x:Bind ViewModel.DesktopLyricsRowsEnabled, Mode=OneWay}" Description="关掉之后整个歌词窗都可抓，方便摆位置" Header="鼠标穿透">
+                                    <controls:SettingsRow.RightContent>
+                                        <ToggleSwitch
+                                            IsOn="{x:Bind ViewModel.DesktopLyrics.PassThrough, Mode=TwoWay}"
+                                            MinWidth="0"
+                                            OffContent=""
+                                            OnContent="" />
+                                    </controls:SettingsRow.RightContent>
+                                </controls:SettingsRow>
+                                <Border Style="{StaticResource BowenSettingsRowDivider}" />
+                                <controls:SettingsRow IsRowEnabled="{x:Bind ViewModel.DesktopLyricsRowsEnabled, Mode=OneWay}" IsClickable="True" Click="OnResetDesktopLyricsClick" Header="恢复桌面歌词默认外观">
+                                    <controls:SettingsRow.RightContent>
+                                        <TextBlock
+                                            VerticalAlignment="Center"
+                                            Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                            Text="字号、颜色、双行、对齐" />
+                                    </controls:SettingsRow.RightContent>
+                                </controls:SettingsRow>
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
+
+                    <!--
+                        网络分区。**只管更新检查那一条路** —— 常规请求固定直连，没有开关，
+                        见 docs/proxy.md §3。所以第一行是只读的，用来说明「这页为什么不给业务也配代理」。
+                    -->
+                    <StackPanel controls:Motion.TabContent="True" Spacing="8" Visibility="{x:Bind local:Formats.Visible(ViewModel.IsNetworkSelected), Mode=OneWay}">
+                        <TextBlock Style="{StaticResource BowenSettingsGroupTitle}" Text="网络" />
+                        <Border Style="{StaticResource BowenSettingsCard}">
+                            <StackPanel>
+                                <controls:SettingsRow Description="登录、歌单、封面这些请求始终直连，不受系统代理影响" Header="常规请求">
+                                    <controls:SettingsRow.RightContent>
+                                        <TextBlock
+                                            VerticalAlignment="Center"
+                                            FontSize="{StaticResource FontSizeBody}"
+                                            Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                            Text="固定直连" />
+                                    </controls:SettingsRow.RightContent>
+                                </controls:SettingsRow>
+                                <Border Style="{StaticResource BowenSettingsRowDivider}" />
+                                <controls:SettingsRow Description="更新检查与安装包下载走哪条路；国内直连通常连不上 GitHub" Header="检查更新使用的代理">
+                                    <controls:SettingsRow.RightContent>
+                                        <ComboBox
+                                            ItemsSource="{x:Bind ViewModel.Network.ProxyModeOptions}"
+                                            SelectedIndex="{x:Bind ViewModel.Network.ProxyModeIndex, Mode=TwoWay}" />
+                                    </controls:SettingsRow.RightContent>
+                                </controls:SettingsRow>
+                                <Border Style="{StaticResource BowenSettingsRowDivider}" />
+                                <!--
+                                    地址这一行只在选「自定义」时可用。
+                                    ★ Text 刻意**不写 UpdateSourceTrigger**：默认就是 LostFocus，
+                                      每敲一个字都解析 + 落盘一次是没必要的，而用户也不会在中途去看状态行。
+                                -->
+                                <controls:SettingsRow
+                                    Description="例：http://127.0.0.1:7890，可以带用户名与密码"
+                                    Header="代理地址"
+                                    IsRowEnabled="{x:Bind ViewModel.Network.IsCustom, Mode=OneWay}">
+                                    <controls:SettingsRow.RightContent>
+                                        <TextBox
+                                            MinWidth="200"
+                                            Text="{x:Bind ViewModel.Network.ProxyAddress, Mode=TwoWay}" />
+                                    </controls:SettingsRow.RightContent>
+                                </controls:SettingsRow>
+                            </StackPanel>
+                        </Border>
+
+                        <TextBlock Style="{StaticResource BowenPageStatus}" Text="{x:Bind ViewModel.Network.StatusText, Mode=OneWay}" />
+
+                        <TextBlock
+                            FontSize="{StaticResource FontSizeBody}"
+                            Foreground="{ThemeResource SystemFillColorCriticalBrush}"
+                            Text="{x:Bind ViewModel.Network.ErrorText, Mode=OneWay}"
+                            TextWrapping="Wrap"
+                            Visibility="{x:Bind local:Formats.Visible(ViewModel.Network.HasError), Mode=OneWay}" />
+                    </StackPanel>
+
+                    <StackPanel controls:Motion.TabContent="True" Spacing="8" Visibility="{x:Bind local:Formats.Visible(ViewModel.IsShortcutsSelected), Mode=OneWay}">
+                        <TextBlock Style="{StaticResource BowenSettingsGroupTitle}" Text="快捷键" />
+                        <Border Style="{StaticResource BowenSettingsCard}">
+                            <ItemsControl
+                                ItemTemplate="{StaticResource ShortcutRowTemplate}"
+                                ItemsSource="{x:Bind ViewModel.Shortcuts.Rows}" />
+                        </Border>
+
+                        <!--
+                            只做应用内快捷键，不注册全局热键 —— 因此应用不在前台时不响应。
+                            这一句要写在界面上，否则用户会以为是坏了。
+                        -->
+                        <TextBlock Style="{StaticResource BowenPageStatus}" Text="只在本应用内生效；应用不在前台时不响应。点右侧按钮可以改键。" />
+                        <Button Command="{x:Bind ViewModel.Shortcuts.ResetAllCommand}" Content="恢复默认键位" />
+                    </StackPanel>
+
+                    <StackPanel controls:Motion.TabContent="True" Spacing="8" Visibility="{x:Bind local:Formats.Visible(ViewModel.IsStorageSelected), Mode=OneWay}">
+                        <TextBlock Style="{StaticResource BowenSettingsGroupTitle}" Text="存储" />
+                        <Border Style="{StaticResource BowenSettingsCard}">
+                            <ItemsControl
+                                ItemTemplate="{StaticResource StorageRowTemplate}"
+                                ItemsSource="{x:Bind ViewModel.Storage.Rows}" />
+                        </Border>
+
+                        <TextBlock Style="{StaticResource BowenPageStatus}" Text="清理只删这些可再生数据，账号、偏好与窗口位置不受影响。" />
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <Button Command="{x:Bind ViewModel.Storage.ClearAllCommand}" Content="全部清理" />
+                            <Button Command="{x:Bind ViewModel.Storage.OpenDataDirectoryCommand}" Content="打开数据目录" />
+                            <!-- 日志是排查时最常去的一处，单独给个直达入口，不用从数据目录里再找。 -->
+                            <Button Command="{x:Bind ViewModel.Storage.OpenLogDirectoryCommand}" Content="打开日志文件夹" />
+                        </StackPanel>
+                    </StackPanel>
+
+                    <!--
+                        关于这一块**不写分组标题**：整块是居中的一列，顶上再挂一个「关于」
+                        只是把已经很明显的事再说一遍，还会把居中列压得偏下。
+                    -->
+                    <StackPanel controls:Motion.TabContent="True" Visibility="{x:Bind local:Formats.Visible(ViewModel.IsAboutSelected), Mode=OneWay}">
+                        <StackPanel
+                            Margin="0,24,0,16"
+                            HorizontalAlignment="Center"
+                            Spacing="10">
+
+                            <!-- 深浅两版图标由主题字典选，见 Theme.xaml 的 AppIconSource。 -->
+                            <Image
+                                Width="96"
+                                Height="96"
+                                HorizontalAlignment="Center"
+                                Source="{ThemeResource AppIconSource}" />
+
+                            <TextBlock
+                                HorizontalAlignment="Center"
+                                FontSize="28"
+                                FontWeight="SemiBold"
+                                Text="{x:Bind local:Formats.AppName}" />
+
+                            <!--
+                                版本行。查到新版本时右边挂一句提示 —— 自动检查在启动时就跑过了，
+                                用户可能一路没看见那个对话框（比如被登录框挡着），这一行是兜底。
+                            -->
+                            <StackPanel
+                                HorizontalAlignment="Center"
+                                Orientation="Horizontal"
+                                Spacing="8">
+                                <TextBlock
+                                    FontSize="{StaticResource FontSizeBody}"
+                                    Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                    Text="{x:Bind ViewModel.About.VersionLabel}" />
+                                <TextBlock
+                                    FontSize="{StaticResource FontSizeBody}"
+                                    Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}"
+                                    Text="{x:Bind ViewModel.Update.LatestVersionLabel, Mode=OneWay}"
+                                    Visibility="{x:Bind local:Formats.Visible(ViewModel.Update.HasUpdate), Mode=OneWay}" />
+                            </StackPanel>
+
+                            <TextBlock
+                                MaxWidth="420"
+                                Margin="0,4,0,0"
+                                HorizontalAlignment="Center"
+                                FontSize="{StaticResource FontSizeBody}"
+                                Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                Text="{x:Bind ViewModel.About.DisclaimerText}"
+                                TextAlignment="Center"
+                                TextWrapping="Wrap" />
+
+                            <StackPanel
+                                Margin="0,8,0,0"
+                                HorizontalAlignment="Center"
+                                Orientation="Horizontal"
+                                Spacing="12">
+                                <!-- 未配置时禁用（仓库还没建），不是坏了。 -->
+                                <Button
+                                    Command="{x:Bind ViewModel.About.OpenProjectCommand}"
+                                    IsEnabled="{x:Bind ViewModel.About.CanOpenProject}"
+                                    Style="{StaticResource BowenAboutButton}"
+                                    ToolTipService.ToolTip="仓库公开后可用">
+                                    <StackPanel Orientation="Horizontal" Spacing="8">
+                                        <controls:Icon Data="{StaticResource IconWindow}" Size="{StaticResource SizeIconSm}" />
+                                        <TextBlock Text="项目主页" />
+                                    </StackPanel>
+                                </Button>
+
+                                <Button
+                                    Command="{x:Bind ViewModel.About.OpenRepositoryCommand}"
+                                    IsEnabled="{x:Bind ViewModel.About.CanOpenRepository}"
+                                    Style="{StaticResource BowenAboutButton}"
+                                    ToolTipService.ToolTip="仓库公开后可用">
+                                    <StackPanel Orientation="Horizontal" Spacing="8">
+                                        <controls:Icon Data="{StaticResource IconShare}" Size="{StaticResource SizeIconSm}" />
+                                        <TextBlock Text="GitHub 仓库" />
+                                    </StackPanel>
+                                </Button>
+
+                                <!--
+                                    检查更新。弹的是全应用共用那一个对话框（见 Controls/UpdateDialog.cs），
+                                    启动时的自动检查弹的也是它 —— 两处状态是同一份。
+                                    正在查或正在下载时禁掉，见 UpdateViewModel.CanStartCheck 的说明。
+                                -->
+                                <Button
+                                    Click="OnCheckUpdateClick"
+                                    IsEnabled="{x:Bind ViewModel.Update.CanStartCheck, Mode=OneWay}"
+                                    Style="{StaticResource BowenAboutAccentButton}">
+                                    <StackPanel Orientation="Horizontal" Spacing="8">
+                                        <controls:Icon Data="{StaticResource IconRefresh}" Size="{StaticResource SizeIconSm}" />
+                                        <TextBlock Text="检查更新" />
+                                    </StackPanel>
+                                </Button>
+                            </StackPanel>
+
+                            <!--
+                                自动检查开关。
+                                ★ **做成这一列里的一行小字，不是一张卡片、也不另开分组。**
+                                  整块「关于」是一列居中的身份内容，旁边挂一张通栏卡片会与这一列
+                                  的宽度打架（限宽就变成浮在中间的孤岛，不限宽就通栏突兀）；
+                                  而这里只有一个布尔值，为它单起一个「更新」分组也过重。
+                                  说明挂在 ToolTip 上，不占高度。
+                            -->
+                            <StackPanel
+                                Margin="0,4,0,0"
+                                HorizontalAlignment="Center"
+                                Orientation="Horizontal"
+                                Spacing="12">
+                                <TextBlock
+                                    VerticalAlignment="Center"
+                                    FontSize="{StaticResource FontSizeBody}"
+                                    Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                    Text="启动时自动检查更新" />
+                                <ToggleSwitch
+                                    AutomationProperties.Name="自动检查更新"
+                                    IsOn="{x:Bind ViewModel.Update.AutoCheck, Mode=TwoWay}"
+                                    MinWidth="0"
+                                    OffContent=""
+                                    OnContent=""
+                                    ToolTipService.ToolTip="{x:Bind ViewModel.Update.AutoCheckDescription, Mode=OneWay}" />
+                            </StackPanel>
+
+                            <TextBlock
+                                Margin="0,12,0,0"
+                                HorizontalAlignment="Center"
+                                FontSize="{StaticResource FontSizeCaption}"
+                                Foreground="{ThemeResource TextFillColorTertiaryBrush}"
+                                Text="{x:Bind ViewModel.About.CopyrightText}" />
+                        </StackPanel>
+                    </StackPanel>
+                </StackPanel>
+            </ScrollViewer>
+        </Grid>
+    </Grid>
+</Page>

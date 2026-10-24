@@ -33,7 +33,7 @@
 可点判据也不同。一个元素要在绑定里按 `Kind` 分叉，就得给控件实现 INPC 去算私有计算属性；
 两套并列则是纯声明式的。
 
-**服务走 App 资源键 `BodianTrackActions`**，与 `TrackMoreButton` 同一处例外 ——
+**服务走 App 资源键 `BowenTrackActions`**，与 `TrackMoreButton` 同一处例外 ——
 控件是 XAML 实例化的，构造函数拿不到 DI 容器。
 
 ## 3. 颜色与播放条同源

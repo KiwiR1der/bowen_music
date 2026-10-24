@@ -93,10 +93,10 @@ P6 桌面歌词已完成并获用户确认，不再属于未开工项。窗口�
 **「打不开」这一半是推测**：进程崩溃后 WER 会把它挂起来采集转储约一分钟，这期间它仍占着
 `SingleInstanceCoordinator` 的命名互斥量；新启动的实例据此判定自己是「第二实例」，
 把唤醒广播发给一个已经不响应的进程然后 `Exit()` —— 用户看到的就是双击毫无反应。
-待验的判据：崩溃后那一分钟里 `tasklist` 是否仍能看到 `Bodian.WinUI.exe`。
+待验的判据：崩溃后那一分钟里 `tasklist` 是否仍能看到 `BowenMusic.exe`。
 
 **下一步**：需要崩溃转储里那条线程的原生栈。转储在
-`C:\ProgramData\Microsoft\Windows\WER\ReportQueue\AppCrash_Bodian.WinUI.exe_*\memory.hdmp`，
+`C:\ProgramData\Microsoft\Windows\WER\ReportQueue\AppCrash_BowenMusic.exe_*\memory.hdmp`，
 用 `dotnet-dump` / cdb 分析。**在拿到栈之前不要靠猜去调收尾顺序** ——
 `App` 的 `window.Closed` 里那段先后是有明确理由的（见该处的注释）。
 
@@ -142,7 +142,7 @@ P6 桌面歌词已完成并获用户确认，不再属于未开工项。窗口�
 最终版本仅在开启「设置 → 外观 → 输入法兼容模式（实验）」时跳过 WinUI 的旧输入法初始化限制，
 保留原有 WinUI 控件、样式和托盘 Hide/Show。用户已确认修好。额外焦点/上下文、定位和托盘实验不进入最终实现。
 
-用户常用启动路径是 `src/Bodian.WinUI/bin/Debug/net10.0-windows10.0.26100.0/win-x64/Bodian.WinUI.exe`，
+用户常用启动路径是 `src/Bowen.WinUI/bin/Debug/net10.0-windows10.0.26100.0/win-x64/BowenMusic.exe`，
 此前部分复测可能启动了旧构建，因此不把每轮反馈当成对应版本的确定结论。
 已修正独立输出目录的 XAML 资源索引错误，并检查 61 个界面资源。相关离屏测试 18 项通过。
 
@@ -168,7 +168,7 @@ P0（协议探针）五轮实测 + **第六轮静态分析**做完，**播放链
 全部从 APK 的 Flutter AOT 里静态读出来了（零请求）。剩下的都是「读代码读得不够细」或「必须发一次请求验证」
 的小尾巴，不再有「不知道去哪找」的项。
 
-**P1（骨架与传输层）也已完成**：`Bodian.sln` + `Bodian.Core` + `Bodian.WinUI` + `Bodian.Core.Tests`
+**P1（骨架与传输层）也已完成**：`Bowen.sln` + `Bowen.Core` + `Bowen.WinUI` + `Bowen.Core.Tests`
 四个部分就位。
 
 **P2 / P3 / P4 代码已完成（2026-09-30）**：
@@ -619,12 +619,12 @@ POST /api/service/collect    Body: {"source": <int>, "sourceId": [<int>...], "op
 却永远写不进 AUMID**（`.lnk` 的属性块字节级可验证缺失）。
 修好后实测：第一次启动写入成功，第二次识别为「已是最新」不再重写。
 
-**注意**：`Get-StartApps` 在修复**前**也显示 `AppID = Bodian.WinUI` ——
+**注意**：`Get-StartApps` 在修复**前**也显示 `AppID = Bowen.WinUI` ——
 所以它**从来不能作为这条验收的依据**（P3 那次「通过」是假阳性，来源未查明，怀疑是 shell 的 Start Menu 缓存）。
 
 ### ✅ P1 骨架与传输层 —— 已完成（2026-09-30）
 
-仓库现在有 `Bodian.sln` + `src/Bodian.Core` + `src/Bodian.WinUI` + `tests/Bodian.Core.Tests`，
+仓库现在有 `Bowen.sln` + `src/Bowen.Core` + `src/Bowen.WinUI` + `tests/Bowen.Core.Tests`，
 以及 `tools/Bodian.Probe`（一次性探针，**不参与解决方案，保持可独立构建**）。
 **落地设计稿与实现偏差见 [`transport.md`](transport.md)**，那里有 csproj 全文、类清单、
 DTO 字段映射与验收命令。实测：解决方案 0/0、探针 0/0、**152 个测试全绿 0 跳过**、
@@ -664,7 +664,7 @@ P1 **没做**的：`IBodianApi` 门面与 `Models/` 领域模型 —— 推迟�
 | 坑 | 症状 | 处置 |
 | --- | --- | --- |
 | **`out PropVariant` 编组坏了** | 显式布局的 `PROPVARIANT` struct 用 `out` 取回来 `vt` 不是 31 → 每次都判定「快捷方式缺 AUMID」→ 每次启动重写 `.lnk` | `PROPVARIANT` 一律用裸内存（读写两侧），见 `tech-stack.md` §4 |
-| **`IPropertyStore` 属性必须 `Save` 之后写、再 `Save` 一次** | 属性写进去了但 `.lnk` 里没有：`Get-StartApps` 显示 AppID 是 exe 路径而不是 `Bodian.WinUI` | 顺序：`SetPath` → `Save` → `SetValue`+`Commit` → `Save` |
+| **`IPropertyStore` 属性必须 `Save` 之后写、再 `Save` 一次** | 属性写进去了但 `.lnk` 里没有：`Get-StartApps` 显示 AppID 是 exe 路径而不是 `Bowen.WinUI` | 顺序：`SetPath` → `Save` → `SetValue`+`Commit` → `Save` |
 | **读 `.lnk` 属性不能走 ShellLink 上 QI 的存储** | `Load` 后直接 `GetValue` 拿到空值 | 用 `SHGetPropertyStoreFromParsingName` |
 | `IPersistFile.Load` 不调就读 | new 出来的 ShellLink 是空的，`GetPath` 返回空 → 每次重建 | 读之前先 `Load(path, STGM_READ)` |
 
@@ -675,8 +675,8 @@ P1 **没做**的：`IBodianApi` 门面与 `Models/` 领域模型 —— 推迟�
 | **SMTC 验收结果** | **已通过（2026-09-30）**。用回读诊断（`BODIAN_SMTC_DUMP=1`）确认系统侧能看到：标题/歌手/专辑正确、状态 Playing/Paused/Stopped 正确、进度与可拖区间 `0–曲长` 正确、**封面是能取到字节的真实 JPEG（约 65 KB）**。Lyricify 能识别并能显示歌词。 |
 | **Win10 上验不了「拖动」** | Win10 的媒体浮层**不画 seek 条**（只有上一首/播放暂停/下一首 + 封面）—— 那是 Win11 的媒体卡片或第三方浮层的功能。`MinSeekTime`/`MaxSeekTime` 已按规范上报（回读可见 0–曲长），但**本机没法用系统 UI 拖它**。要验这一条得换 Win11，或让一个会画 seek 条的消费方来拖。 |
 | **`词：周杰伦` 这类不会出现在 Lyricify 里** | 不是缺陷：SMTC **没有歌词字段**，Lyricify 也没有接受外部歌词的接口。Lyricify 显示的歌词永远是它自己去 QQ音乐/网易云等词源搜来的（通常不含 credit 行）。**我们的歌词（含 credit）只出现在本客户端的歌词面板里。** |
-| **两个"波点"会话会互相干扰** | 官方 PC 端在跑时，系统里会同时有 `bodian_pc.exe` 与 `Bodian.WinUI.exe` 两个会话。Lyricify 抓哪个不由我们决定 —— 验收时先关掉官方客户端，否则结论没法归因（本轮就撞到过：封面"传不过去"其实是抓错了会话）。 |
-| 开始菜单快捷方式 | 已经写进本机开始菜单（`Bodian.lnk`，AUMID=`Bodian.WinUI`，`Get-StartApps` 可核对）。**撤销 = 删掉那个 `.lnk`**；不想让它写就设 `BODIAN_SKIP_SHELL_REGISTRATION=1` |
+| **两个"波点"会话会互相干扰** | 官方 PC 端在跑时，系统里会同时有 `bodian_pc.exe` 与本客户端两个 SMTC 会话。Lyricify 抓哪个不由我们决定 —— 验收时先关掉官方客户端，否则结论没法归因（本轮就撞到过：封面"传不过去"其实是抓错了会话）。 |
+| 开始菜单快捷方式 | 已经写进本机开始菜单（`波纹音乐.lnk`，AUMID=`Bowen.WinUI`，`Get-StartApps` 可核对）。**撤销 = 删掉那个 `.lnk`**；不想让它写就设 `BODIAN_SKIP_SHELL_REGISTRATION=1` |
 | spike 与诊断代码 | **已删**（`SmtcSpike.cs`、`SmtcInspector.cs` 与 `App.xaml.cs` 里的三处 `[SPIKE]` 调用）。要复验时照着 `tech-stack.md` §4 的「落地实测」一节重建即可 —— 借壳那几行就是全部秘密 |
 | 图标 | 本轮没做（分发红线不许打包官方资产）。SMTC 面板与开始菜单里是默认图标 |
 

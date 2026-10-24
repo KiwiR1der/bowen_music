@@ -72,7 +72,7 @@
 > 四个与本应用无关，恢复时会把原生资产原样拷进输出目录，实测 **白带 55.0 MB**
 > （`onnxruntime.dll` 21.7 MB + `DirectML.dll` 18.7 MB 来自 `Microsoft.Windows.AI.MachineLearning`，
 > 它不在 `Microsoft.WindowsAppSDK.ML` 里而是后者的依赖，必须单独列）。
-> 处理方式是在 `Bodian.WinUI.csproj` 里逐个引用并加 `ExcludeAssets="all"`。
+> 处理方式是在 `Bowen.WinUI.csproj` 里逐个引用并加 `ExcludeAssets="all"`。
 > **元包本身不能摘**：`H.NotifyIcon.WinUI` 声明依赖 `Microsoft.WindowsAppSDK >= 1.6`，
 > 摘掉元包会让 NuGet 把 1.6 元包整个拉回来，与 2.5.1 的 WinUI 重复导入，构建直接失败。
 > 升级 WinAppSDK 时这几个版本号要跟着元包的依赖表走；完整实测与踩坑记录见
@@ -196,10 +196,10 @@ _smtc.UpdateTimelineProperties(new SystemMediaTransportControlsTimelinePropertie
 
 ### 落地实测（2026-09-30，P3）
 
-以上方案已实现并跑通，`src/Bodian.WinUI/Playback/SmtcManager.cs`。四条**实测修正**：
+以上方案已实现并跑通，`src/Bowen.WinUI/Playback/SmtcManager.cs`。四条**实测修正**：
 
 1. **借壳在 Win10 19045 上成立** —— 先用一次性 spike（`BODIAN_SMTC_SPIKE=1` 门控的假数据）验证过：媒体浮层能显示会话。这条是全阶段的地基，值得先花半天证伪。
-2. **封面不需要转码。** 酷我 CDN **按需生成尺寸与格式**：同一路径把 `.webp` 换成 `.jpg` 就是 200 `image/jpeg`（对 4 张专辑、两种路径前缀实测）。改写逻辑在 `Bodian.Core/Media/CoverArtUrl.cs`（当时只处理 `.kuwo.cn` 的 `/star/albumcover/<尺寸>/` 形状）。
+2. **封面不需要转码。** 酷我 CDN **按需生成尺寸与格式**：同一路径把 `.webp` 换成 `.jpg` 就是 200 `image/jpeg`（对 4 张专辑、两种路径前缀实测）。改写逻辑在 `Bowen.Core/Media/CoverArtUrl.cs`（当时只处理 `.kuwo.cn` 的 `/star/albumcover/<尺寸>/` 形状）。
    2026-10-06 扩展为同时处理 `/star/starheads/<尺寸>/`，供界面请求歌手缩略图；未知路径仍保持原样。
    界面图片加载失败时的腾讯旧封面备用地址与缓存重试规则，见 [`settings.md`](settings.md) §4.6。
    **不要走 WIC 转码**：Win10 **不预装** WebP 编解码器（要装商店的 WebP Image Extensions，Win11 才预装），转码方案会在开发机上一直成功、换台干净 Win10 就静默失败。
@@ -208,7 +208,7 @@ _smtc.UpdateTimelineProperties(new SystemMediaTransportControlsTimelinePropertie
    - **先 `Save` 落盘 → 写属性 + `Commit` → 再 `Save` 一次**。属性存储是在 `Save` 时序列化进 `.lnk` 的，只 Commit 不 Save 的话文件里根本没有那个属性。
    - **读 `.lnk` 的属性不要用 ShellLink 对象上 QI 出来的那个 `IPropertyStore`**：`Load` 之后直接 `GetValue` 取到的是未载入的空值。用 `SHGetPropertyStoreFromParsingName(路径, ...)`。
    - **`PROPVARIANT` 别声明成显式布局的 struct**：`out PropVariant` 编组回来的值是坏的（`vt` 读出来不是 31），表现为「每次都判定缺 AUMID 而重写快捷方式」。用裸内存（`AllocCoTaskMem` + `Marshal.WriteInt16/WriteIntPtr`，x64 下联合体在偏移 8）最稳。
-   - 名字与 AUMID 用 `AppIdentity`（`Bodian` / `Bodian.WinUI`）。名字取自**快捷方式文件名**，所以快捷方式叫 `Bodian.lnk`；`Get-StartApps` 里应当看到 `Bodian` + AppID `Bodian.WinUI`。
+   - 名字与 AUMID 用 `AppIdentity`（`波纹音乐` / `Bowen.WinUI`）。名字取自**快捷方式文件名**，所以快捷方式叫 `波纹音乐.lnk`；`Get-StartApps` 里应当看到 `波纹音乐` + AppID `Bowen.WinUI`。
    - **图标本轮没做**：`roadmap.md` 的分发红线写明「含图标」不得打包官方客户端资产，需要时自绘。
    - 幂等、失败只记 Warning、可用 `BODIAN_SKIP_SHELL_REGISTRATION` 关掉、撤销 = 删那个 `.lnk`。
 
@@ -221,20 +221,20 @@ _smtc.UpdateTimelineProperties(new SystemMediaTransportControlsTimelinePropertie
 ## 5. 工程结构
 
 ```
-Bodian.sln
-├── src/Bodian.Core/            net10.0，零 UI 依赖 —— 可独立单测
+Bowen.sln
+├── src/Bowen.Core/            net10.0，零 UI 依赖 —— 可独立单测
 │   ├── Api/                    transport（签名 / 请求头 / 信封解析）、DTO
 │   ├── Lyrics/                 BodianLyricParser、AwlrcParser
 │   ├── Models/Lyrics/          统一歌词模型
 │   └── Services/{Abstractions,Implementations}
-├── src/Bodian.WinUI/           net10.0-windows，WinUI 3
+├── src/Bowen.WinUI/           net10.0-windows，WinUI 3
 │   ├── Views/ ViewModels/ Controls/ Converters/ Styles/ Strings/ Messages/
 │   ├── Playback/               AudioEngine / MusicPlayer / PlayQueueManager / SMTCManager / SharedPlaybackState
 │   └── LyricRenderer/
-└── tests/Bodian.Core.Tests/    xunit.v3
+└── tests/Bowen.Core.Tests/    xunit.v3
 ```
 
-**`Bodian.Core` 不带 `-windows` TFM 是关键**：协议、签名、歌词解码全部可单测，不依赖 UI 线程。
+**`Bowen.Core` 不带 `-windows` TFM 是关键**：协议、签名、歌词解码全部可单测，不依赖 UI 线程。
 
 参考实现的许可边界（详见 `lyrics-ui.md`）：`Anthonyy232/Nagi`（**GPL-3.0，代码可移植**）提供多项目分层与 DI 写法；`LanZhan-Harmony/...TheUntamedMusicPlayer`（**AGPL-3.0，只能借结构**）提供 `Playback/` 五件套拆分与 `Messages/` 消息解耦。
 
