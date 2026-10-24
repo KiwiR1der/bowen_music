@@ -184,10 +184,29 @@
             </Grid>
         </DataTemplate>
         <DataTemplate x:Key="OverviewHeaderTemplate" x:DataType="vm:ListSectionHeader">
-            <Grid Margin="0,16,0,8">
+            <!--
+                ★ 整行都可点（code-behind 把 ListSectionHeader 映射到分类页签）。
+                  上下 Margin 必须相等，标题才会在整行的悬浮底里垂直居中；
+                  左右留 8 DIP，标题和「更多」都不贴悬浮底边缘。
+            -->
+            <Grid Margin="0,10,0,10" Padding="8,0">
                 <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
                 <TextBlock Text="{x:Bind Title}" Style="{StaticResource SubtitleTextBlockStyle}" VerticalAlignment="Center" />
-                <HyperlinkButton Grid.Column="1" Content="更多" Tag="{x:Bind Category}" Click="OnOverviewMoreClick" />
+                <HyperlinkButton
+                    Grid.Column="1"
+                    Content="更多"
+                    Tag="{x:Bind Category}"
+                    Click="OnOverviewMoreClick"
+                    Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}">
+                    <HyperlinkButton.Resources>
+                        <!--
+                            默认模板的悬停 / 按下色来自框架内部的静态别名，应用的主题色覆盖不到，
+                            会闪回系统蓝。这里按主题色重新指定，三个状态保持同一支强调色。
+                        -->
+                        <SolidColorBrush x:Key="HyperlinkButtonForegroundPointerOver" Color="{ThemeResource BrandAccentOnSurface}" />
+                        <SolidColorBrush x:Key="HyperlinkButtonForegroundPressed" Color="{ThemeResource BrandAccentOnSurface}" />
+                    </HyperlinkButton.Resources>
+                </HyperlinkButton>
             </Grid>
         </DataTemplate>
         <DataTemplate x:Key="OverviewTrackTemplate" x:DataType="vm:TrackRow">
@@ -394,9 +413,19 @@
               同一份集合同时喂给两者，但任一时刻只有一个在布局里 —— 能实现容器的只有它，
               所以不会一边滚一边被另一边再触发一次翻页。
         -->
+        <!--
+            Padding 与单曲页签的 TrackListView 相同：作用在原生 ItemsPresenter 上，
+            给列表内容和右侧滚动条之间留出独立空间，标题的悬浮底不会伸进滚动条。
+
+            ★ 综合页签没有工具栏，Grid.Row=2 那一行是空的，但页面 RowSpacing 仍会在它两侧
+              各留一段 12，结果第一个分区标题比别的页签低一整段。上 -12 抵消掉其中一段。
+              这个值等于 SpaceSection，改那个 token 时要同步。
+        -->
         <controls:VirtualizedListView controls:Motion.TabContent="True"
             Grid.Row="3"
             x:Name="OverviewList"
+            Margin="0,-12,0,0"
+            Padding="{StaticResource SpaceVerticalScrollContentPadding}"
             ContainerContentChanging="OnOverviewContainerContentChanging"
             IsItemClickEnabled="True"
             ItemClick="OnOverviewItemClick"

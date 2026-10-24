@@ -80,6 +80,8 @@ public sealed partial class SearchPage : Page, INavigationAware
             case Playlist playlist: _navigation.Navigate(_playlistFactory(playlist, playlist.SourceType)); break;
             case Album album: _navigation.Navigate(_albumFactory(album)); break;
             case Artist artist: _navigation.Navigate(_artistFactory(artist)); break;
+            // 分区标题行整行可点，与右侧「更多」走同一个入口。
+            case ListSectionHeader header: ViewModel.OpenCategoryCommand.Execute(header.Category); break;
         }
     }
     private void OnOverviewMoreClick(object sender, RoutedEventArgs e)
