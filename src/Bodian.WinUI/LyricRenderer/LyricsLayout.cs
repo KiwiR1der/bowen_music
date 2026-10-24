@@ -160,6 +160,8 @@ internal sealed class LyricsLayoutSnapshot : IDisposable
         Tops = tops;
         TotalHeight = totalHeight;
         ViewportWidth = viewportWidth;
+        UnitOfLine = document.BuildScrollUnitMap();
+        (UnitCenters, UnitTops, UnitHeights) = MeasureUnits(Lines, Tops, UnitOfLine);
     }
 
     public LyricDocument Document { get; }
@@ -168,6 +170,22 @@ internal sealed class LyricsLayoutSnapshot : IDisposable
 
     /// <summary>每一行在<b>文档空间</b>里的 Y（与视口无关，滚动偏移另外减）。</summary>
     public float[] Tops { get; }
+
+    /// <summary>
+    /// 每一行所属的滚动单元。原文与其译文共用一个单元，滚动时刚性同动。
+    /// </summary>
+    public int[] UnitOfLine { get; }
+
+    /// <summary>
+    /// 每个滚动单元在文档空间里的中心 Y。滚动锚点对齐到这里，双行歌词整体绕焦点线居中。
+    /// </summary>
+    public float[] UnitCenters { get; }
+
+    /// <summary>每个单元在文档空间里的顶边 Y。</summary>
+    public float[] UnitTops { get; }
+
+    /// <summary>每个单元的高度，含单元内部的译文行与行距。</summary>
+    public float[] UnitHeights { get; }
 
     public float TotalHeight { get; }
 
@@ -181,6 +199,40 @@ internal sealed class LyricsLayoutSnapshot : IDisposable
         {
             line.Dispose();
         }
+    }
+
+    /// <summary>把同一单元内各行的外接范围合成为中心、顶边与高度。</summary>
+    private static (float[] Centers, float[] Tops, float[] Heights) MeasureUnits(
+        LyricsLineLayout[] lines, float[] tops, int[] unitOfLine)
+    {
+        if (unitOfLine.Length == 0)
+        {
+            return ([], [], []);
+        }
+
+        var units = unitOfLine[^1] + 1;
+        var firsts = new float[units];
+        var lasts = new float[units];
+        Array.Fill(firsts, float.PositiveInfinity);
+        Array.Fill(lasts, float.NegativeInfinity);
+
+        for (var i = 0; i < lines.Length; i++)
+        {
+            var unit = unitOfLine[i];
+            firsts[unit] = Math.Min(firsts[unit], tops[i]);
+            lasts[unit] = Math.Max(lasts[unit], tops[i] + lines[i].Height);
+        }
+
+        var centers = new float[units];
+        var heights = new float[units];
+
+        for (var unit = 0; unit < units; unit++)
+        {
+            centers[unit] = (firsts[unit] + lasts[unit]) / 2;
+            heights[unit] = lasts[unit] - firsts[unit];
+        }
+
+        return (centers, firsts, heights);
     }
 }
 

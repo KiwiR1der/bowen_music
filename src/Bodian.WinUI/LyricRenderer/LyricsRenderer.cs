@@ -10,7 +10,7 @@ using Windows.UI;
 
 namespace Bodian.WinUI.LyricRenderer;
 
-/// <summary>全屏歌词：稳定焦点、独立错峰滚动、连续字形渐变和长音发光。</summary>
+/// <summary>全屏歌词：稳定焦点、逐句弹簧滚动、连续字形渐变和长音发光。</summary>
 internal sealed class LyricsRenderer(LyricsRenderSettings settings, ILogger<LyricsRenderer>? logger = null)
 {
     private readonly ILogger<LyricsRenderer> _logger = logger ?? NullLogger<LyricsRenderer>.Instance;
@@ -57,11 +57,11 @@ internal sealed class LyricsRenderer(LyricsRenderSettings settings, ILogger<Lyri
     {
         if (_device?.Snapshot is not { Count: > 0 } snapshot || _scroll.Count != snapshot.Count) return;
         var anchor = Math.Clamp(CurrentIndex, 0, snapshot.Count - 1);
-        var minimum = snapshot.Lines[0].Height / 2 - _height * settings.PlayingLineTopOffsetFactor;
-        var maximum = snapshot.Tops[^1] + snapshot.Lines[^1].Height / 2 - _height * settings.PlayingLineTopOffsetFactor;
+        var minimum = snapshot.UnitCenters[0] - _height * settings.PlayingLineTopOffsetFactor;
+        var maximum = snapshot.UnitCenters[^1] - _height * settings.PlayingLineTopOffsetFactor;
         _browseTarget = Math.Clamp((_browseTarget ?? _scroll.OffsetAt(anchor)) + delta, minimum, Math.Max(minimum, maximum));
         _browseUntil = now + TimeSpan.FromSeconds(4);
-        _scroll.Retarget(_browseTarget.Value, anchor, now, stagger: false);
+        _scroll.Retarget(_browseTarget.Value, anchor, stagger: false);
     }
 
     public void ResumeFollowing() => _browseUntil = TimeSpan.Zero;
@@ -145,31 +145,33 @@ internal sealed class LyricsRenderer(LyricsRenderSettings settings, ILogger<Lyri
         {
             CurrentIndex = -1;
             _scaleAnimating = false;
-            if (_scroll.Count > 0) _scroll.Reset(0, 0);
+            if (_scroll.Count > 0) _scroll.Reset([], [], [], 0);
             EnsureMask();
             return changed;
         }
         var current = Math.Max(0, snapshot.Document.IndexOfLineAt(_position));
-        var target = snapshot.Tops[current] + snapshot.Lines[current].Height / 2 - _height * settings.PlayingLineTopOffsetFactor;
+        // 锚点对齐整个滚动单元的中心：双行歌词绕焦点线居中，单行时与行中心相同。
+        var unit = snapshot.UnitOfLine[current];
+        var target = snapshot.UnitCenters[unit] - _height * settings.PlayingLineTopOffsetFactor;
         var seconds = _lastFrame == default ? 1.0 / 60 : Math.Clamp((now - _lastFrame).TotalSeconds, 0, 1);
         _lastFrame = now;
         if (rebuilt || _lastJump != jumpCount || _scroll.Count != snapshot.Count)
         {
             _browseTarget = null;
-            _scroll.Reset(snapshot.Count, target);
+            _scroll.Reset(snapshot.UnitOfLine, snapshot.UnitTops, snapshot.UnitHeights, target);
             _lastJump = jumpCount;
         }
         else if (_browseTarget.HasValue && now >= _browseUntil)
         {
             _browseTarget = null;
-            _scroll.Retarget(target, current, now);
+            _scroll.Retarget(target, current);
         }
         else if (!_browseTarget.HasValue && (current != CurrentIndex || Math.Abs(target - _scroll.Target) > 0.5))
         {
-            _scroll.Retarget(target, current, now);
+            _scroll.Retarget(target, current);
         }
         CurrentIndex = current;
-        _scroll.Update(now, seconds);
+        _scroll.Update(seconds);
         var centers = _centers;
         for (var index = 0; index < snapshot.Count; index++)
             centers[index] = snapshot.Tops[index] + snapshot.Lines[index].Height / 2 - _scroll.OffsetAt(index);
@@ -195,7 +197,7 @@ internal sealed class LyricsRenderer(LyricsRenderSettings settings, ILogger<Lyri
             rects[i] = new Rect(0, top + height * (1 - _scales[i]) / 2 - settings.LineGap / 2,
                 _width, height * _scales[i] + settings.LineGap);
         }
-        // 点击使用这一帧各行的实际位置，包含错峰弹簧的偏移。
+        // 点击使用这一帧各行的实际位置。
         lock (_hitRectGate) Array.Copy(rects, _hitRects, rects.Length);
         // 包含音节结束的最后一帧；跨过短音节或停在间隙也要提交正确的颜色。
         if (!IsBrowsing && _document.Kind == LyricKind.WordByWord && previousPosition != _position)

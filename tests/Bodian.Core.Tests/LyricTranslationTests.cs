@@ -266,4 +266,40 @@ public sealed class LyricTranslationTests
         Assert.Equal(1, stripped.IndexOfLineAt(TimeSpan.FromMilliseconds(2880)));
         Assert.Equal(2, stripped.IndexOfLineAt(TimeSpan.FromSeconds(60)));
     }
+
+    /// <summary>
+    /// 原文与它的译文必须落在同一个滚动单元里，滚动时两行刚性同动。
+    /// </summary>
+    /// <remarks>
+    /// 样本里第一行是带译文标记的空行，前面没有原文，所以并入它后面的第一句；
+    /// 之后每句原文和紧跟的译文各占一个单元。
+    /// </remarks>
+    [Fact]
+    public void ScrollUnits_KeepSourceAndTranslationTogether()
+    {
+        var document = BodianLyricParser.Parse(PairedSample);
+
+        Assert.Equal([0, 0, 0, 1, 1, 2], document.BuildScrollUnitMap());
+    }
+
+    /// <summary>剔除译文后每行自成一个单元，滚动退化为逐行行为。</summary>
+    [Fact]
+    public void ScrollUnits_DegenerateToSingleLinesWithoutTranslation()
+    {
+        var document = BodianLyricParser.Parse(PairedSample);
+        var stripped = document.WithoutTranslations();
+
+        Assert.Equal([0, 1, 2], stripped.BuildScrollUnitMap());
+        Assert.Empty(LyricDocument.Empty.BuildScrollUnitMap());
+    }
+
+    /// <summary>译文排在原文前面时也必须归到同一句，不能因为位置不同就拆开。</summary>
+    [Fact]
+    public void ScrollUnits_GroupTranslationPlacedBeforeItsSource()
+    {
+        var document = BodianLyricParser.Parse(
+            "[kuwo:027]\n[00:01.00]<0,0>译<0,0>文\n[00:01.00]<99,-99>原<264,-132>文");
+
+        Assert.Equal([0, 0], document.BuildScrollUnitMap());
+    }
 }

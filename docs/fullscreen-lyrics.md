@@ -122,7 +122,9 @@ VIP / 付费标识位于顶部「歌名 - 歌手」标题旁，左下角改为�
 ## 歌词效果与浏览焦点
 
 自动播放时，播放行作为视觉焦点，中心停在歌词视口高度的约 42%。
-所有可见行使用不会越过锚点的单向收敛运动，换行后按距离错峰起步。
+滚动曲线对齐 LyciaMusic 使用的 AMLL（2026-10-24）：每句独立解析式弹簧落位，
+从视口顶部向下按 50 ms 的基础延迟逐句错峰，当前句以下每句把基础延迟除以 1.05；
+换目标时按当前速度接续，不越过目标回弹，也不会顿一下再走。
 当前行与未唱行保持相同字号，通过亮度、远景模糊和视口边缘渐隐区分状态，不再在高亮切换时缩放整行。
 字号随窗口变化，基本取窗口高度的 5% 与宽度的 2.5% 中较大的值，并限制在 24–80 DIP。
 
@@ -159,7 +161,8 @@ VIP / 付费标识位于顶部「歌名 - 歌手」标题旁，左下角改为�
 | `src/Bodian.WinUI/Controls/LyricsCanvasView.xaml(.cs)` | 透明合成表面、绘制生命周期、播放时钟及滚轮/拖动/点击事件 |
 | `src/Bodian.WinUI/LyricRenderer/LyricsRenderer.cs` | 播放焦点与浏览焦点、逐字渐变、长音、边缘羽化及点击命中 |
 | `src/Bodian.WinUI/LyricRenderer/LyricsLayout.cs` | 文本排版、字形到音节映射、独立长音排版、缓存资源释放 |
-| `src/Bodian.WinUI/LyricRenderer/LyricsScrollAnimator.cs` | 各行单向收敛、位置与速度、错峰起步 |
+| `src/Bodian.WinUI/LyricRenderer/LyricsScrollAnimator.cs` | 逐句弹簧、AMLL 延迟曲线、单元内同动 |
+| `src/Bodian.Core/Models/Lyrics/LyricSpring.cs` | 解析式弹簧（AMLL 参数）、速度接续、延迟目标 |
 | `src/Bodian.WinUI/LyricRenderer/LyricsLineGlyphMask.cs` | 未唱、悬停与高亮共用的固定字形像素 |
 | `src/Bodian.WinUI/LyricRenderer/LyricsActiveLineImage.cs` | 逐字颜色纹理与同一字形遮罩裁出的长音发光 |
 | `src/Bodian.Core/Models/Lyrics/LyricMotionMath.cs` | 弹簧、单向高亮、浏览行选择、字形扫光的纯数学 |
@@ -418,8 +421,26 @@ Shape Of You（`rid=21141302`），不是协议保证；后两首的结尾都是
 也不改变「下一行行首 − 本行行首」。副作用是好的：此前配对里的第一条 `Duration` 推出来是 0、
 会退回 5 秒兜底，两条窗口互相重叠；现在不再有这一层。
 
-渲染层（`LyricRenderer/` 整套）**一行都没改** —— 它只认 `LyricDocument`，
-开关改的是这个文档本身，换文档即换画面。
+渲染层的大部分（逐字扫光、长音、遮罩）**一行都没改** —— 它只认 `LyricDocument`，
+开关改的是这个文档本身，换文档即换画面。滚动动画是例外，见下一节。
+
+### 双行歌词的滚动：按句对齐锚点 + AMLL 弹簧（2026-10-23 ~ 10-24）
+
+双行歌词（原文 + 译文）在文档里是「原文 / 译文 / 原文 / 译文…」。此前每行各自成滚动单位，
+译文比原文晚 35 ms 起步，滚动中两行会拉开；相邻句隔两行，错峰延迟翻倍，邻句明显落队。
+现在分两层处理：
+
+| 层 | 变化 |
+| --- | --- |
+| 单元 | `LyricDocument.BuildScrollUnitMap` 把一句原文与其紧邻译文归为一个单元（译文并入上一句；文件开头的译文并入后面的第一句；剔除译文后每行自成单元），单元内各行共用同一个弹簧位置 |
+| 锚点 | 取单元的文档空间中心（`LyricsLayoutSnapshot.UnitCenters`），双行绕 42% 焦点线上下居中；浏览边界同样按首 / 末单元中心 |
+| 弹簧 | `LyricSpring` 按 AMLL 的纵向弹簧参数（mass 0.9 / damping 15 / stiffness 90）做解析求解，约 0.5 秒软落位、过冲不到 1%；换目标时按当前位置和速度重新起算 |
+| 错峰 | 对齐 AMLL：基础延迟 50 ms 从视口顶部向下逐句累加，当前句及以下每句把基础延迟除以 1.05；浏览时关闭错峰，整块跟手 |
+
+曲线来源是 LyciaMusic 使用的 AMLL（`@applemusic-like-lyrics/core` 0.2.0），求解器源自
+pushkine 的 MIT 实现。单行歌词（含关闭译文、中文歌）的单元就是行本身，行为与上一版一致。
+回归见 `LyricTranslationTests` 的 `ScrollUnits_*`、`LyricSpringTests` 与
+`LyricsScrollAnimatorTests`（单元同动、延迟起步、浏览跟手、落位停止）。
 
 ### 开关的落点
 

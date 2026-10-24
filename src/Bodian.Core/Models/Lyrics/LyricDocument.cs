@@ -133,6 +133,60 @@ public sealed record LyricDocument(IReadOnlyList<LyricLine> Lines, LyricKind Kin
     }
 
     /// <summary>
+    /// 每一行属于哪个滚动单元。同一句原文与紧邻的译文共用一个单元。
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// 滚动动画按<b>单元</b>而不是按<b>行</b>推进：一句原文和它的译文必须刚性同动。
+    /// 逐行错峰会让译文比原文晚一步起步，滚动词条的双行在运动中散开。
+    /// </para>
+    /// <para>
+    /// 译文跟在原文后面时并入上一句；文件开头的译文前面没有原文，并入它后面的第一句。
+    /// 返回的下标单调不减，单元总数等于末项加一。
+    /// </para>
+    /// </remarks>
+    public int[] BuildScrollUnitMap()
+    {
+        var map = new int[Lines.Count];
+        var leading = new List<int>();
+        var unit = -1;
+
+        for (var i = 0; i < map.Length; i++)
+        {
+            if (!Lines[i].IsTranslation)
+            {
+                unit++;
+                map[i] = unit;
+
+                foreach (var pending in leading)
+                {
+                    map[pending] = unit;
+                }
+
+                leading.Clear();
+                continue;
+            }
+
+            if (unit < 0)
+            {
+                leading.Add(i);
+            }
+            else
+            {
+                map[i] = unit;
+            }
+        }
+
+        // 整份文档都是译文时各自成单元，保证映射里没有空位。
+        foreach (var pending in leading)
+        {
+            map[pending] = ++unit;
+        }
+
+        return map;
+    }
+
+    /// <summary>
     /// 某一行对应的原文行下标；它本身就是原文时返回自身。
     /// </summary>
     /// <returns>行下标；越界时返回 <c>-1</c>。</returns>
