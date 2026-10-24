@@ -52,6 +52,18 @@ public sealed partial class LyricsPage : Page, INavigationAware
     private readonly List<DispatcherQueueTimer> _entranceTimers = [];
     private int _entranceVersion;
     private bool _entranceActive;
+
+    /// <summary>
+    /// 收起时长与内容层的上移距离。**宁少勿多**：参考实现整块滑走一屏，实测用力过猛。
+    /// </summary>
+    /// <remarks>
+    /// 收起不是「页面退场」，而是让回播放条这件事成为画面的主角：
+    /// 内容 400 ms 淡出并轻微上移，背景只淡出、不位移（不透明层一挪就会在顶部露出硬边），
+    /// 封面照常回位。
+    /// </remarks>
+    private static readonly TimeSpan ExitBackdropDuration = TimeSpan.FromMilliseconds(600);
+    private static readonly TimeSpan ExitContentDuration = TimeSpan.FromMilliseconds(400);
+    private const float ExitContentRiseDip = 8;
     private Brush? _coverFrameBackground;
     private float _reflectionOpacity;
     private bool _pointerOverChrome;
@@ -151,6 +163,17 @@ public sealed partial class LyricsPage : Page, INavigationAware
 
     public void OnNavigatedTo()
     {
+        // 上一次收起 / 被中途取消的入场会留下位移与透明度，先复位再入场。
+        AppMotion.Reset(BackdropLayer);
+        AppMotion.Reset(ContentLayer);
+        AppMotion.Reset(CommentsOverlay);
+        foreach (var element in new FrameworkElement[]
+        {
+            LyricsTitleBar, HeadingHost, ControlDeck, PositionSlider, SpectrumHost, CanvasHost, CoverDeck,
+        })
+        {
+            AppMotion.Reset(element);
+        }
         _chromeTimer.Tick += OnChromeTimer;
         _pointerTimer.Tick += OnPointerTimer;
         _layoutTimer.Tick += OnLayoutTimer;
@@ -261,19 +284,54 @@ public sealed partial class LyricsPage : Page, INavigationAware
         timer.Start();
     }
 
-    public void OnNavigatedFrom()
+    /// <summary>
+    /// 收起动画：背景层整体下移淡出，内容层同时淡出；封面由共享封面动画独立回位。
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// 时长与分层对齐参考实现 LyciaMusic（<c>PlayerDetail.vue</c> 的背景层 600 ms 下移一屏、
+    /// <c>useSharedTransition.ts</c> 的配角元素 400 ms 淡出）。此前把整个 <c>ImmersiveHost</c>
+    /// 当一块淡出，除了封面之外没有任何层在「收起」，观感就是内容直接消失。
+    /// </para>
+    /// <para>
+    /// 返回的任务在背景退场结束时完成 —— 导航要等它，只等封面飞行会把半截背景留在屏幕上。
+    /// </para>
+    /// </remarks>
+    internal Task PlayExitAsync()
     {
-        // 入场分层没放完就离开：取消计时器，把封面槽与倒影恢复原样。
+        CancelCoverEntrance();
+
+        var rise = new Vector3(0, -ExitContentRiseDip, 0);
+        _ = AppMotion.PlayAsync(ContentLayer, Vector3.Zero, rise, 1, 0,
+            Vector3.One, Vector3.One, ExitContentDuration);
+        _ = AppMotion.PlayAsync(CommentsOverlay, Vector3.Zero, rise, 1, 0,
+            Vector3.One, Vector3.One, ExitContentDuration);
+        return AppMotion.PlayAsync(BackdropLayer, Vector3.Zero, Vector3.Zero, 1, 0,
+            Vector3.One, Vector3.One, ExitBackdropDuration);
+    }
+
+    /// <summary>取消还没放完的入场分层，并把封面槽与倒影恢复原样。</summary>
+    private void CancelCoverEntrance()
+    {
         _entranceVersion++;
         foreach (var timer in _entranceTimers) timer.Stop();
         _entranceTimers.Clear();
-        if (_entranceActive)
+
+        if (!_entranceActive)
         {
-            _entranceActive = false;
-            CoverFrame.Background = _coverFrameBackground;
-            _coverFrameBackground = null;
-            ElementCompositionPreview.GetElementVisual(ReflectionView).Opacity = _reflectionOpacity;
+            return;
         }
+
+        _entranceActive = false;
+        CoverFrame.Background = _coverFrameBackground;
+        _coverFrameBackground = null;
+        ElementCompositionPreview.GetElementVisual(ReflectionView).Opacity = _reflectionOpacity;
+    }
+
+    public void OnNavigatedFrom()
+    {
+        // 入场分层没放完就离开：取消计时器，把封面槽与倒影恢复原样。
+        CancelCoverEntrance();
         if (_themeRoot is not null) _themeRoot.ActualThemeChanged -= OnAppThemeChanged;
         _themeRoot = null;
         CloseComments(restoreFocus: false);

@@ -24,19 +24,26 @@
         <KeyboardAccelerator Key="F11" Invoked="OnFullscreenInvoked" />
         <KeyboardAccelerator Key="Space" Invoked="OnPlayPauseInvoked" />
     </Page.KeyboardAccelerators>
-    <Grid x:Name="LyricsRoot" Background="#0B1222" SizeChanged="OnRootSizeChanged">
-        <controls:LyricsBackdrop x:Name="BackdropView" CoverUri="{x:Bind Player.CurrentCoverUri, Mode=OneWay}" />
-        <controls:AmbientBackdrop x:Name="AmbientView" Opacity="0.18" />
-        <Border IsHitTestVisible="False">
-            <Border.Background>
-                <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
-                    <GradientStop Color="#08000000" Offset="0" />
-                    <GradientStop Color="#08000000" Offset="0.5" />
-                    <GradientStop Color="#58000000" Offset="1" />
-                </LinearGradientBrush>
-            </Border.Background>
-        </Border>
-        <Grid>
+    <Grid x:Name="LyricsRoot" Background="Transparent" SizeChanged="OnRootSizeChanged">
+        <!--
+            背景单独一层：收起时整块向下退场（与 LyciaMusic 的 600 ms 一致），
+            底色从 LyricsRoot 挪到这里，root 本身保持透明，位移时不会留一条不动的底边。
+        -->
+        <Grid x:Name="BackdropLayer" Background="#0B1222">
+            <controls:LyricsBackdrop x:Name="BackdropView" CoverUri="{x:Bind Player.CurrentCoverUri, Mode=OneWay}" />
+            <controls:AmbientBackdrop x:Name="AmbientView" Opacity="0.18" />
+            <Border IsHitTestVisible="False">
+                <Border.Background>
+                    <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
+                        <GradientStop Color="#08000000" Offset="0" />
+                        <GradientStop Color="#08000000" Offset="0.5" />
+                        <GradientStop Color="#58000000" Offset="1" />
+                    </LinearGradientBrush>
+                </Border.Background>
+            </Border>
+        </Grid>
+        <!-- 内容整体淡出；封面本身由共享封面动画独立回位。 -->
+        <Grid x:Name="ContentLayer">
             <Grid.RowDefinitions>
                 <RowDefinition Height="72" />
                 <RowDefinition Height="*" />

@@ -2607,13 +2607,15 @@ public sealed partial class MainWindow : Window, IPlaylistLibrarySink, IWindowHa
             AppMotion.Reset(ImmersiveHost);
             return;
         }
-        if (current is LyricsPage)
+        if (current is LyricsPage lyricsPage)
         {
             // 外壳重新测量后，播放条的封面才有可用落点；封面在独立层中回位。
+            // 页面自己的背景层与内容层同时退场（见 LyricsPage.PlayExitAsync），
+            // 两者分别对应参考实现的 600 ms / 400 ms；导航等最长的那一块结束。
             ShellRoot.UpdateLayout();
             await Task.WhenAll(
                 _coverTransitions?.PlayLyricsDepartureAsync(next) ?? Task.FromResult(false),
-                AppMotion.ExitAsync(ImmersiveHost, 0, 0, TimeSpan.FromMilliseconds(420)));
+                lyricsPage.PlayExitAsync());
         }
         else
         {
