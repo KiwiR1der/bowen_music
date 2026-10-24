@@ -111,6 +111,16 @@
             <SolidColorBrush x:Key="AccentButtonBorderBrushDisabled" Color="Transparent" />
             <SolidColorBrush x:Key="AccentControlElevationBorderBrush" Color="Transparent" />
 
+            <!--
+                默认按钮的悬停 / 按下底色。
+                WinUI 3 浅色主题把 ButtonBackgroundPointerOver 定为 ControlFillColorSecondary
+                （#80F9F9F9，半透明近白），压在 #FAFAFA 的弹层或页面上与背景几乎一样，
+                看起来就像没有悬停反馈；深色那一档是 #15FFFFFF，在深底上看得见，
+                所以只有浅色露这个问题。这里改成与列表行、导航项同一套：悬停压暗 5%，按下 8%。
+            -->
+            <SolidColorBrush x:Key="ButtonBackgroundPointerOver" Color="#0D000000" />
+            <SolidColorBrush x:Key="ButtonBackgroundPressed" Color="#14000000" />
+
             <!-- 付费徽标直接读它（PlayerBar.xaml:89、TrackListView.xaml:57）。默认是 SystemAccentColorLight2 -->
             <SolidColorBrush x:Key="SystemFillColorAttentionBrush" Color="#FF00F3B0" />
 
