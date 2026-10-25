@@ -504,6 +504,11 @@ public partial class App : Application
             throw;
         }
 
+        // 字体的重启提示走通知条。构造注入会成环（通知条在主窗口里、主窗口构造依赖字体
+        // 已应用），所以主窗口就绪后回填 —— 与 ThemeViewModel.Transition 同一条接线。
+        _host.Services.GetRequiredService<FontSettingsViewModel>().Notice =
+            _host.Services.GetRequiredService<INoticeSink>();
+
         window.Closed += (_, _) =>
         {
             // ★ 先让当前页收尾，**必须排在释放容器之前**：
