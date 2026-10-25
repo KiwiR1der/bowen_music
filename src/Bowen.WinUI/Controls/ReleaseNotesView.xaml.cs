@@ -3,6 +3,7 @@ using Microsoft.UI.Text;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Documents;
+using Microsoft.UI.Xaml.Media;
 
 namespace Bowen.WinUI.Controls;
 
@@ -13,6 +14,12 @@ public sealed partial class ReleaseNotesView : UserControl
 {
     /// <summary>项目符号与正文之间的间距。</summary>
     private const double MarkerSpacing = 8;
+
+    /// <summary>
+    /// 小节标题字号。介于 <c>FontSizeBodyLarge</c>（14）与 <c>FontSizeTitle</c>（18）之间：
+    /// 14 与正文 13 只差一号、看不出来，18 又逼近弹窗标题。
+    /// </summary>
+    private const double HeadingFontSize = 16;
 
     public ReleaseNotesView() => InitializeComponent();
 
@@ -40,10 +47,11 @@ public sealed partial class ReleaseNotesView : UserControl
         }
     }
 
-    private static FrameworkElement BuildLine(ReleaseNoteLine line, int index) => line.Kind switch
+    private FrameworkElement BuildLine(ReleaseNoteLine line, int index) => line.Kind switch
     {
         ReleaseNoteLineKind.Heading => BuildHeading(line),
         ReleaseNoteLineKind.Bullet => BuildBullet(line),
+        ReleaseNoteLineKind.Quote => BuildQuote(line),
         _ => BuildParagraph(line),
     };
 
@@ -51,8 +59,12 @@ public sealed partial class ReleaseNotesView : UserControl
     {
         var block = new TextBlock
         {
-            FontWeight = FontWeights.SemiBold,
+            // 正文 13，标题 16 粗体。半粗在中文上会落到常规字重，看起来像没加粗。
+            FontSize = HeadingFontSize,
+            FontWeight = FontWeights.Bold,
             TextWrapping = TextWrapping.Wrap,
+            LineHeight = 20,
+            Margin = new Thickness(0, 6, 0, 0),
         };
 
         AddSpans(block, line.Spans);
@@ -61,9 +73,39 @@ public sealed partial class ReleaseNotesView : UserControl
 
     private static TextBlock BuildParagraph(ReleaseNoteLine line)
     {
-        var block = new TextBlock { TextWrapping = TextWrapping.Wrap };
+        var block = new TextBlock
+        {
+            FontSize = Token("FontSizeBody"),
+            TextWrapping = TextWrapping.Wrap,
+            LineHeight = 20,
+        };
+
         AddSpans(block, line.Spans);
         return block;
+    }
+
+    /// <summary>从 <c>Tokens.xaml</c> 取字号标量。</summary>
+    private static double Token(string key) => (double)Application.Current.Resources[key];
+
+    /// <summary>
+    /// 引用块：左侧一条强调色竖条，正文用次级色，与正常段落拉开层次。
+    /// </summary>
+    private FrameworkElement BuildQuote(ReleaseNoteLine line)
+    {
+        var row = new Grid { ColumnSpacing = 10 };
+        row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+
+        var bar = new Border { Style = (Style)Resources["QuoteBarStyle"], Margin = new Thickness(0, 1, 0, 1) };
+        var text = new TextBlock { Style = (Style)Resources["QuoteTextStyle"] };
+        AddSpans(text, line.Spans);
+
+        Grid.SetColumn(bar, 0);
+        Grid.SetColumn(text, 1);
+
+        row.Children.Add(bar);
+        row.Children.Add(text);
+        return row;
     }
 
     /// <summary>
@@ -82,14 +124,21 @@ public sealed partial class ReleaseNotesView : UserControl
         var marker = new TextBlock
         {
             Text = "•",
+            FontSize = Token("FontSizeBody"),
             VerticalAlignment = VerticalAlignment.Top,
+            LineHeight = 20,
 
             // 稍微压暗一点，符号不该和正文抢注意力。用 Opacity 而不是指定画刷：
             // 画刷要从资源字典里取，而取出来的那个不跟着主题走。
             Opacity = 0.7,
         };
 
-        var text = new TextBlock { TextWrapping = TextWrapping.Wrap };
+        var text = new TextBlock
+        {
+            FontSize = Token("FontSizeBody"),
+            TextWrapping = TextWrapping.Wrap,
+            LineHeight = 20,
+        };
         AddSpans(text, line.Spans);
 
         Grid.SetColumn(marker, 0);
@@ -104,11 +153,23 @@ public sealed partial class ReleaseNotesView : UserControl
     {
         foreach (var span in spans)
         {
-            block.Inlines.Add(new Run
+            var run = new Run
             {
                 Text = span.Text,
-                FontWeight = span.IsBold ? FontWeights.SemiBold : FontWeights.Normal,
-            });
+
+                // 中文内容里 SemiBold 会落到常规字重，粗体标记必须用 Bold 才看得出来。
+                FontWeight = span.IsBold ? FontWeights.Bold : FontWeights.Normal,
+            };
+
+            if (span.IsCode)
+            {
+                // Run 没有 Background，代码靠等宽字体与略小的字号区分。
+                // Cascadia Mono 不在 Win10 上，回退到 Consolas。
+                run.FontFamily = new FontFamily("Cascadia Mono, Consolas");
+                run.FontSize = 13;
+            }
+
+            block.Inlines.Add(run);
         }
     }
 }

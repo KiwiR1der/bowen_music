@@ -116,4 +116,58 @@ public sealed class ReleaseNotesTests
         var line = Assert.Single(lines);
         Assert.Equal("正文。", line.Text);
     }
+
+    [Fact]
+    public void Parse_ConsecutiveQuoteLinesBecomeOneBlock()
+    {
+        var lines = ReleaseNotes.Parse("## 1.0.0\n\n> 第一句。\n> 第二句。\n\n正文。\n");
+
+        Assert.Equal(2, lines.Count);
+        Assert.Equal(ReleaseNoteLineKind.Quote, lines[0].Kind);
+        Assert.Equal("第一句。 第二句。", lines[0].Text);
+        Assert.Equal(ReleaseNoteLineKind.Paragraph, lines[1].Kind);
+    }
+
+    [Fact]
+    public void Parse_QuoteKeepsInlineMarkup()
+    {
+        var line = Assert.Single(ReleaseNotes.Parse("## 1.0.0\n\n> **注意**：覆盖前先备份。\n"));
+
+        Assert.Equal(ReleaseNoteLineKind.Quote, line.Kind);
+        Assert.True(line.Spans[0].IsBold);
+        Assert.Equal("注意", line.Spans[0].Text);
+    }
+
+    [Fact]
+    public void Parse_SplitsInlineCodeSpans()
+    {
+        var line = Assert.Single(ReleaseNotes.Parse("## 1.0.0\n\n可执行文件是 `BowenMusic.exe`。\n"));
+
+        Assert.Equal(3, line.Spans.Count);
+        Assert.Equal("可执行文件是 ", line.Spans[0].Text);
+        Assert.True(line.Spans[1].IsCode);
+        Assert.Equal("BowenMusic.exe", line.Spans[1].Text);
+        Assert.Equal("。", line.Spans[2].Text);
+    }
+
+    [Fact]
+    public void Parse_BoldAndCodeCanShareALine()
+    {
+        var line = Assert.Single(ReleaseNotes.Parse("## 1.0.0\n\n- **注意** `BowenMusic.exe` 已改名。\n"));
+
+        Assert.True(line.Spans[0].IsBold);
+
+        var code = Assert.Single(line.Spans, span => span.IsCode);
+        Assert.Equal("BowenMusic.exe", code.Text);
+        Assert.False(code.IsBold);
+    }
+
+    [Fact]
+    public void Parse_UnpairedBacktickStaysLiteral()
+    {
+        var line = Assert.Single(ReleaseNotes.Parse("## 1.0.0\n\n少了半个反引号 `x\n"));
+
+        Assert.DoesNotContain(line.Spans, span => span.IsCode);
+        Assert.Contains("`x", line.Text, StringComparison.Ordinal);
+    }
 }

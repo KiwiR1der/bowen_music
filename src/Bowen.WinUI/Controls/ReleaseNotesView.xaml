@@ -15,8 +15,27 @@
 
         右侧留出 12 的内边距：滚动条压在正文上会盖住最后几个字。
     -->
+    <UserControl.Resources>
+        <!--
+            引用块的两件套。颜色必须走主题资源：对话框是代码构造的，
+            RequestedTheme 由宿主传进来，代码里取画刷拿不到当前主题。
+        -->
+        <Style x:Key="QuoteBarStyle" TargetType="Border">
+            <Setter Property="Width" Value="3" />
+            <Setter Property="CornerRadius" Value="2" />
+            <Setter Property="Background" Value="{ThemeResource AccentFillColorDefaultBrush}" />
+            <Setter Property="VerticalAlignment" Value="Stretch" />
+        </Style>
+        <Style x:Key="QuoteTextStyle" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="{StaticResource FontSizeBody}" />
+            <Setter Property="Foreground" Value="{ThemeResource TextFillColorSecondaryBrush}" />
+            <Setter Property="TextWrapping" Value="Wrap" />
+            <Setter Property="LineHeight" Value="20" />
+        </Style>
+    </UserControl.Resources>
+
     <ScrollViewer
-        MaxHeight="200"
+        MaxHeight="360"
         HorizontalScrollBarVisibility="Disabled"
         HorizontalScrollMode="Disabled"
         VerticalScrollBarVisibility="Auto"
@@ -25,6 +44,6 @@
         <StackPanel
             x:Name="Host"
             Padding="0,0,12,0"
-            Spacing="8" />
+            Spacing="10" />
     </ScrollViewer>
 </UserControl>

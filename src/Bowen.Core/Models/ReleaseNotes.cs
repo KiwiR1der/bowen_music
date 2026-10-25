@@ -11,10 +11,13 @@ public enum ReleaseNoteLineKind
 
     /// <summary>普通段落。</summary>
     Paragraph,
+
+    /// <summary><c>&gt; …</c> 这类引用块。</summary>
+    Quote,
 }
 
-/// <summary>行内的一段。只有「是不是粗体」一种属性 —— 正文里只用到了这一种行内标记。</summary>
-public sealed record ReleaseNoteSpan(string Text, bool IsBold);
+/// <summary>行内的一段。正文里只用到了粗体与行内代码两种行内标记。</summary>
+public sealed record ReleaseNoteSpan(string Text, bool IsBold, bool IsCode = false);
 
 /// <summary>发布说明里的一行，已切成可直接渲染的片段。</summary>
 public sealed record ReleaseNoteLine(ReleaseNoteLineKind Kind, IReadOnlyList<ReleaseNoteSpan> Spans)
@@ -28,8 +31,9 @@ public sealed record ReleaseNoteLine(ReleaseNoteLineKind Kind, IReadOnlyList<Rel
 /// </summary>
 /// <remarks>
 /// <para>
-/// <b>只支持三种语法</b>（<c>###</c> 小标题、<c>-</c> 项目符号、<c>**粗体**</c>），
-/// 因为 <c>changes.md</c> 的正文就只用这三种。为此引入一整套 markdown 解析与渲染不划算 ——
+/// <b>只支持五种语法</b>（<c>###</c> 小标题、<c>-</c> 项目符号、<c>**粗体**</c>、
+/// <c>`行内代码`</c>、<c>&gt;</c> 引用），因为 <c>changes.md</c> 的正文就只用这些。
+/// 为此引入一整套 markdown 解析与渲染不划算 ——
 /// 本项目对体积是计较的（见 <c>docs/size-optimization.md</c>）。
 /// </para>
 /// <para>
@@ -85,6 +89,19 @@ public static class ReleaseNotes
                 break;
             }
 
+            if (TryReadQuote(line, out var quote))
+            {
+                // 连续多行引用属于同一段，合并成一行，否则每行都会单独占一段间距。
+                while (i + 1 < lines.Length && TryReadQuote(lines[i + 1].Trim(), out var next))
+                {
+                    i++;
+                    quote = quote.Length == 0 ? next : $"{quote} {next}";
+                }
+
+                result.Add(new ReleaseNoteLine(ReleaseNoteLineKind.Quote, ParseSpans(quote)));
+                continue;
+            }
+
             if (line.StartsWith("### ", StringComparison.Ordinal))
             {
                 result.Add(new ReleaseNoteLine(ReleaseNoteLineKind.Heading, ParseSpans(line[4..].Trim())));
@@ -103,10 +120,11 @@ public static class ReleaseNotes
         return result;
     }
 
-    /// <summary>把 <c>**x**</c> 切成粗体片段与普通片段。</summary>
+    /// <summary>把 <c>**x**</c> 与 <c>`x`</c> 切成片段，其余按普通文本处理。</summary>
     /// <remarks>
-    /// <b>不成对的 <c>**</c> 按普通字符处理</b>（后面的 <c>bold</c> 翻不回来就停在那里），
-    /// 不会因为正文里少写一个星号就丢掉半行字。
+    /// <b>不成对的标记按普通字符处理</b>：后面的内容翻不回原状，就停在标记处，
+    /// 不会因为正文里少写一个星号或反引号就丢掉半行字。
+    /// 行内代码优先于粗体，代码里的 <c>**</c> 不再当作粗体标记。
     /// </remarks>
     private static List<ReleaseNoteSpan> ParseSpans(string text)
     {
@@ -114,9 +132,28 @@ public static class ReleaseNotes
         var bold = false;
         var start = 0;
 
-        for (var i = 0; i + 1 < text.Length; i++)
+        for (var i = 0; i < text.Length; i++)
         {
-            if (text[i] != '*' || text[i + 1] != '*')
+            if (text[i] == '`')
+            {
+                var close = text.IndexOf('`', i + 1);
+                if (close < 0)
+                {
+                    continue;   // 未闭合，按普通字符处理
+                }
+
+                if (i > start)
+                {
+                    spans.Add(new ReleaseNoteSpan(text[start..i], bold));
+                }
+
+                spans.Add(new ReleaseNoteSpan(text[(i + 1)..close], IsBold: false, IsCode: true));
+                i = close;
+                start = i + 1;
+                continue;
+            }
+
+            if (text[i] != '*' || i + 1 >= text.Length || text[i + 1] != '*')
             {
                 continue;
             }
@@ -137,6 +174,19 @@ public static class ReleaseNotes
         }
 
         return spans;
+    }
+
+    /// <summary>认出 <c>&gt;</c> 引用行，返回去掉标记后的内容。</summary>
+    private static bool TryReadQuote(string line, out string content)
+    {
+        if (line.Length > 0 && line[0] == '>')
+        {
+            content = line[1..].Trim();
+            return true;
+        }
+
+        content = "";
+        return false;
     }
 
     private static bool IsHorizontalRule(string line) =>
