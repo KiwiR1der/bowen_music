@@ -487,15 +487,40 @@
                                 HorizontalAlignment="Center"
                                 Orientation="Horizontal"
                                 Spacing="8">
+                                <!-- 当前版本：中性胶囊，与页面上其它次级信息同一套底色。 -->
+                                <Border
+                                    Padding="7,2"
+                                    VerticalAlignment="Center"
+                                    Background="{ThemeResource ControlFillColorSecondaryBrush}"
+                                    BorderBrush="{ThemeResource ControlStrokeColorDefaultBrush}"
+                                    BorderThickness="1"
+                                    CornerRadius="4">
+                                    <TextBlock
+                                        FontSize="{StaticResource FontSizeBody}"
+                                        Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                        Text="{x:Bind ViewModel.About.VersionLabel}" />
+                                </Border>
+
+                                <!-- 有新版本时：当前版本 → 新版本。箭头跟新版本胶囊一起出现，平时整段收起。 -->
                                 <TextBlock
+                                    VerticalAlignment="Center"
                                     FontSize="{StaticResource FontSizeBody}"
                                     Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                                    Text="{x:Bind ViewModel.About.VersionLabel}" />
-                                <TextBlock
-                                    FontSize="{StaticResource FontSizeBody}"
-                                    Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}"
-                                    Text="{x:Bind ViewModel.Update.LatestVersionLabel, Mode=OneWay}"
+                                    Text="→"
                                     Visibility="{x:Bind local:Formats.Visible(ViewModel.Update.HasUpdate), Mode=OneWay}" />
+
+                                <Border
+                                    Padding="7,2"
+                                    VerticalAlignment="Center"
+                                    Background="{ThemeResource AccentFillColorSelectedTextBackgroundBrush}"
+                                    CornerRadius="4"
+                                    Visibility="{x:Bind local:Formats.Visible(ViewModel.Update.HasUpdate), Mode=OneWay}">
+                                    <TextBlock
+                                        FontSize="{StaticResource FontSizeBody}"
+                                        FontWeight="SemiBold"
+                                        Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}"
+                                        Text="{x:Bind ViewModel.Update.LatestVersionLabel, Mode=OneWay}" />
+                                </Border>
                             </StackPanel>
 
                             <TextBlock
