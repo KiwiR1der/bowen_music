@@ -128,18 +128,39 @@ jobs:
         run: |
           # 产物里没有中文文件名，所以 Compress-Archive 可以当降级方案（PS 5.1 的那个坑不涉及）。
           $has7z = [bool](Get-Command 7z -ErrorAction SilentlyContinue)
+          Add-Type -AssemblyName System.IO.Compression.FileSystem
 
+          # 7z 会把命令行里给出的相对目录原样写进条目（dir\* 会打成 dir\file），
+          # 所以先进入产物目录再用通配符打包，条目才会落在压缩包根目录。
           function New-PortableZip($dir, $zip) {
-            if ($has7z) {
-              # 通配符交给 7z 自己展开，条目就落在压缩包根目录（不会多一层 publish\）。
-              7z a -tzip -mx=9 $zip "$dir\*" | Out-Null
-              if ($LASTEXITCODE -ne 0) { throw "7z 打包失败：$zip" }
-            } else {
-              Write-Warning "代理上没有 7z，降级用 Compress-Archive（压缩率略差）"
-              Compress-Archive -Path "$dir\*" -DestinationPath $zip -CompressionLevel Optimal
+            if (-not [IO.Path]::IsPathRooted($zip)) {
+              $zip = Join-Path (Get-Location).Path $zip
+            }
+
+            Push-Location $dir
+            try {
+              if ($has7z) {
+                7z a -tzip -mx=9 $zip * | Out-Null
+                if ($LASTEXITCODE -ne 0) { throw "7z 打包失败：$zip" }
+              } else {
+                Write-Warning "代理上没有 7z，降级用 Compress-Archive（压缩率略差）"
+                Compress-Archive -Path * -DestinationPath $zip -CompressionLevel Optimal
+              }
+            } finally {
+              Pop-Location
             }
 
             if (-not (Test-Path $zip)) { throw "没生成 $zip" }
+
+            # 根层必须能直接看到主程序，防止条目再次被套上一层目录。
+            $archive = [IO.Compression.ZipFile]::OpenRead($zip)
+            try {
+              if (-not ($archive.Entries | Where-Object { $_.FullName -eq 'BowenMusic.exe' })) {
+                throw "$zip 的根目录没有 BowenMusic.exe，条目被套了目录"
+              }
+            } finally {
+              $archive.Dispose()
+            }
           }
 
           New-PortableZip "$env:OUT/publish"            "$env:OUT/BowenMusic_${env:VERSION}_x64_portable.zip"
