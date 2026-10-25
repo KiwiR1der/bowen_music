@@ -83,6 +83,28 @@
             <SolidColorBrush x:Key="AccentFillColorSelectedTextBackgroundBrush" Color="#3300F3B0" />
             <SolidColorBrush x:Key="AccentFillColorDisabled" Color="#4D00F3B0" />
 
+            <!--
+                ── Slider 的强调色 ──
+                WinUI 模板里的 SliderTrackValueFill / SliderThumbBackground 是
+                <StaticResource ResourceKey="AccentFillColorDefaultBrush" /> 这类别名，
+                随 XamlControlsResources 加载时就绑死成框架自己那份（系统强调色），
+                应用层覆盖 AccentFillColorDefaultBrush 传不进去。不在主题字典里重写一遍，
+                所有滑条（播放进度、音量、桌面歌词字号、小窗、设置页）都会是系统蓝。
+
+                只写颜色，几何尺寸仍由各使用处自己给。
+            -->
+            <SolidColorBrush x:Key="SliderTrackValueFill" Color="#FF00F3B0" />
+            <SolidColorBrush x:Key="SliderTrackValueFillPointerOver" Color="#FF00D9A0" />
+            <SolidColorBrush x:Key="SliderTrackValueFillPressed" Color="#FF00BE8C" />
+            <SolidColorBrush x:Key="SliderTrackValueFillDisabled" Color="#4D00F3B0" />
+            <SolidColorBrush x:Key="SliderThumbBackground" Color="#FF00F3B0" />
+            <SolidColorBrush x:Key="SliderThumbBackgroundPointerOver" Color="#FF00D9A0" />
+            <SolidColorBrush x:Key="SliderThumbBackgroundPressed" Color="#FF00BE8C" />
+            <SolidColorBrush x:Key="SliderThumbBackgroundDisabled" Color="#4D00F3B0" />
+            <SolidColorBrush x:Key="SliderInnerThumbBackground" Color="#FF00F3B0" />
+            <SolidColorBrush x:Key="SliderInnerThumbBackgroundPointerOver" Color="#FF00D9A0" />
+            <SolidColorBrush x:Key="SliderInnerThumbBackgroundPressed" Color="#FF00BE8C" />
+
             <SolidColorBrush x:Key="AccentTextFillColorPrimaryBrush" Color="#FF007A57" />
             <SolidColorBrush x:Key="AccentTextFillColorSecondaryBrush" Color="#FF006B4C" />
             <SolidColorBrush x:Key="AccentTextFillColorTertiaryBrush" Color="#99007A57" />
@@ -279,6 +301,19 @@
             <SolidColorBrush x:Key="AccentFillColorDisabledBrush" Color="#4D00F3B0" />
             <SolidColorBrush x:Key="AccentFillColorSelectedTextBackgroundBrush" Color="#3300F3B0" />
             <SolidColorBrush x:Key="AccentFillColorDisabled" Color="#4D00F3B0" />
+
+            <!-- 同浅色：这些键必须按主题重写，理由见 Light 那一份的注释。悬停 / 按下取深色档。 -->
+            <SolidColorBrush x:Key="SliderTrackValueFill" Color="#FF00F3B0" />
+            <SolidColorBrush x:Key="SliderTrackValueFillPointerOver" Color="#FF1AFFBF" />
+            <SolidColorBrush x:Key="SliderTrackValueFillPressed" Color="#FF00D9A0" />
+            <SolidColorBrush x:Key="SliderTrackValueFillDisabled" Color="#4D00F3B0" />
+            <SolidColorBrush x:Key="SliderThumbBackground" Color="#FF00F3B0" />
+            <SolidColorBrush x:Key="SliderThumbBackgroundPointerOver" Color="#FF1AFFBF" />
+            <SolidColorBrush x:Key="SliderThumbBackgroundPressed" Color="#FF00D9A0" />
+            <SolidColorBrush x:Key="SliderThumbBackgroundDisabled" Color="#4D00F3B0" />
+            <SolidColorBrush x:Key="SliderInnerThumbBackground" Color="#FF00F3B0" />
+            <SolidColorBrush x:Key="SliderInnerThumbBackgroundPointerOver" Color="#FF1AFFBF" />
+            <SolidColorBrush x:Key="SliderInnerThumbBackgroundPressed" Color="#FF00D9A0" />
 
             <SolidColorBrush x:Key="AccentTextFillColorPrimaryBrush" Color="#FF00F3B0" />
             <SolidColorBrush x:Key="AccentTextFillColorSecondaryBrush" Color="#B300F3B0" />
