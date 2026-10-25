@@ -85,6 +85,7 @@ P6 桌面歌词已完成并获用户确认，不再属于未开工项。窗口�
   其中 **`20:25:27` 那次是登录修复之前的二进制**，所以不是修复引入的。
 - 另有一类 `c000027b`（`Microsoft.ui.xaml.dll`，偏移 `0x3a9dbd`，WinRT stowed exception），
   从 2026-10-05 起出现得多得多。**是否与前者同源未知**，先别当成一个 bug 看。
+  2026-10-25 的 MV 闪退是同一偏移，那一次拿到了托管栈，见下一节。
 - 崩溃落在窗口关闭之后的收尾路径上。`22:40:39` 那次之前，日志里有
   `扫码登录失败 ObjectDisposedException: System.Net.Http.HttpClient` ——
   轮询还在飞的时候 `window.Closed` 已经把 `_host.Dispose()` 走到释放 HttpClient 了。
@@ -102,6 +103,49 @@ P6 桌面歌词已完成并获用户确认，不再属于未开工项。窗口�
 
 **已排除**：不是单实例互斥量本身写错（无实例在跑时双击能正常开）；不是 `AccountChanged`
 跨线程那条路径（那条已在 `ui-refresh.md` §33.1 修掉，且崩溃在它之前就有）。
+
+## MV 页打开时的原生崩溃（2026-10-25，**低概率，未复现**）
+
+**症状**：在歌词页停留时点「播放 MV」，应用直接闪退。当天出现一次，之后同一构建
+连续打开 MV 两次均正常；用户按「歌词页 → 切歌 → 立刻点 MV」也无法稳定复现。
+
+**已观测到的证据**：
+
+- 事件日志：`0xc000027b`，故障模块 `Microsoft.ui.xaml.dll`（3.2.3.0），偏移 `0x3a9dbd`。
+  与「退出时的原生崩溃」里记的那条 stowed exception **同模块同偏移**。
+- WER：`Sig[3]` 为 `StackHash12_c04`，异常码 `8000ffff`（`E_UNEXPECTED`），没有可用栈。
+- 转储（`%LOCALAPPDATA%\CrashDumps\BowenMusic.exe.44732.dmp`）里的托管栈：
+  - 后台倒影线程停在 `AlbumCoverReflection.cs:113` 的
+    `new CanvasRenderTarget(_device, side, height, 96)`；
+  - UI 线程停在歌词页 `CanvasControl.Draw` 的 WinRT 事件封送处；
+  - `SurfaceWorker.Run` 的帧内调用点落在 `CompositionCanvasHost.cs:224`。
+- 日志里既没有「XAML 未处理异常」，也没有 `SurfaceWorker` 的「后台绘制失败」。
+  说明不是托管异常被吞掉，是 Win2D 在原生层 fail-fast，托管 catch（
+  `CompositionCanvasHost.cs:230`）没有机会执行。
+- 时间线：`11:03:24.491` 切歌（`加载音频：当冬夜渐暖`）→ `11:03:25.044` 歌词重排 →
+  `11:03:25` 崩溃。MV 页没有记「MV 画面尺寸」，说明崩在媒体打开之前。
+
+**没能确定的**：WER 的 minidump 不完整，`dumpheap` 读不到堆，因此拿不到崩溃时
+`ReflectionRenderer` 的视口尺寸和 `CanvasDevice` 状态，无法区分是「尺寸非法」
+还是「设备丢失后仍在创建资源」。`dumpobj` 对栈上的对象地址直接报
+`invalid CLASS field`。
+
+**已排除**：与 2026-10-25 的 Slider 主题色改动无关。那次改动只往
+`Themes/Theme.xaml` 的两套主题字典里加了滑条颜色资源，不涉及 Win2D 绘制线程；
+同一构建上 MV 两次正常打开始于此。
+
+**复现条件（推测，未验证）**：歌词页可见时切歌，封面倒影正在按新封面重建
+render target，同一瞬间进入 MV 页。
+
+**下一步**：
+
+- 复发时先保留 `%LOCALAPPDATA%\CrashDumps\BowenMusic.exe.*.dmp`。要读托管堆需要
+  完整转储（`dotnet-dump collect` 或 `procdump -ma`），WER 那份不够。
+- 候选修法（**未实施**）：`CompositionCanvasHost.ReleaseSurface()` 等绘制线程
+  真正退出后再释放合成对象；`ReflectionRenderer.Draw` 建 render target 前检查
+  设备是否丢失、尺寸是否有效（不小于 1 且有限）。
+- 在拿到可复现路径或完整转储之前，不要改渲染线程的启停与资源生命周期 ——
+  这个子系统在 `backlog.md` 的 Win2D 坑位里已有多次「改错更糟」的记录。
 
 ## 静音开关的手动验收（2026-10-07）
 
