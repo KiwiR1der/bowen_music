@@ -202,6 +202,11 @@ public partial class App : Application
             logger: sp.GetRequiredService<ILogger<JsonLyricsSettingsStore>>()));
         builder.Services.AddSingleton<LyricsViewModel>();
 
+        // 界面字体偏好（font-settings.json）。与主题、歌词分开存，重启后生效。
+        builder.Services.AddSingleton<IFontSettingsStore>(sp => new JsonFontSettingsStore(
+            logger: sp.GetRequiredService<ILogger<JsonFontSettingsStore>>()));
+        builder.Services.AddSingleton<FontSettingsViewModel>();
+
         // 桌面歌词。外观偏好与窗口几何分两个文件存，与主窗口那套拆法一致。
         // 位置那一条不写新实现，直接把现成的 JsonWindowPlacementStore 换个路径注册 ——
         // 所以它按 IDesktopLyricsPlacementStore 这个空接口注册，两个注册才不会打架。
@@ -483,6 +488,9 @@ public partial class App : Application
         //   窗口出现的时机不受影响：外壳仍在主窗口首次布局之后才立起来（见 MainWindow.OnHostLoaded）。
         //   没有存档会话时这里是空操作，那时协调器按匿名读队列，正是该有的行为。
         _host.Services.GetRequiredService<IBodianLogin>().TryRestorePersistedSession();
+
+        // 启动时应用已保存字体；设置页改动只落盘，不触碰当前窗口。
+        _host.Services.GetRequiredService<FontSettingsViewModel>();
 
         try
         {

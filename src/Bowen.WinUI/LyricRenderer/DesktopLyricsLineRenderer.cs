@@ -23,13 +23,13 @@ internal sealed class DesktopLyricsLineRenderer : IDisposable
     private double _scrollOffset = double.NaN;
 
     public DesktopLyricsLineRenderer(CanvasDevice device, LyricLine line, double fontSize,
-        double scale, Color highlight)
+        string fontFamily, double scale, Color highlight)
     {
         Line = line;
         var text = string.IsNullOrEmpty(line.Text) ? " " : line.Text;
         using var format = new CanvasTextFormat
         {
-            FontFamily = LyricsRenderSettings.Default.FontFamily,
+            FontFamily = string.IsNullOrEmpty(fontFamily) ? LyricsRenderSettings.Default.FontFamily : fontFamily,
             FontSize = (float)fontSize,
             FontWeight = Microsoft.UI.Text.FontWeights.Bold,
             WordWrapping = CanvasWordWrapping.NoWrap,

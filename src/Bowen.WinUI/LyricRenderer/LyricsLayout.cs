@@ -485,7 +485,8 @@ internal sealed class LyricsLayoutEngine(LyricsRenderSettings settings) : IDispo
 
     private CanvasTextFormat GetFormat()
     {
-        if (_format is not null && Math.Abs(_format.FontSize - settings.BaseFontSize) > 0.1)
+        if (_format is not null && (Math.Abs(_format.FontSize - settings.BaseFontSize) > 0.1
+            || !string.Equals(_format.FontFamily, settings.FontFamily, StringComparison.Ordinal)))
         {
             _format.Dispose();
             _format = null;

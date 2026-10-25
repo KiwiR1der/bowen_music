@@ -6,6 +6,8 @@
 
 2026-10-07 补充：主题切换使用 650 ms 的独立合成遮罩，保留完整的主题资源解析；分类内容也接入统一入场动画。实现约束、浅色样式回归的修复及验证见 [应用动画](animations.md)。
 
+2026-10-15 补充：新增「界面 / 全屏歌词 / 桌面歌词」三个字体配置项，见 §10。
+
 ---
 
 ## 1. 入口与布局
@@ -540,4 +542,61 @@ YOASOBI 的 256×256 缩略图，以及失败位图移除后重新请求。
 
 用户常用 EXE 为 `src/Bowen.WinUI/bin/Debug/net10.0-windows10.0.26100.0/win-x64/BowenMusic.exe`。
 临时构建路径与它不同，旧进程仍在运行时，新 EXE 可能只唤醒旧实例；验收前应确认进程路径与构建版本。
-该处理依赖固定 WinUI 内部导入，升级运行时后需要重新验证，见 [`ime-candidate-window.md`](ime-candidate-window.md)。
+
+---
+
+## 10. 字体配置（2026-10-15）
+
+设置页新增三个字体项：**界面字体**（外观分组）、**歌词字体**（歌词分组）、**桌面歌词字体**（桌面歌词分组）。
+选项都是「默认字体 + 系统已装字体」，无字体的名字不校验存在性，缺字体时渲染层回退默认。
+
+### 10.1 存储拆分
+
+| 项 | 文件 | 生效时机 |
+| --- | --- | --- |
+| 界面字体 | `font-settings.json`（新） | **重启后生效** |
+| 全屏歌词字体 | `lyrics.json`（新增 `FontFamily` 字段） | 即时重排 |
+| 桌面歌词字体 | `desktop-lyrics.json`（新增 `FontFamily` 字段） | 即时重排 |
+
+界面字体单独一份文件、且重启生效是刻意的：换正在跑的窗口的字体需要整棵可视树以一致度量重排，
+各页面状态（滚动位置、动画、虚拟化）都可能被打乱；歌词两处是自绘 Win2D 表面，重排只是重建文本布局，即时生效安全。
+
+### 10.2 界面字体的应用链
+
+`FontSettingsViewModel` 构造时（组合根在**主窗口创建之前**解析它）读偏好，把字体写入应用资源
+`ContentControlThemeFontFamily`，整棵可视树经属性继承拿到。设置页改动只落盘，不触碰当前窗口。
+
+**但覆盖这一个资源不够**。WinUI 框架有三类样式把字体写成字面量 `XamlAutoFontFamily`
+（哨兵值，不走资源查找），每类都要单独收口到 `Themes/FontOverride.xaml`：
+
+1. `BaseTextBlockStyle` 及全部派生排版样式（Title / Subtitle / Body / Caption / BodyStrong…，
+   含 RichTextBlock 两条）—— 页面标题、列表文字用的都是它们；
+2. `BaseContentPresenterStyle` / `BaseContentControlStyle`（**带 SemiBold**）——
+   ListBoxItem / ListView 项模板经 `BodyContentPresenterStyle` 显示文字，设置页左侧分类栏的粗体就在这条路径上；
+3. `TextBlock.FontFamily` 的依赖属性默认值本身就是哨兵值 —— **无样式的裸 TextBlock**
+   （设置行标题/说明、歌词条设置面板、小窗播放器）两条都沾不上，由 FontOverride 里的
+   **隐式 TextBlock 样式**兜底。
+
+FontOverride 按框架定义原样重抄、唯一差别是字体走 `{ThemeResource ContentControlThemeFontFamily}`。
+**合并顺序**：必须在 `XamlControlsResources` 之后（覆盖才生效），又必须在 `Pages.xaml` 之前
+（`StaticResource` 在字典加载时一次性解析，`BowenPageTitle` 等 `BasedOn` 要解析到覆盖版）。
+
+**升级 Windows App SDK 的同步义务**：框架若增改这些样式，FontOverride 要跟着抄；
+对照方法：generic.xaml 里 `Select-String 'TextBlockStyle|ContentPresenterStyle|ContentControlStyle'` 对照该文件。
+
+### 10.3 歌词字体链
+
+全屏歌词：`LyricsViewModel.FontFamily` → `LyricsRenderer.SetFontFamily`（标记整份文档重排）→
+`LyricsLayout.GetFormat` 检测字体变化重建 `CanvasTextFormat`。空串回退渲染层内置的
+`Segoe UI Variable Display`。改译文开关时保留字体（落盘读改写整份 `LyricsSettings`）。
+
+桌面歌词：`DesktopLyricsViewModel.FontFamily` → `DesktopLyricsRenderInput` 携带字体 →
+字体变化时重建行渲染器。「恢复默认」一并重置字体。
+
+### 10.4 验收记录（2026-10-15）
+
+构建 0 警告 0 错误；离线测试 **1693 项通过，0 失败**（新增 `FontSettingsStoreTests` 三条，
+歌词/桌面歌词设置往返测试补字体字段）。
+
+人工验收：界面字体覆盖全部分类栏粗体、设置行、裸文本区域；用户实测
+`HarmonyOS Sans SC`（Regular/Medium/Bold 同家族、字重元数据正确）正常生效。

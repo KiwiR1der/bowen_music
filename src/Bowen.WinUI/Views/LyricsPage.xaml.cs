@@ -446,6 +446,7 @@ public sealed partial class LyricsPage : Page, INavigationAware
         ReflectionView.Height = size * 0.55;
         Canvas.SetTop(ReflectionView, size + 2);
         _canvas.SetFontSize(Math.Max(ActualHeight * 0.05, ActualWidth * 0.025));
+        _canvas.SetFontFamily(Lyrics.FontFamily);
         CommentsPane.Width = Math.Max(0, Math.Min(420, ActualWidth - 32));
         UpdateChromeInsets();
         UpdateCoverScale();
@@ -894,6 +895,10 @@ public sealed partial class LyricsPage : Page, INavigationAware
         if (args.PropertyName is nameof(LyricsViewModel.HasTranslation) or nameof(LyricsViewModel.ShowTranslation))
         {
             SyncTranslation();
+        }
+        else if (args.PropertyName is nameof(LyricsViewModel.FontFamily))
+        {
+            _canvas.SetFontFamily(Lyrics.FontFamily);
         }
     }
 

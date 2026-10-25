@@ -54,6 +54,7 @@ public sealed class DesktopLyricsSettingsStoreTests : IDisposable
         var settings = new DesktopLyricsSettings
         {
             FontSize = 64,
+            FontFamily = "Microsoft YaHei UI",
             TextColorArgb = 0xFF1F6FEB,
             DualLine = true,
             Alignment = DesktopLyricsAlignment.Staggered,

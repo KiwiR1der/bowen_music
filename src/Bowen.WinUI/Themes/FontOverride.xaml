@@ -1,0 +1,156 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    ★ 界面字体覆盖链的一环。
+
+    WinUI 框架的 BaseTextBlockStyle 把字体写成字面量 "XamlAutoFontFamily"（不引用任何
+    资源），Header/Title/Subtitle/Body/Caption/BodyStrong 等所有排版样式都从它派生。
+    样式 Setter 的优先级高于属性继承，所以 FontSettingsViewModel 往应用资源里写
+    ContentControlThemeFontFamily 只能覆盖控件模板（Button/ComboBox…），覆盖不了
+    显式用了排版样式的 TextBlock —— 表现就是「有些地方跟随字体设置，有些不跟随」。
+
+    这里把这些样式按框架定义原样重抄一遍，唯一差别是字体改引用
+    ContentControlThemeFontFamily。字典必须排在 XamlControlsResources 之后
+    （App.xaml 里注释的那条顺序规矩），排在 Tokens/Pages 之前 —— Pages.xaml 里
+    BasedOn 这些样式的自定义样式要用到这里的覆盖版。
+
+    ★ 与框架样式保持同步的义务：升级 Windows App SDK 后如果框架改了这些样式
+    （加了新 Setter 或新档位），这里要跟着抄。检查命令：
+      generic.xaml 里 Select-String 'TextBlockStyle' 对照本文件。
+-->
+<ResourceDictionary
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <!-- 基类：与框架唯一差别是 FontFamily 走资源。 -->
+    <Style x:Key="BaseTextBlockStyle" TargetType="TextBlock">
+        <Setter Property="FontFamily" Value="{ThemeResource ContentControlThemeFontFamily}" />
+        <Setter Property="FontSize" Value="{StaticResource BodyTextBlockFontSize}" />
+        <Setter Property="FontWeight" Value="SemiBold" />
+        <Setter Property="TextTrimming" Value="CharacterEllipsis" />
+        <Setter Property="TextWrapping" Value="Wrap" />
+        <Setter Property="LineStackingStrategy" Value="MaxHeight" />
+        <Setter Property="TextLineBounds" Value="Full" />
+    </Style>
+
+    <!-- 派生档位：BasedOn 指向上面这份覆盖版，其余 Setter 原样抄自框架。 -->
+    <Style x:Key="HeaderTextBlockStyle" TargetType="TextBlock" BasedOn="{StaticResource BaseTextBlockStyle}">
+        <Setter Property="FontSize" Value="46" />
+        <Setter Property="FontWeight" Value="Light" />
+        <Setter Property="OpticalMarginAlignment" Value="TrimSideBearings" />
+    </Style>
+
+    <Style x:Key="SubheaderTextBlockStyle" TargetType="TextBlock" BasedOn="{StaticResource BaseTextBlockStyle}">
+        <Setter Property="FontSize" Value="34" />
+        <Setter Property="FontWeight" Value="Light" />
+        <Setter Property="OpticalMarginAlignment" Value="TrimSideBearings" />
+    </Style>
+
+    <Style x:Key="TitleTextBlockStyle" TargetType="TextBlock" BasedOn="{StaticResource BaseTextBlockStyle}">
+        <Setter Property="FontSize" Value="{StaticResource TitleTextBlockFontSize}" />
+        <Setter Property="OpticalMarginAlignment" Value="TrimSideBearings" />
+    </Style>
+
+    <Style x:Key="SubtitleTextBlockStyle" TargetType="TextBlock" BasedOn="{StaticResource BaseTextBlockStyle}">
+        <Setter Property="FontSize" Value="{StaticResource SubtitleTextBlockFontSize}" />
+        <Setter Property="OpticalMarginAlignment" Value="TrimSideBearings" />
+    </Style>
+
+    <Style x:Key="BodyTextBlockStyle" TargetType="TextBlock" BasedOn="{StaticResource BaseTextBlockStyle}">
+        <Setter Property="FontWeight" Value="Normal" />
+    </Style>
+
+    <Style x:Key="BodyStrongTextBlockStyle" TargetType="TextBlock" BasedOn="{StaticResource BaseTextBlockStyle}">
+        <Setter Property="FontSize" Value="{StaticResource BodyStrongTextBlockFontSize}" />
+    </Style>
+
+    <Style x:Key="CaptionTextBlockStyle" TargetType="TextBlock" BasedOn="{StaticResource BaseTextBlockStyle}">
+        <Setter Property="FontSize" Value="{StaticResource CaptionTextBlockFontSize}" />
+        <Setter Property="FontWeight" Value="Normal" />
+    </Style>
+
+    <Style x:Key="BodyLargeTextBlockStyle" TargetType="TextBlock" BasedOn="{StaticResource BaseTextBlockStyle}">
+        <Setter Property="FontWeight" Value="Normal" />
+        <Setter Property="FontSize" Value="{StaticResource BodyLargeTextBlockFontSize}" />
+        <Setter Property="OpticalMarginAlignment" Value="TrimSideBearings" />
+    </Style>
+
+    <Style x:Key="BodyLargeStrongTextBlockStyle" TargetType="TextBlock" BasedOn="{StaticResource BaseTextBlockStyle}">
+        <Setter Property="FontSize" Value="{StaticResource BodyLargeTextBlockFontSize}" />
+        <Setter Property="OpticalMarginAlignment" Value="TrimSideBearings" />
+    </Style>
+
+    <Style x:Key="TitleLargeTextBlockStyle" TargetType="TextBlock" BasedOn="{StaticResource BaseTextBlockStyle}">
+        <Setter Property="FontSize" Value="{StaticResource TitleLargeTextBlockFontSize}" />
+        <Setter Property="OpticalMarginAlignment" Value="TrimSideBearings" />
+    </Style>
+
+    <Style x:Key="DisplayTextBlockStyle" TargetType="TextBlock" BasedOn="{StaticResource BaseTextBlockStyle}">
+        <Setter Property="FontSize" Value="68" />
+        <Setter Property="FontWeight" Value="SemiLight" />
+        <Setter Property="OpticalMarginAlignment" Value="TrimSideBearings" />
+    </Style>
+
+    <!-- RichTextBlock 两条同源样式（评论等富文本用）。 -->
+    <Style x:Key="BaseRichTextBlockStyle" TargetType="RichTextBlock">
+        <Setter Property="FontFamily" Value="{ThemeResource ContentControlThemeFontFamily}" />
+        <Setter Property="FontSize" Value="{StaticResource BodyTextBlockFontSize}" />
+        <Setter Property="FontWeight" Value="SemiBold" />
+        <Setter Property="TextTrimming" Value="CharacterEllipsis" />
+        <Setter Property="TextWrapping" Value="Wrap" />
+        <Setter Property="LineStackingStrategy" Value="MaxHeight" />
+        <Setter Property="TextLineBounds" Value="Full" />
+    </Style>
+
+    <Style x:Key="BodyRichTextBlockStyle" TargetType="RichTextBlock" BasedOn="{StaticResource BaseRichTextBlockStyle}">
+        <Setter Property="FontWeight" Value="Normal" />
+    </Style>
+
+    <!--
+        ★ ContentPresenter / ContentControl 基样式（第二类漏网点）。
+
+        框架给这两条基样式同时写了 XamlAutoFontFamily + SemiBold：ListBoxItem / ListView
+        项的模板都通过 BodyContentPresenterStyle 显示文字 —— 设置页左侧分类栏、各列表
+        选中项都是「粗体 + 不走资源」，与排版样式是两条独立的漏网路径。
+        同样按框架定义重抄，唯一差别是字体走资源。
+    -->
+    <Style x:Key="BaseContentPresenterStyle" TargetType="ContentPresenter">
+        <Setter Property="FontFamily" Value="{ThemeResource ContentControlThemeFontFamily}" />
+        <Setter Property="FontWeight" Value="SemiBold" />
+        <Setter Property="FontSize" Value="{ThemeResource ControlContentThemeFontSize}" />
+        <Setter Property="TextWrapping" Value="Wrap" />
+        <Setter Property="LineStackingStrategy" Value="MaxHeight" />
+        <Setter Property="TextLineBounds" Value="Full" />
+        <Setter Property="OpticalMarginAlignment" Value="TrimSideBearings" />
+    </Style>
+
+    <Style x:Key="BodyContentPresenterStyle" TargetType="ContentPresenter" BasedOn="{StaticResource BaseContentPresenterStyle}">
+        <Setter Property="FontWeight" Value="Normal" />
+    </Style>
+
+    <Style x:Key="BaseContentControlStyle" TargetType="ContentControl">
+        <Setter Property="FontFamily" Value="{ThemeResource ContentControlThemeFontFamily}" />
+        <Setter Property="FontWeight" Value="SemiBold" />
+        <Setter Property="FontSize" Value="{ThemeResource ControlContentThemeFontSize}" />
+    </Style>
+
+    <Style x:Key="TitleContentControlStyle" TargetType="ContentControl" BasedOn="{StaticResource BaseContentControlStyle}">
+        <Setter Property="FontFamily" Value="{ThemeResource ContentControlThemeFontFamily}" />
+        <Setter Property="FontWeight" Value="SemiLight" />
+        <Setter Property="FontSize" Value="{ThemeResource PivotTitleFontSize}" />
+    </Style>
+
+    <!--
+        ★ 隐式 TextBlock 样式（最后一道兜底）。
+
+        TextBlock.FontFamily 的依赖属性元数据默认值是 XamlAutoFontFamily 哨兵值 ——
+        它不走资源查找，上面的排版样式覆盖不到「没有用任何样式」的裸 TextBlock
+        （设置行标题/说明、歌词条设置面板、小窗播放器里的文字都是）。
+
+        隐式样式只命中没有显式样式的实例；排版样式不受影响，已显式指定字体的地方
+        （逐字渲染层等）也不受影响。
+    -->
+    <Style TargetType="TextBlock">
+        <Setter Property="FontFamily" Value="{ThemeResource ContentControlThemeFontFamily}" />
+    </Style>
+
+</ResourceDictionary>

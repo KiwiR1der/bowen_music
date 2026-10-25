@@ -36,6 +36,7 @@ public sealed partial class SettingsViewModel : ObservableObject
         PlayerViewModel player,
         LyricsViewModel lyrics,
         DesktopLyricsViewModel desktopLyrics,
+        FontSettingsViewModel font,
         ViewModeService viewMode,
         PlaybackCoordinator coordinator,
         ShortcutSettingsViewModel shortcuts,
@@ -50,6 +51,7 @@ public sealed partial class SettingsViewModel : ObservableObject
         ArgumentNullException.ThrowIfNull(player);
         ArgumentNullException.ThrowIfNull(lyrics);
         ArgumentNullException.ThrowIfNull(desktopLyrics);
+        ArgumentNullException.ThrowIfNull(font);
         ArgumentNullException.ThrowIfNull(viewMode);
         ArgumentNullException.ThrowIfNull(coordinator);
         ArgumentNullException.ThrowIfNull(shortcuts);
@@ -64,6 +66,7 @@ public sealed partial class SettingsViewModel : ObservableObject
         Player = player;
         Lyrics = lyrics;
         DesktopLyrics = desktopLyrics;
+        Font = font;
         ViewMode = viewMode;
         Coordinator = coordinator;
         Shortcuts = shortcuts;
@@ -96,6 +99,11 @@ public sealed partial class SettingsViewModel : ObservableObject
         // 选项本身按「读起来就是当前状态」写，不再用「列表显示方式」这种带默认暗示的开关文案。
         ListDisplayOptions = ["行列表", "封面卡片"];
 
+        // 三个字体下拉的选项一致：首项固定「默认字体」，其余是当前区域下的系统字体名。
+        var fontOptions = new List<string> { "默认字体" };
+        fontOptions.AddRange(Font.FontNames);
+        FontOptions = fontOptions;
+
         SyncFromSources();
     }
 
@@ -120,6 +128,9 @@ public sealed partial class SettingsViewModel : ObservableObject
 
     public IReadOnlyList<string> ListDisplayOptions { get; }
 
+    /// <summary>界面 / 全屏歌词 / 桌面歌词三个字体下拉共用的选项；首项是「默认字体」。</summary>
+    public IReadOnlyList<string> FontOptions { get; }
+
     public ThemeViewModel Theme { get; }
 
     public PlayerViewModel Player { get; }
@@ -127,6 +138,9 @@ public sealed partial class SettingsViewModel : ObservableObject
     public LyricsViewModel Lyrics { get; }
 
     public DesktopLyricsViewModel DesktopLyrics { get; }
+
+    /// <summary>界面字体分区的状态源。它的 <c>Select</c> 负责落盘并立刻应用。</summary>
+    public FontSettingsViewModel Font { get; }
 
     /// <summary>
     /// 「用封面卡片还是行列表」这一个的状态源。它的 setter 自己落盘并发通知。
@@ -189,6 +203,15 @@ public sealed partial class SettingsViewModel : ObservableObject
 
     [ObservableProperty]
     public partial int DesktopLyricsAlignmentIndex { get; set; }
+
+    [ObservableProperty]
+    public partial int AppFontIndex { get; set; }
+
+    [ObservableProperty]
+    public partial int LyricsFontIndex { get; set; }
+
+    [ObservableProperty]
+    public partial int DesktopLyricsFontIndex { get; set; }
 
     /// <summary>
     /// 列表 / 卡片，给下拉框用的下标。<b>0 = 行列表，1 = 封面卡片</b>（枚举顺序即下标）。
@@ -267,6 +290,11 @@ public sealed partial class SettingsViewModel : ObservableObject
             PlayModeIndex = Math.Max(0, Array.IndexOf(PlayModes, Player.Mode));
             DesktopLyricsColorIndex = PaletteIndexOf(DesktopLyrics.TextColor);
             DesktopLyricsAlignmentIndex = (int)DesktopLyrics.Alignment;
+
+            // 字体下标：首项「默认字体」是 0，往后 1 起对应 Font.FontNames 的下标 + 1。
+            AppFontIndex = FontIndexOf(Font.CurrentFontFamily);
+            LyricsFontIndex = FontIndexOf(Lyrics.FontFamily);
+            DesktopLyricsFontIndex = FontIndexOf(DesktopLyrics.FontFamily);
 
             // 这几个是从别的对象算出来的，不跟着上面那批走，得自己喊一声。
             OnPropertyChanged(nameof(ListDisplayIndex));
@@ -359,6 +387,24 @@ public sealed partial class SettingsViewModel : ObservableObject
         DesktopLyrics.Alignment = (DesktopLyricsAlignment)value;
     }
 
+    partial void OnAppFontIndexChanged(int value)
+    {
+        if (_syncing || value < 0) return;
+        Font.Select(FontNameAt(value));
+    }
+
+    partial void OnLyricsFontIndexChanged(int value)
+    {
+        if (_syncing || value < 0) return;
+        Lyrics.SetFontFamily(FontNameAt(value));
+    }
+
+    partial void OnDesktopLyricsFontIndexChanged(int value)
+    {
+        if (_syncing || value < 0) return;
+        DesktopLyrics.FontFamily = FontNameAt(value);
+    }
+
     private static int PaletteIndexOf(Color color)
     {
         var argb = (uint)((color.A << 24) | (color.R << 16) | (color.G << 8) | color.B);
@@ -372,6 +418,21 @@ public sealed partial class SettingsViewModel : ObservableObject
 
         return -1;
     }
+
+    /// <summary>字体名下标：0 = 默认，往后对应 <see cref="FontSettingsViewModel.FontNames"/> 下标 + 1。</summary>
+    private int FontIndexOf(string fontFamily)
+    {
+        if (string.IsNullOrWhiteSpace(fontFamily)) return 0;
+        for (var i = 0; i < Font.FontNames.Count; i++)
+        {
+            if (string.Equals(Font.FontNames[i], fontFamily, StringComparison.OrdinalIgnoreCase)) return i + 1;
+        }
+        return 0;
+    }
+
+    /// <summary>下标换回字体名；越界或 0 一律回空（默认）。</summary>
+    private string FontNameAt(int index)
+        => index is >= 1 && index <= Font.FontNames.Count ? Font.FontNames[index - 1] : string.Empty;
 
     private static Color ToColor(uint argb) =>
         Color.FromArgb((byte)(argb >> 24), (byte)(argb >> 16), (byte)(argb >> 8), (byte)argb);

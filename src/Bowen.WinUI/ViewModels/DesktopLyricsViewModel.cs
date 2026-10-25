@@ -44,6 +44,7 @@ public sealed partial class DesktopLyricsViewModel : ObservableObject
         // 开关也要恢复：上次退出时开着，这次启动就自动出现。
         IsEnabled = settings.IsEnabled;
         FontSize = settings.FontSize;
+        FontFamily = settings.FontFamily;
         TextColor = ToColor(settings.TextColorArgb);
         DualLine = settings.DualLine;
         Alignment = settings.Alignment;
@@ -97,6 +98,24 @@ public sealed partial class DesktopLyricsViewModel : ObservableObject
     [ObservableProperty]
     public partial bool DualLine { get; set; }
 
+    /// <summary>
+    /// 字体族名；空串表示跟随渲染层默认。
+    /// </summary>
+    /// <remarks>
+    /// 手写而不是 <c>[ObservableProperty]</c>：与 <see cref="FontSize"/> 同一条规矩，
+    /// 要在赋值那一刻就把前后空格修掉，免得把带空白的名字写进设置文件。
+    /// </remarks>
+    public string FontFamily
+    {
+        get => _fontFamily;
+        set
+        {
+            var trimmed = value?.Trim() ?? string.Empty;
+            if (SetProperty(ref _fontFamily, trimmed)) Persist();
+        }
+    }
+    private string _fontFamily = string.Empty;
+
     /// <summary>双行时的对齐方式。</summary>
     [ObservableProperty]
     public partial DesktopLyricsAlignment Alignment { get; set; }
@@ -124,6 +143,7 @@ public sealed partial class DesktopLyricsViewModel : ObservableObject
         var settings = DesktopLyricsSettings.Default;
 
         FontSize = settings.FontSize;
+        FontFamily = settings.FontFamily;
         TextColor = ToColor(settings.TextColorArgb);
         DualLine = settings.DualLine;
         Alignment = settings.Alignment;
@@ -158,6 +178,7 @@ public sealed partial class DesktopLyricsViewModel : ObservableObject
         {
             IsEnabled = IsEnabled,
             FontSize = FontSize,
+            FontFamily = FontFamily,
             TextColorArgb = ToArgb(TextColor),
             DualLine = DualLine,
             Alignment = Alignment,

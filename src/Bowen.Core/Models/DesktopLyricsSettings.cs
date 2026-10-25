@@ -70,6 +70,14 @@ public sealed record DesktopLyricsSettings
     /// <summary>字号，DIP。</summary>
     public double FontSize { get; init; } = DefaultFontSize;
 
+    /// <summary>
+    /// 字体族名；空串表示跟随渲染层默认（<c>LyricsRenderSettings.Default.FontFamily</c>）。
+    /// </summary>
+    /// <remarks>
+    /// <b>只存名字，不校验是否存在。</b> 缺字体时渲染层回退默认，改它即时生效。
+    /// </remarks>
+    public string FontFamily { get; init; } = string.Empty;
+
     /// <summary>已唱部分的高亮色，<c>0xAARRGGBB</c>；未唱文字为不透明白色。</summary>
     public uint TextColorArgb { get; init; } = DefaultTextColor;
 
@@ -107,6 +115,8 @@ public sealed record DesktopLyricsSettings
         FontSize = double.IsFinite(FontSize)
             ? Math.Clamp(FontSize, MinimumFontSize, MaximumFontSize)
             : DefaultFontSize,
+
+        FontFamily = FontFamily?.Trim() ?? string.Empty,
 
         // 颜色选择器不提供透明度，写盘时把 alpha 顶回不透明 ——
         // 未唱文字固定白色，旧版本的白色默认高亮改为青绿，避免两态无法区分。

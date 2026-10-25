@@ -114,6 +114,15 @@ internal sealed class LyricsRenderer(LyricsRenderSettings settings, ILogger<Lyri
         _layoutDirty = true;
     }
 
+    /// <summary>切换字体：改设置并标记整份文档重排。渲染线程内调用。</summary>
+    public void SetFontFamily(string fontFamily)
+    {
+        fontFamily = string.IsNullOrWhiteSpace(fontFamily) ? LyricsRenderSettings.Default.FontFamily : fontFamily.Trim();
+        if (string.Equals(settings.FontFamily, fontFamily, StringComparison.Ordinal)) return;
+        settings.FontFamily = fontFamily;
+        _layoutDirty = true;
+    }
+
     public void SetViewport(double width, double height)
     {
         if (Math.Abs(width - _width) > 0.5) _layoutDirty = true;

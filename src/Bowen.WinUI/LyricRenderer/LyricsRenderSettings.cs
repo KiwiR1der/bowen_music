@@ -7,7 +7,12 @@ public sealed record LyricsRenderSettings
     public double BaseFontSize { get; set; } = 40;
     public double LineHeight { get; init; } = 1.35;
     public double LineGap { get; init; } = 24;
-    public string FontFamily { get; init; } = "Segoe UI Variable Display";
+
+    /// <summary>
+    /// 字体族名。<b>可变</b>：设置页改歌词字体后由渲染线程调
+    /// <see cref="LyricsRenderer.SetFontFamily"/> 更新并标记重排。
+    /// </summary>
+    public string FontFamily { get; set; } = "Segoe UI Variable Display";
     public double PlayingLineTopOffsetFactor { get; init; } = 0.42;
     public double FarBlurAmount { get; init; } = 5;
     public double CurrentLineScale { get; init; } = 1;

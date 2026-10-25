@@ -225,6 +225,14 @@
                                     </controls:SettingsRow.RightContent>
                                 </controls:SettingsRow>
                                 <Border Style="{StaticResource BowenSettingsRowDivider}" />
+                                <controls:SettingsRow Description="改后重启应用生效；缺字体时回退系统默认" Header="界面字体">
+                                    <controls:SettingsRow.RightContent>
+                                        <ComboBox
+                                            ItemsSource="{x:Bind ViewModel.FontOptions}"
+                                            SelectedIndex="{x:Bind ViewModel.AppFontIndex, Mode=TwoWay}" />
+                                    </controls:SettingsRow.RightContent>
+                                </controls:SettingsRow>
+                                <Border Style="{StaticResource BowenSettingsRowDivider}" />
                                 <controls:SettingsRow Header="输入法兼容模式（实验）" Description="中文候选框无法显示时可尝试开启；更改后需完全退出并重新打开应用">
                                     <controls:SettingsRow.RightContent>
                                         <ToggleSwitch
@@ -272,15 +280,25 @@
                     <StackPanel controls:Motion.TabContent="True" Spacing="8" Visibility="{x:Bind local:Formats.Visible(ViewModel.IsLyricsSelected), Mode=OneWay}">
                         <TextBlock Style="{StaticResource BowenSettingsGroupTitle}" Text="歌词" />
                         <Border Style="{StaticResource BowenSettingsCard}">
-                            <controls:SettingsRow Description="歌词带译文时默认一起显示，歌词页那颗按钮仍可临时改" Header="默认显示译文">
-                                <controls:SettingsRow.RightContent>
-                                    <ToggleSwitch
-                                        IsOn="{x:Bind ViewModel.DefaultShowTranslation, Mode=TwoWay}"
-                                        MinWidth="0"
-                                        OffContent=""
-                                        OnContent="" />
-                                </controls:SettingsRow.RightContent>
-                            </controls:SettingsRow>
+                            <StackPanel>
+                                <controls:SettingsRow Description="歌词带译文时默认一起显示，歌词页那颗按钮仍可临时改" Header="默认显示译文">
+                                    <controls:SettingsRow.RightContent>
+                                        <ToggleSwitch
+                                            IsOn="{x:Bind ViewModel.DefaultShowTranslation, Mode=TwoWay}"
+                                            MinWidth="0"
+                                            OffContent=""
+                                            OnContent="" />
+                                    </controls:SettingsRow.RightContent>
+                                </controls:SettingsRow>
+                                <Border Style="{StaticResource BowenSettingsRowDivider}" />
+                                <controls:SettingsRow Description="全屏歌词的字体；缺字体时回退默认" Header="歌词字体">
+                                    <controls:SettingsRow.RightContent>
+                                        <ComboBox
+                                            ItemsSource="{x:Bind ViewModel.FontOptions}"
+                                            SelectedIndex="{x:Bind ViewModel.LyricsFontIndex, Mode=TwoWay}" />
+                                    </controls:SettingsRow.RightContent>
+                                </controls:SettingsRow>
+                            </StackPanel>
                         </Border>
 
                         <!--
@@ -308,6 +326,14 @@
                                             Minimum="{x:Bind models:DesktopLyricsSettings.MinimumFontSize}"
                                             StepFrequency="1"
                                             Value="{x:Bind ViewModel.DesktopLyrics.FontSize, Mode=TwoWay}" />
+                                    </controls:SettingsRow.RightContent>
+                                </controls:SettingsRow>
+                                <Border Style="{StaticResource BowenSettingsRowDivider}" />
+                                <controls:SettingsRow IsRowEnabled="{x:Bind ViewModel.DesktopLyricsRowsEnabled, Mode=OneWay}" Description="悬浮条用什么字，默认跟随渲染层内置字体" Header="桌面歌词字体">
+                                    <controls:SettingsRow.RightContent>
+                                        <ComboBox
+                                            ItemsSource="{x:Bind ViewModel.FontOptions}"
+                                            SelectedIndex="{x:Bind ViewModel.DesktopLyricsFontIndex, Mode=TwoWay}" />
                                     </controls:SettingsRow.RightContent>
                                 </controls:SettingsRow>
                                 <Border Style="{StaticResource BowenSettingsRowDivider}" />

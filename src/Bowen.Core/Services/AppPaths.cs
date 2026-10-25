@@ -224,6 +224,16 @@ public static class AppPaths
     public static string LyricsSettingsFile => Path.Combine(LocalAppData, "lyrics.json");
 
     /// <summary>
+    /// 界面字体偏好（明文 JSON）。
+    /// </summary>
+    /// <remarks>
+    /// <b>与 <see cref="SettingsFile"/> 刻意分开</b>：那份管「外观档位」（主题），
+    /// 这份管「用什么字」。字体改起来频次低、值是开放字符串，单独一份便于出问题时
+    /// 直接删掉回到默认，而不会把主题一起重置。
+    /// </remarks>
+    public static string FontSettingsFile => Path.Combine(LocalAppData, "font-settings.json");
+
+    /// <summary>
     /// 桌面歌词条的位置与宽度（明文 JSON）。
     /// </summary>
     /// <remarks>
