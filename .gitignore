@@ -34,6 +34,9 @@ __pycache__/
 .vscode/
 .dotnet/
 
+# 项目内 Python 环境（抓包工具等本机脚本用 uv 建在这里，不入库）
+.venv/
+
 # 随手截的界面图，不作为文档配图引用；要引用的图请放 docs/ 下
 /snippet/
 
