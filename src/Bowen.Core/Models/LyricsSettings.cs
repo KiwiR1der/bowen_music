@@ -1,7 +1,7 @@
 namespace Bowen.Core.Models;
 
 /// <summary>
-/// 歌词页的偏好。
+/// 歌词相关界面的偏好：全屏歌词页与小窗歌词。
 /// </summary>
 /// <remarks>
 /// <para>
@@ -34,12 +34,25 @@ public sealed record LyricsSettings
     /// </remarks>
     public string FontFamily { get; init; } = string.Empty;
 
+    /// <summary>
+    /// 小窗歌词的字体族名；空串表示跟随界面字体。
+    /// </summary>
+    /// <remarks>
+    /// 小窗那一行歌词是 XAML TextBlock，默认吃全局界面字体；这里单独存一份，
+    /// 选了字体就覆盖它。只存名字，缺字体时窗口回退系统默认。
+    /// </remarks>
+    public string MiniPlayerFontFamily { get; init; } = string.Empty;
+
     /// <summary>默认设置：显示译文、跟随系统字体。</summary>
     public static LyricsSettings Default { get; } = new();
 
-    /// <summary>规范化字体名，保持空字符串 = 渲染层默认的约定。</summary>
+    /// <summary>规范化字体名，保持空字符串 = 跟随默认的约定。</summary>
     /// <remarks>
     /// 保留这个入口与其他设置同一个形状：新增需要夹取范围的偏好时不必改 store 的调用点。
     /// </remarks>
-    public LyricsSettings Normalized() => this with { FontFamily = FontFamily?.Trim() ?? string.Empty };
+    public LyricsSettings Normalized() => this with
+    {
+        FontFamily = FontFamily?.Trim() ?? string.Empty,
+        MiniPlayerFontFamily = MiniPlayerFontFamily?.Trim() ?? string.Empty,
+    };
 }

@@ -83,6 +83,7 @@ public sealed partial class LyricsViewModel : ObservableObject
         DefaultShowTranslation = loaded.ShowTranslation;
         ShowTranslation = DefaultShowTranslation;
         FontFamily = loaded.FontFamily;
+        MiniPlayerFontFamily = loaded.MiniPlayerFontFamily;
         _loading = false;
 
         // 启动时恢复出来的那一首也算「有歌可看」：播放条已经铺好了曲目，
@@ -136,6 +137,14 @@ public sealed partial class LyricsViewModel : ObservableObject
     public string FontFamily { get; private set; } = string.Empty;
 
     /// <summary>
+    /// 小窗歌词的字体族名；空串表示跟随界面字体。
+    /// </summary>
+    /// <remarks>
+    /// 小窗窗口订阅 <c>PropertyChanged</c> 后即时应用；默认空串保持原来的「跟随界面字体」行为。
+    /// </remarks>
+    public string MiniPlayerFontFamily { get; private set; } = string.Empty;
+
+    /// <summary>
     /// 设置页改歌词字体：落盘，并发通知让渲染层重排当前文档（不必重启）。
     /// </summary>
     public void SetFontFamily(string fontFamily)
@@ -148,7 +157,33 @@ public sealed partial class LyricsViewModel : ObservableObject
 
         FontFamily = fontFamily;
         OnPropertyChanged(nameof(FontFamily));
-        _settings.Save(new LyricsSettings { ShowTranslation = DefaultShowTranslation, FontFamily = fontFamily });
+        _settings.Save(new LyricsSettings
+        {
+            ShowTranslation = DefaultShowTranslation,
+            FontFamily = fontFamily,
+            MiniPlayerFontFamily = MiniPlayerFontFamily,
+        });
+    }
+
+    /// <summary>
+    /// 设置页改小窗歌词字体：落盘，小窗窗口订阅后即时重排。
+    /// </summary>
+    public void SetMiniPlayerFontFamily(string fontFamily)
+    {
+        fontFamily ??= string.Empty;
+        if (MiniPlayerFontFamily == fontFamily)
+        {
+            return;
+        }
+
+        MiniPlayerFontFamily = fontFamily;
+        OnPropertyChanged(nameof(MiniPlayerFontFamily));
+        _settings.Save(new LyricsSettings
+        {
+            ShowTranslation = DefaultShowTranslation,
+            FontFamily = FontFamily,
+            MiniPlayerFontFamily = fontFamily,
+        });
     }
 
     /// <summary>
@@ -163,7 +198,12 @@ public sealed partial class LyricsViewModel : ObservableObject
 
         DefaultShowTranslation = value;
         OnPropertyChanged(nameof(DefaultShowTranslation));
-        _settings.Save(new LyricsSettings { ShowTranslation = value, FontFamily = FontFamily });
+        _settings.Save(new LyricsSettings
+        {
+            ShowTranslation = value,
+            FontFamily = FontFamily,
+            MiniPlayerFontFamily = MiniPlayerFontFamily,
+        });
 
         // 同步应用到当前这次，否则用户改完默认值还要手动去歌词页再按一下才看到效果。
         ShowTranslation = value;

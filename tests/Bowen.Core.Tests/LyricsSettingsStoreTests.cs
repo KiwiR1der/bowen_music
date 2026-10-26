@@ -38,17 +38,26 @@ public sealed class LyricsSettingsStoreTests : IDisposable
     [Fact]
     public void NoFile_FallsBackToShowingTranslation()
     {
-        Assert.True(NewStore().Load().ShowTranslation);
+        var loaded = NewStore().Load();
+
+        Assert.True(loaded.ShowTranslation);
+        Assert.Equal(string.Empty, loaded.MiniPlayerFontFamily);
     }
 
     [Fact]
     public void RoundTripsTheChoice()
     {
-        NewStore().Save(new LyricsSettings { ShowTranslation = false, FontFamily = "Microsoft YaHei UI" });
+        NewStore().Save(new LyricsSettings
+        {
+            ShowTranslation = false,
+            FontFamily = "Microsoft YaHei UI",
+            MiniPlayerFontFamily = "SimSun",
+        });
 
         var loaded = NewStore().Load();
         Assert.False(loaded.ShowTranslation);
         Assert.Equal("Microsoft YaHei UI", loaded.FontFamily);
+        Assert.Equal("SimSun", loaded.MiniPlayerFontFamily);
     }
 
     /// <summary>写盘的字段名与其它设置一致：属性名原样，不转驼峰。</summary>
@@ -57,7 +66,9 @@ public sealed class LyricsSettingsStoreTests : IDisposable
     {
         NewStore().Save(new LyricsSettings { ShowTranslation = false });
 
-        Assert.Contains("\"ShowTranslation\"", File.ReadAllText(Path_), StringComparison.Ordinal);
+        var json = File.ReadAllText(Path_);
+        Assert.Contains("\"ShowTranslation\"", json, StringComparison.Ordinal);
+        Assert.Contains("\"MiniPlayerFontFamily\"", json, StringComparison.Ordinal);
     }
 
     [Fact]

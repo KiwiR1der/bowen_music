@@ -203,7 +203,7 @@
                 HorizontalScrollMode="Disabled"
                 VerticalScrollBarVisibility="Auto"
                 VerticalScrollMode="Auto">
-                <StackPanel Padding="0,0,0,16" Spacing="20">
+                <StackPanel Padding="0,0,16,16" Spacing="20">
 
                     <StackPanel controls:Motion.TabContent="True" Spacing="8" Visibility="{x:Bind local:Formats.Visible(ViewModel.IsAppearanceSelected), Mode=OneWay}">
                         <TextBlock Style="{StaticResource BowenSettingsGroupTitle}" Text="外观" />
@@ -296,6 +296,19 @@
                                         <controls:FontPicker
                                             ItemsSource="{x:Bind ViewModel.FontOptions}"
                                             SelectedIndex="{x:Bind ViewModel.LyricsFontIndex, Mode=TwoWay}" />
+                                    </controls:SettingsRow.RightContent>
+                                </controls:SettingsRow>
+                            </StackPanel>
+                        </Border>
+
+                        <TextBlock Style="{StaticResource BowenSettingsGroupTitle}" Text="小窗歌词" />
+                        <Border Style="{StaticResource BowenSettingsCard}">
+                            <StackPanel>
+                                <controls:SettingsRow Description="小窗播放时显示的那一行歌词；留空跟随界面字体" Header="小窗歌词字体">
+                                    <controls:SettingsRow.RightContent>
+                                        <controls:FontPicker
+                                            ItemsSource="{x:Bind ViewModel.FontOptions}"
+                                            SelectedIndex="{x:Bind ViewModel.MiniPlayerLyricsFontIndex, Mode=TwoWay}" />
                                     </controls:SettingsRow.RightContent>
                                 </controls:SettingsRow>
                             </StackPanel>

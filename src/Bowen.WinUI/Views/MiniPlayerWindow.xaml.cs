@@ -158,7 +158,7 @@ public sealed partial class MiniPlayerWindow : Window
         ConfigureWindowForm();
         ApplyPlacement();
         ApplyChrome(null);
-        RefreshInfoSlot();
+        ApplyMiniPlayerFont();
 
         // 拖动挂在整块根面板上：按钮自己会吃掉指针事件（标记为已处理），所以不会误触；
         // 挂外层换来的是「随便按哪儿都能拖」。
@@ -714,6 +714,26 @@ public sealed partial class MiniPlayerWindow : Window
         UpdateMiniLyric();
     }
 
+    /// <summary>
+    /// 小窗那一行歌词的字体。空串跟随界面字体，否则用单独选的字体。
+    /// </summary>
+    private void ApplyMiniPlayerFont()
+    {
+        var fontName = Lyrics.MiniPlayerFontFamily;
+        var uiFont = Application.Current.Resources.TryGetValue("ContentControlThemeFontFamily", out var value)
+                     && value is FontFamily interfaceFont
+            ? interfaceFont
+            : new FontFamily("Segoe UI Variable Text");
+
+        LyricLineText.FontFamily = string.IsNullOrWhiteSpace(fontName)
+            ? uiFont
+            : new FontFamily(fontName);
+
+        // 字体变化会改变自然宽度，清掉当前行让 UpdateMiniLyric 重新测量。
+        _miniLyricLine = null;
+        RefreshInfoSlot();
+    }
+
     private void OnLyricViewportSizeChanged(object sender, SizeChangedEventArgs args)
     {
         LyricViewportClip.Rect = new Rect(0, 0, args.NewSize.Width, args.NewSize.Height);
@@ -761,6 +781,7 @@ public sealed partial class MiniPlayerWindow : Window
         _lyricClock.SetPlaying(_engine.State == PlaybackState.Playing);
         UpdateCoverImage();
         UpdateVolumeMuteState();
+        ApplyMiniPlayerFont();
     }
 
     private void SuspendVisualUpdates()
@@ -844,6 +865,12 @@ public sealed partial class MiniPlayerWindow : Window
 
     private void OnLyricsPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
     {
+        if (e.PropertyName == nameof(LyricsViewModel.MiniPlayerFontFamily))
+        {
+            ApplyMiniPlayerFont();
+            return;
+        }
+
         if (e.PropertyName is nameof(LyricsViewModel.CurrentLineText) or nameof(LyricsViewModel.Document))
         {
             RefreshInfoSlot();

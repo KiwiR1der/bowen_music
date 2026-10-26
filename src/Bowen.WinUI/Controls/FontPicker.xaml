@@ -8,8 +8,8 @@
 
     <Button
         x:Name="PickerButton"
-        MinWidth="180"
-        MaxWidth="240"
+        MinWidth="120"
+        MaxWidth="220"
         MinHeight="32"
         Padding="11,5,11,5"
         HorizontalAlignment="Right"

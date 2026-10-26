@@ -211,6 +211,9 @@ public sealed partial class SettingsViewModel : ObservableObject
     public partial int LyricsFontIndex { get; set; }
 
     [ObservableProperty]
+    public partial int MiniPlayerLyricsFontIndex { get; set; }
+
+    [ObservableProperty]
     public partial int DesktopLyricsFontIndex { get; set; }
 
     /// <summary>
@@ -294,6 +297,7 @@ public sealed partial class SettingsViewModel : ObservableObject
             // 字体下标：首项「默认字体」是 0，往后 1 起对应 Font.Fonts 的下标 + 1。
             AppFontIndex = FontIndexOf(Font.CurrentFontFamily);
             LyricsFontIndex = FontIndexOf(Lyrics.FontFamily);
+            MiniPlayerLyricsFontIndex = FontIndexOf(Lyrics.MiniPlayerFontFamily);
             DesktopLyricsFontIndex = FontIndexOf(DesktopLyrics.FontFamily);
 
             // 这几个是从别的对象算出来的，不跟着上面那批走，得自己喊一声。
@@ -402,6 +406,12 @@ public sealed partial class SettingsViewModel : ObservableObject
     {
         if (_syncing || value < 0) return;
         Lyrics.SetFontFamily(FontNameAt(value));
+    }
+
+    partial void OnMiniPlayerLyricsFontIndexChanged(int value)
+    {
+        if (_syncing || value < 0) return;
+        Lyrics.SetMiniPlayerFontFamily(FontNameAt(value));
     }
 
     partial void OnDesktopLyricsFontIndexChanged(int value)
