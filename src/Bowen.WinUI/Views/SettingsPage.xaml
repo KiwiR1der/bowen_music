@@ -405,14 +405,12 @@
                                     </controls:SettingsRow.RightContent>
                                 </controls:SettingsRow>
                                 <Border Style="{StaticResource BowenSettingsRowDivider}" />
-                                <controls:SettingsRow IsRowEnabled="{x:Bind ViewModel.DesktopLyricsRowsEnabled, Mode=OneWay}" IsClickable="True" Click="OnResetDesktopLyricsClick" Header="恢复桌面歌词默认外观">
-                                    <controls:SettingsRow.RightContent>
-                                        <TextBlock
-                                            VerticalAlignment="Center"
-                                            Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                                            Text="字号、颜色、双行、对齐" />
-                                    </controls:SettingsRow.RightContent>
-                                </controls:SettingsRow>
+                                <controls:SettingsRow
+                                    Description="字号、颜色、双行与对齐一并还原"
+                                    IsClickable="True"
+                                    IsRowEnabled="{x:Bind ViewModel.DesktopLyricsRowsEnabled, Mode=OneWay}"
+                                    Click="OnResetDesktopLyricsClick"
+                                    Header="恢复桌面歌词默认外观" />
                             </StackPanel>
                         </Border>
                     </StackPanel>
