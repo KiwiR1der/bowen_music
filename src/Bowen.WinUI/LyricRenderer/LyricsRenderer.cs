@@ -329,7 +329,8 @@ internal sealed class LyricsRenderer(LyricsRenderSettings settings, ILogger<Lyri
     private bool EnsureLayout()
     {
         if (!_layoutDirty || _creator is null || _device is null || _width <= 0) return false;
-        var key = new LayoutKey(_document, Math.Max(1, _width - 28), settings.BaseFontSize, _played, _unplayed);
+        var key = new LayoutKey(_document, Math.Max(1, _width - 28), settings.BaseFontSize,
+            settings.FontFamily, _played, _unplayed);
         if (_device.Snapshot is { } previous)
             foreach (var line in previous.Lines) line.ReleaseDrawingResources();
         _device.Snapshot = null;
@@ -410,7 +411,8 @@ internal sealed class LyricsRenderer(LyricsRenderSettings settings, ILogger<Lyri
         CurrentIndex = -1;
     }
 
-    private sealed record LayoutKey(LyricDocument Document, double Width, double FontSize, Color Played, Color Unplayed);
+    private sealed record LayoutKey(LyricDocument Document, double Width, double FontSize,
+        string FontFamily, Color Played, Color Unplayed);
     private sealed record CachedLayout(LayoutKey Key, LyricsLayoutSnapshot Snapshot);
 
     private static Color WithOpacity(Color color, double opacity)
