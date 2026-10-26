@@ -38,25 +38,32 @@ public sealed partial class FontSettingsViewModel : ObservableObject
     public IReadOnlyList<string> FontNames { get; }
 
     /// <summary>
-    /// 保存下次启动使用的字体，不改当前窗口。
+    /// 保存下次启动使用的字体，不改当前窗口。返回是否写入成功。
     /// </summary>
     /// <remarks>
     /// <b>保存后发一条重启提示</b>：改动对当前窗口完全不可见，用户会以为没保存上。
     /// 通知走 <see cref="INoticeSink"/>，注入方式与其它动作入口一致（见 App 组合根）。
+    /// 写入失败时不更新已保存的选择，也不报成功。
     /// </remarks>
-    public void Select(string fontFamily)
+    public bool Select(string fontFamily)
     {
         var normalized = new FontSettings { FontFamily = fontFamily }.Normalized().FontFamily;
-        if (string.Equals(CurrentFontFamily, normalized, StringComparison.Ordinal)) return;
+        if (string.Equals(CurrentFontFamily, normalized, StringComparison.Ordinal)) return true;
+
+        if (!_store.Save(new FontSettings { FontFamily = normalized }))
+        {
+            _notice?.Show("界面字体未能保存，重启后不会生效", NoticeSeverity.Error);
+            return false;
+        }
 
         var isDefault = string.IsNullOrEmpty(normalized);
         CurrentFontFamily = normalized;
         OnPropertyChanged(nameof(CurrentFontFamily));
-        _store.Save(new FontSettings { FontFamily = normalized });
 
         _notice?.Show(isDefault
             ? "界面字体已恢复默认，重启应用后生效"
             : $"界面字体已保存为「{normalized}」，重启应用后生效", NoticeSeverity.Success);
+        return true;
     }
 
     /// <summary>

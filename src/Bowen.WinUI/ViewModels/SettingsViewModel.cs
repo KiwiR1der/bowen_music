@@ -390,7 +390,12 @@ public sealed partial class SettingsViewModel : ObservableObject
     partial void OnAppFontIndexChanged(int value)
     {
         if (_syncing || value < 0) return;
-        Font.Select(FontNameAt(value));
+        if (Font.Select(FontNameAt(value))) return;
+
+        // 保存失败：把下拉恢复到已保存的选择。
+        _syncing = true;
+        AppFontIndex = FontIndexOf(Font.CurrentFontFamily);
+        _syncing = false;
     }
 
     partial void OnLyricsFontIndexChanged(int value)

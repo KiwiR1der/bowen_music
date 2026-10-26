@@ -49,7 +49,7 @@ public sealed class JsonFontSettingsStore : IFontSettingsStore
         }
     }
 
-    public void Save(FontSettings settings)
+    public bool Save(FontSettings settings)
     {
         ArgumentNullException.ThrowIfNull(settings);
         try
@@ -61,10 +61,12 @@ public sealed class JsonFontSettingsStore : IFontSettingsStore
             var temp = _path + ".tmp";
             File.WriteAllBytes(temp, bytes);
             File.Move(temp, _path, overwrite: true);
+            return true;
         }
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
         {
             _logger.LogWarning(exception, "界面字体设置写入失败");
+            return false;
         }
     }
 }

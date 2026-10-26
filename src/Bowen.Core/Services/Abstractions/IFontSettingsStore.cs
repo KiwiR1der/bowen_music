@@ -14,6 +14,6 @@ public interface IFontSettingsStore
     /// <summary>读上次的选择。没有记录或记录不可用时返回 <see cref="FontSettings.Default"/>。</summary>
     FontSettings Load();
 
-    /// <summary>写回当前选择。写失败只记日志，不抛。</summary>
-    void Save(FontSettings settings);
+    /// <summary>写回当前选择。返回是否成功；失败只记日志，不抛。</summary>
+    bool Save(FontSettings settings);
 }
