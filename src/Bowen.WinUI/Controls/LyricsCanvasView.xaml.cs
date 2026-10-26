@@ -31,6 +31,7 @@ public sealed partial class LyricsCanvasView : UserControl
     private LyricsRenderLoop? _renderLoop;
     private XamlRoot? _subscribedRoot;
     private double _fontSize = 40;
+    private string _fontFamily = "";
     private bool _loaded;
     private bool _paused;
     private bool _resourcesSuspended;
@@ -103,6 +104,14 @@ public sealed partial class LyricsCanvasView : UserControl
         _fontSize = fontSize;
         ResizeSurface();
     }
+
+    /// <summary>切换歌词字体。设置页改动后调用，渲染线程收到后整份文档重排。</summary>
+    public void SetFontFamily(string fontFamily)
+    {
+        _fontFamily = fontFamily;
+        _renderLoop?.Send(renderer => renderer.SetFontFamily(fontFamily));
+    }
+
     public void ResumeFollowing() => _renderLoop?.Send(renderer => renderer.ResumeFollowing());
 
     private void OnLoaded(object sender, RoutedEventArgs args)
@@ -181,6 +190,7 @@ public sealed partial class LyricsCanvasView : UserControl
             }));
         _renderLoop = loop;
         loop.SetDocument(_viewModel.Document);
+        loop.Send(renderer => renderer.SetFontFamily(_fontFamily));
         ResizeSurface();
         loop.Start();
     }

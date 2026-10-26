@@ -79,8 +79,10 @@ public sealed partial class LyricsViewModel : ObservableObject
 
         // 同步读，和主题一样：歌词页要在第一帧就按选择排好，异步读会先闪一下译文。
         // 读到的是**默认值**，当前这一次从它起步，之后两者各走各的（见 SetDefaultShowTranslation）。
-        DefaultShowTranslation = settings.Load().Normalized().ShowTranslation;
+        var loaded = settings.Load().Normalized();
+        DefaultShowTranslation = loaded.ShowTranslation;
         ShowTranslation = DefaultShowTranslation;
+        FontFamily = loaded.FontFamily;
         _loading = false;
 
         // 启动时恢复出来的那一首也算「有歌可看」：播放条已经铺好了曲目，
@@ -125,6 +127,31 @@ public sealed partial class LyricsViewModel : ObservableObject
     public bool DefaultShowTranslation { get; private set; }
 
     /// <summary>
+    /// 全屏歌词的字体族名；空串表示跟随渲染层默认。
+    /// </summary>
+    /// <remarks>
+    /// 只读属性 + 显式 <see cref="SetFontFamily"/>：与 <see cref="DefaultShowTranslation"/> 同一条规矩，
+    /// 写入口有副作用（落盘），不该被直接赋值。渲染层订阅 <c>PropertyChanged</c> 后重排。
+    /// </remarks>
+    public string FontFamily { get; private set; } = string.Empty;
+
+    /// <summary>
+    /// 设置页改歌词字体：落盘，并发通知让渲染层重排当前文档（不必重启）。
+    /// </summary>
+    public void SetFontFamily(string fontFamily)
+    {
+        fontFamily ??= string.Empty;
+        if (FontFamily == fontFamily)
+        {
+            return;
+        }
+
+        FontFamily = fontFamily;
+        OnPropertyChanged(nameof(FontFamily));
+        _settings.Save(new LyricsSettings { ShowTranslation = DefaultShowTranslation, FontFamily = fontFamily });
+    }
+
+    /// <summary>
     /// 设置页改默认值：落盘，并让当前这一次也立刻跟上（不必重启）。
     /// </summary>
     public void SetDefaultShowTranslation(bool value)
@@ -136,7 +163,7 @@ public sealed partial class LyricsViewModel : ObservableObject
 
         DefaultShowTranslation = value;
         OnPropertyChanged(nameof(DefaultShowTranslation));
-        _settings.Save(new LyricsSettings { ShowTranslation = value });
+        _settings.Save(new LyricsSettings { ShowTranslation = value, FontFamily = FontFamily });
 
         // 同步应用到当前这次，否则用户改完默认值还要手动去歌词页再按一下才看到效果。
         ShowTranslation = value;

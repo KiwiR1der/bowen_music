@@ -44,9 +44,11 @@ public sealed class LyricsSettingsStoreTests : IDisposable
     [Fact]
     public void RoundTripsTheChoice()
     {
-        NewStore().Save(new LyricsSettings { ShowTranslation = false });
+        NewStore().Save(new LyricsSettings { ShowTranslation = false, FontFamily = "Microsoft YaHei UI" });
 
-        Assert.False(NewStore().Load().ShowTranslation);
+        var loaded = NewStore().Load();
+        Assert.False(loaded.ShowTranslation);
+        Assert.Equal("Microsoft YaHei UI", loaded.FontFamily);
     }
 
     /// <summary>写盘的字段名与其它设置一致：属性名原样，不转驼峰。</summary>

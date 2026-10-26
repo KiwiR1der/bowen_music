@@ -31,6 +31,14 @@
                 <!-- 浅色 / 深色 / 高对比度三套颜色 -->
                 <ResourceDictionary Source="ms-appx:///Themes/Theme.xaml" />
 
+                <!--
+                    排版样式的字体覆盖（BaseTextBlockStyle 系）。★ 必须排在 Pages/Player
+                    之前：StaticResource 在字典加载时一次性解析，Pages.xaml 里的
+                    BowenPageTitle 等 BasedOn 这些样式，晚于它们合并就解析到框架的
+                    硬编码字体上。完整原理见该文件顶部注释。
+                -->
+                <ResourceDictionary Source="ms-appx:///Themes/FontOverride.xaml" />
+
                 <!-- 页面骨架的共享样式。必须在 Tokens 之后（要用里面的尺寸 token） -->
                 <ResourceDictionary Source="ms-appx:///Themes/Styles/Pages.xaml" />
 

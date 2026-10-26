@@ -187,7 +187,7 @@ public sealed class DesktopLyricsCanvasView : Grid, IDisposable
                 (float)(Math.Ceiling(ActualHeight * scale) / scale));
         _loop.SetInput(new DesktopLyricsRenderInput(_lyrics.Document,
             _lyrics.HasTrack ? "暂无歌词" : AppIdentity.DisplayName, ActualWidth, ActualHeight,
-            XamlRoot.RasterizationScale, _settings.FontSize, _settings.TextColor,
+            XamlRoot.RasterizationScale, _settings.FontSize, _settings.FontFamily, _settings.TextColor,
             _settings.DualLine, _settings.Alignment, _engine.State == PlaybackState.Playing));
     }
 
@@ -208,6 +208,7 @@ public sealed class DesktopLyricsCanvasView : Grid, IDisposable
     private void OnSettingsChanged(object? sender, PropertyChangedEventArgs args)
     {
         if (args.PropertyName is nameof(DesktopLyricsViewModel.FontSize) or nameof(DesktopLyricsViewModel.TextColor)
+            or nameof(DesktopLyricsViewModel.FontFamily)
             or nameof(DesktopLyricsViewModel.DualLine) or nameof(DesktopLyricsViewModel.Alignment))
         {
             if (_broken && _loaded) RecreateSurface();

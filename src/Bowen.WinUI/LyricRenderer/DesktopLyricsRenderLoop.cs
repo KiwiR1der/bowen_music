@@ -14,7 +14,7 @@ using Windows.UI;
 namespace Bowen.WinUI.LyricRenderer;
 
 internal sealed record DesktopLyricsRenderInput(LyricDocument Document, string Placeholder,
-    double Width, double Height, double Scale, double FontSize, Color Highlight,
+    double Width, double Height, double Scale, double FontSize, string FontFamily, Color Highlight,
     bool DualLine, DesktopLyricsAlignment Alignment, bool IsPlaying);
 
 /// <summary>按歌词时间轴唤醒；逐字或长句滚动最高 60 Hz，静止时保留已提交表面。</summary>
@@ -27,7 +27,7 @@ internal sealed class DesktopLyricsRenderLoop(CanvasDevice device, CompositionDr
     private readonly AutoResetEvent _resume = new(false);
     private readonly bool _diagnostics = Environment.GetEnvironmentVariable("BODIAN_LYRICS_DIAGNOSTICS") == "1";
     private DesktopLyricsRenderInput _input = new(LyricDocument.Empty, AppIdentity.DisplayName, 0, 0, 1,
-        DesktopLyricsSettings.DefaultFontSize, Color.FromArgb(255, 0, 229, 191), false, DesktopLyricsAlignment.Center, false);
+        DesktopLyricsSettings.DefaultFontSize, "", Color.FromArgb(255, 0, 229, 191), false, DesktopLyricsAlignment.Center, false);
     private DesktopLyricsRenderInput? _applied;
     private DesktopLyricsLineRenderer? _current, _next;
     private LyricLine? _placeholder;
@@ -206,7 +206,8 @@ internal sealed class DesktopLyricsRenderLoop(CanvasDevice device, CompositionDr
         var fontSize = DesktopLyricsLayoutMetrics.Calculate(input.FontSize, input.Height, input.DualLine).FontSize;
         var previousFontSize = previous is null ? 0
             : DesktopLyricsLayoutMetrics.Calculate(previous.FontSize, previous.Height, previous.DualLine).FontSize;
-        if (previous is null || previousFontSize != fontSize || previous.Highlight != input.Highlight
+        if (previous is null || previousFontSize != fontSize || previous.FontFamily != input.FontFamily
+            || previous.Highlight != input.Highlight
             || previous.Scale != input.Scale || !ReferenceEquals(previous.Document, input.Document))
         {
             _current?.Dispose(); _current = null;
@@ -229,12 +230,12 @@ internal sealed class DesktopLyricsRenderLoop(CanvasDevice device, CompositionDr
             _current?.Dispose();
             // 下一句的预排版在切句时直接接续，避免同一句重复测量。
             if (ReferenceEquals(_next?.Line, current)) { _current = _next; _next = null; }
-            else _current = new DesktopLyricsLineRenderer(device, current, fontSize, input.Scale, input.Highlight);
+            else _current = new DesktopLyricsLineRenderer(device, current, fontSize, input.FontFamily, input.Scale, input.Highlight);
         }
         if (!ReferenceEquals(_next?.Line, next))
         {
             _next?.Dispose();
-            _next = next is null ? null : new DesktopLyricsLineRenderer(device, next, fontSize, input.Scale, input.Highlight);
+            _next = next is null ? null : new DesktopLyricsLineRenderer(device, next, fontSize, input.FontFamily, input.Scale, input.Highlight);
         }
     }
 

@@ -25,15 +25,21 @@ public sealed record LyricsSettings
     /// </remarks>
     public bool ShowTranslation { get; init; } = true;
 
-    /// <summary>默认设置：显示译文。</summary>
-    public static LyricsSettings Default { get; } = new();
-
     /// <summary>
-    /// 把越界的值收进合法范围。
+    /// 全屏歌词的字体族名；空串表示跟随系统默认。
     /// </summary>
     /// <remarks>
-    /// 目前只有一个布尔项，没有可越界的取值。方法保留是为了与其它设置同一个形状 ——
-    /// 以后加字号之类的项时，不必再去改 <c>JsonLyricsSettingsStore</c> 的调用点。
+    /// <b>只存名字，不校验是否存在。</b> 缺字体时渲染层回退系统默认，与界面字体同一条规矩。
+    /// 改它即时生效（重排当前文档），不需要重启。
     /// </remarks>
-    public LyricsSettings Normalized() => this;
+    public string FontFamily { get; init; } = string.Empty;
+
+    /// <summary>默认设置：显示译文、跟随系统字体。</summary>
+    public static LyricsSettings Default { get; } = new();
+
+    /// <summary>规范化字体名，保持空字符串 = 渲染层默认的约定。</summary>
+    /// <remarks>
+    /// 保留这个入口与其他设置同一个形状：新增需要夹取范围的偏好时不必改 store 的调用点。
+    /// </remarks>
+    public LyricsSettings Normalized() => this with { FontFamily = FontFamily?.Trim() ?? string.Empty };
 }
