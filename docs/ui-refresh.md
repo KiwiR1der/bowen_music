@@ -28,7 +28,8 @@
 ### 1.1 强调色必须拆成两条轨道
 
 品牌色 `#00F3B0`（薄荷绿）对白底的对比度**只有 1.45:1**，当浅色主题的文字色完全不可读。
-参照物的 `#EC4141` 是中深红，恰好一色通吃，绿色不行。
+参照物的 `#EC4141` 是中深红，恰好一色通吃，绿色不行。2026-10-26 起浅色填充再压深一档到
+`#00D9A0`，与深色的 `#00F3B0` 形成轻微深浅差异。
 
 对比度实算（WCAG 相对亮度）：
 
@@ -36,17 +37,19 @@
 | --- | --- | --- |
 | `#00F3B0` on `#FFFFFF` | 1.45:1 | ❌ 不能当文字 |
 | `#00F3B0` on `#121212` | 12.89:1 | ✅ |
+| `#00D9A0` on `#FFFFFF` | 1.67:1 | ❌ 仍不能当文字，只能做填充 |
 | `#007A57` on `#FAFAFA` | 5.13:1 | ✅ 过 WCAG AA |
+| `#002019` on `#00D9A0` | 10.4:1 | ✅ |
 | `#002019` on `#00F3B0` | 11.83:1 | ✅ |
 
 | 用途 | 浅色 | 深色 | 键 |
 | --- | --- | --- | --- |
-| 填充 / 徽标 / 进度条 / 播放键底 | `#00F3B0` | `#00F3B0` | `AccentFillColorDefaultBrush` |
+| 填充 / 徽标 / 进度条 / 播放键底 | `#00D9A0` | `#00F3B0` | `AccentFillColorDefaultBrush` |
 | 文字 / 图标（浅底） | `#007A57` | `#00F3B0` | `AccentTextFillColorPrimaryBrush` |
 | 强调填充之上的前景 | `#002019` | `#002019` | `TextOnAccentFillColorPrimaryBrush` |
 
 > **`TextOnAccentFillColorPrimaryBrush` 必须覆盖。** 系统浅色下它是 `#FFFFFF`，
-> 压在 `#00F3B0` 上只有 1.45:1 —— 主播放按钮的图标会直接看不见。
+> 压在薄荷绿上只有 1.45:1 —— 主播放按钮的图标会直接看不见。
 
 ### 1.2 骨架尺寸
 
@@ -2240,3 +2243,55 @@ WinUI 构建通过，0 错误，1 个既有 `AiPlaylistPage.xaml:28` `WMC1506` �
 
 **未覆盖**：观感只能手动验收 —— 悬停选中项时只应看到一块底色（两层半透明叠出的深色），
 不该有一大一小两个框，也不该看到内外两道圆角。
+
+## 36. 强调色收敛为一组 token（2026-10-26）
+
+**用户反馈**：不少控件还是系统蓝（开关、勾选框、链接、进度圈、文本框聚焦线、选择高亮），
+与品牌薄荷绿不一致；要求以后不要再逐个控件改色，浅色 / 深色略有深浅差异。
+
+**根因**：WinUI 控件的模板把强调色写成对 `AccentFillColorDefaultBrush` 等键的
+`StaticResource` 别名。这些别名在 `XamlControlsResources` 加载时已经绑死成系统强调色，
+在 `Theme.xaml` 里覆盖源刷子传不进去（Slider 早先就踩过同一个坑）。
+
+**改法**：`Themes/Theme.xaml` 建立唯一的品牌 token：
+
+| token | 浅色 | 深色 |
+| --- | --- | --- |
+| `BrandAccent`（填充） | `#00D9A0` | `#00F3B0` |
+| `BrandAccentSecondary`（hover） | `#00C894` | `#1AFFBF` |
+| `BrandAccentTertiary`（pressed） | `#00B084` | `#00D9A0` |
+| `BrandAccentDisabled` | `#4D00D9A0` | `#4D00F3B0` |
+| `BrandAccentOnSurface`（文字） | `#007A57` | `#00F3B0` |
+| `BrandAccentOnSurfaceSecondary` | `#006B4C` | `#B300F3B0` |
+| `BrandAccentOnSurfaceTertiary` | `#99007A57` | `#8000F3B0` |
+| `BrandAccentOnSurfaceDisabled` | `#66007A57` | `#6600F3B0` |
+| `BrandOnAccent`（强调底上的前景） | `#002019` | `#002019` |
+| `BrandOnAccentSecondary` | `#B3002019` | `#B3002019` |
+| `BrandOnAccentDisabled` | `#66002019` | `#66002019` |
+| `BrandSelection`（文本选择） | `#4D00D9A0` | `#4D00F3B0` |
+| `BrandFocus`（输入聚焦线） | `#007A57` | `#00F3B0` |
+
+所有强调刷子引用这组 token；`AccentFillColor*`、`AccentTextFillColor*`、`TextOnAccent*`、
+`AccentButton*`、Slider 键都改成 token 引用。
+
+**控件级映射**：以下框架键同样是 StaticResource 别名，必须逐个指向 token（改色时不用动它们）：
+
+- ToggleSwitch：`ToggleSwitchFillOn*` / `StrokeOn*` / `KnobFillOn*`
+- CheckBox：`CheckBoxCheckBackgroundFillChecked*` / `StrokeChecked*` / `GlyphForegroundChecked*`，
+  以及 Indeterminate 同名键
+- RadioButton：`RadioButtonOuterEllipseCheckedFill*` / `Stroke*` / `RadioButtonCheckGlyphFill*`
+- HyperlinkButton：`HyperlinkButtonForeground*`
+- ListView：`ListViewItemSelectionIndicator*Brush`
+- 进度：`ProgressBarForeground`、`ProgressBarForegroundThemeBrush`、`ProgressRingForegroundThemeBrush`
+- 文本框：`TextControlBorderBrushFocused`（保留框架原版渐变，只让底部 2px 用 `BrandFocus`；
+  换成纯色刷会把四面 1px 边框一起染色）、`TextControlSelectionHighlightColor`
+
+新增带强调色的控件时，把它的 `*Checked / *On / *Focused` 键补到这一段映射里；颜色本身只改
+上面的 token。
+
+**Color 镜像**：`AccentFillColorDisabled`、`AccentTextFillColorDisabled`、
+`TextOnAccentFillColorDisabled`、`SystemAccentColor` 是 Color 类型，Color 资源之间无法可靠地
+做别名（主题字典里的 StaticResource 解析时机不可靠），所以这四个值仍与 token 同值手写，
+改色时需要一起同步。
+
+**验证**：WinUI 构建通过，0 警告 0 错误；启动冒烟通过。系统原生下拉与托盘菜单不受影响。

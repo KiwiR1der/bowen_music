@@ -201,16 +201,7 @@
                     Content="更多"
                     Tag="{x:Bind Category}"
                     Click="OnOverviewMoreClick"
-                    Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}">
-                    <HyperlinkButton.Resources>
-                        <!--
-                            默认模板的悬停 / 按下色来自框架内部的静态别名，应用的主题色覆盖不到，
-                            会闪回系统蓝。这里按主题色重新指定，三个状态保持同一支强调色。
-                        -->
-                        <SolidColorBrush x:Key="HyperlinkButtonForegroundPointerOver" Color="{ThemeResource BrandAccentOnSurface}" />
-                        <SolidColorBrush x:Key="HyperlinkButtonForegroundPressed" Color="{ThemeResource BrandAccentOnSurface}" />
-                    </HyperlinkButton.Resources>
-                </HyperlinkButton>
+                    Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" />
             </Grid>
         </DataTemplate>
         <DataTemplate x:Key="OverviewTrackTemplate" x:DataType="vm:TrackRow">
