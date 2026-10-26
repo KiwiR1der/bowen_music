@@ -1604,6 +1604,11 @@ WinUI 构建通过，0 错误。
 背景的封面氛围色仍然透过来。设置卡片另加 1px `SurfaceStrokeColorDefaultBrush` 描边。
 高对比度用系统背景色实色。
 
+**浅色对话框的遮挡层**（2026-10-26 修）：`ContentDialog` 模板的内容区还会铺一层
+`ContentDialogTopOverlay`。浅色档这个键指向 `LayerFillColorAltBrush` = 不透明 `#FFFFFF`，
+把对话框的亚克力底整个盖住，只剩按钮区能透出来 —— 表现就是「浅色下开不开亚克力完全一样」。
+`Theme.xaml` 浅色档把该键改为 `Transparent`；深色档这层只有 5% 白，不构成遮挡，保持原样。
+
 **注入时机**：`AcrylicMaterial.Initialize()` 必须放在 `OnLaunched`、创建主窗口之前。
 不能放 App 构造函数：那时 `Application.Current.Resources` 还取不到，抛
 `COMException 0x8000FFFF`，表现是双击无反应且没有任何日志（发生在日志初始化之前）。

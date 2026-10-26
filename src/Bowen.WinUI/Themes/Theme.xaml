@@ -346,6 +346,15 @@
                   CardBackgroundFillColorDefaultBrush（70% 白）会被透掉，卡片看起来根本不存在。
             -->
             <SolidColorBrush x:Key="HomeCardBackgroundBrush" Color="#FFF6F8FB" />
+
+            <!--
+                ContentDialog 的内容区还会铺一层 ContentDialogTopOverlay。
+                浅色档它指向 LayerFillColorAltBrush = 不透明 #FFFFFF，把对话框的亚克力底
+                整个盖住，只剩按钮区能透出来 —— 表现就是「开不开亚克力完全一样」。
+                设为透明后内容区才真正压在 BowenAcrylicBrush 上；关闭亚克力时同一刷子
+                退回实色兜底，不会露底色。深色档这层只有 5% 白，不构成遮挡，故不覆盖。
+            -->
+            <SolidColorBrush x:Key="ContentDialogTopOverlay" Color="Transparent" />
         </ResourceDictionary>
 
         <!-- ══ 深色 ══════════════════════════════════════════════════════════ -->
