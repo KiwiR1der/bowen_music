@@ -94,7 +94,7 @@
             <Grid
                 Width="{StaticResource SizeHomePreviewCard}"
                 Margin="{StaticResource SpaceHomeCardMargin}"
-                Background="{ThemeResource HomeCardBackgroundBrush}"
+                Background="{ThemeResource BowenAcrylicBrush}"
                 CornerRadius="{StaticResource RadiusMd}"
                 PointerEntered="OnHoverPointerEntered"
                 PointerExited="OnHoverPointerExited">
@@ -209,7 +209,7 @@
                 Width="{StaticResource SizeHomeTrackColumn}"
                 Margin="{StaticResource SpaceHomeCardMargin}"
                 Padding="8"
-                Background="{ThemeResource HomeCardBackgroundBrush}"
+                Background="{ThemeResource BowenAcrylicBrush}"
                 CornerRadius="{StaticResource RadiusMd}">
                 <ItemsControl ItemsSource="{x:Bind Tracks}">
                     <ItemsControl.ItemTemplate>

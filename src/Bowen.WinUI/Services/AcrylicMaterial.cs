@@ -1,0 +1,99 @@
+using Microsoft.UI.Xaml;
+using Microsoft.UI.Xaml.Media;
+using Windows.UI;
+using Windows.UI.ViewManagement;
+
+namespace Bowen.WinUI.Services;
+
+/// <summary>
+/// 应用自己的亚克力刷：所有磨砂表面共用同一个实例，设置里可以一键退回实色。
+/// </summary>
+/// <remarks>
+/// <para>
+/// 用自建刷而不是系统 <c>AcrylicBackgroundFillColorDefaultBrush</c>，是因为后者分散在
+/// 框架的主题字典里，运行期拿不到具体实例，无法切 <see cref="AcrylicBrush.AlwaysUseFallback"/>。
+/// 这里自己持有 Light / Dark 两个刷子，切换只改一个属性，所有引用同刷子的表面一起变。
+/// </para>
+/// <para>
+/// 浅色 / 深色各给一层明显的 tint 与亮度，保证大面积卡片在氛围渐变上仍然看得出边界
+/// （系统 Default 的浅色 TintOpacity 是 0，只适合临时弹层）。兜底色与改动前的实色卡片一致。
+/// 高对比度用系统背景色实色，与系统保持一致的成对前景 / 背景。
+/// </para>
+/// <para>
+/// 只覆盖应用自己的表面。系统控件的下拉、托盘菜单仍走框架默认刷，跟随 Windows 的透明效果设置。
+/// </para>
+/// </remarks>
+public static class AcrylicMaterial
+{
+    /// <summary>XAML 里引用的资源键。</summary>
+    public const string BrushKey = "BowenAcrylicBrush";
+
+    private static AcrylicBrush? _light;
+    private static AcrylicBrush? _dark;
+
+    /// <summary>
+    /// 注入主题字典。必须在创建任何窗口之前调用（<see cref="App.OnLaunched"/> 里）。
+    /// 不能放在 App 构造函数里：那时 <c>Application.Resources</c> 还取不到，
+    /// 会抛 COMException 0x8000FFFF 导致启动即崩。
+    /// </summary>
+    public static void Initialize()
+    {
+        if (_light is not null)
+        {
+            return;
+        }
+
+        // 系统浅色默认的 TintOpacity 是 0（只模糊、不着色），那是按临时弹层调的；
+        // 放在大面积卡片上会与页面背景糊成一片，所以这里显式给 tint 与亮度层。
+        _light = new AcrylicBrush
+        {
+            TintColor = Color.FromArgb(0xFF, 0xFF, 0xFF, 0xFF),
+            TintOpacity = 0.35,
+            TintLuminosityOpacity = 0.6,
+            FallbackColor = Color.FromArgb(0xFF, 0xFA, 0xFA, 0xFA),
+        };
+
+        _dark = new AcrylicBrush
+        {
+            TintColor = Color.FromArgb(0xFF, 0x20, 0x20, 0x20),
+            TintOpacity = 0.4,
+            TintLuminosityOpacity = 0.35,
+            FallbackColor = Color.FromArgb(0xFF, 0x20, 0x20, 0x20),
+        };
+
+        var highContrast = new SolidColorBrush(
+            new UISettings().GetColorValue(UIColorType.Background));
+
+        var lightTheme = new ResourceDictionary();
+        lightTheme[BrushKey] = _light;
+
+        var darkTheme = new ResourceDictionary();
+        darkTheme[BrushKey] = _dark;
+
+        var highContrastTheme = new ResourceDictionary();
+        highContrastTheme[BrushKey] = highContrast;
+
+        var dictionary = new ResourceDictionary();
+        dictionary.ThemeDictionaries["Light"] = lightTheme;
+        dictionary.ThemeDictionaries["Dark"] = darkTheme;
+        dictionary.ThemeDictionaries["HighContrast"] = highContrastTheme;
+
+        Application.Current.Resources.MergedDictionaries.Add(dictionary);
+    }
+
+    /// <summary>
+    /// 开启时走真实模糊；关闭时两个刷子都强制使用各自的 FallbackColor。
+    /// </summary>
+    public static void SetEnabled(bool enabled)
+    {
+        if (_light is not null)
+        {
+            _light.AlwaysUseFallback = !enabled;
+        }
+
+        if (_dark is not null)
+        {
+            _dark.AlwaysUseFallback = !enabled;
+        }
+    }
+}

@@ -36,6 +36,36 @@ public sealed class ThemeSettingsStoreTests : IDisposable
         Assert.Equal(AppTheme.System, NewStore().Load().Theme);
     }
 
+    [Fact]
+    public void NoFile_DefaultsToAcrylicEnabled()
+    {
+        Assert.Equal(true, NewStore().Load().AcrylicEffects);
+    }
+
+    [Fact]
+    public void Save_ThenLoad_RoundTripsAcrylicDisabled()
+    {
+        NewStore().Save(new ThemeSettings(AppTheme.Dark, AcrylicEffects: false));
+
+        var loaded = NewStore().Load();
+
+        Assert.Equal(AppTheme.Dark, loaded.Theme);
+        Assert.Equal(false, loaded.AcrylicEffects);
+    }
+
+    [Fact]
+    public void LegacyFileWithoutAcrylicField_DefaultsToEnabled()
+    {
+        Directory.CreateDirectory(_directory);
+        File.WriteAllText(Path_, """{ "Theme": "Dark" }""");
+
+        var loaded = NewStore().Load();
+
+        // 旧文件只有主题字段；新字段缺席时必须按「开启」处理，不能落成 bool 默认值 false。
+        Assert.Equal(AppTheme.Dark, loaded.Theme);
+        Assert.Equal(true, loaded.AcrylicEffects);
+    }
+
     [Theory]
     [InlineData(AppTheme.System)]
     [InlineData(AppTheme.Light)]
@@ -79,13 +109,16 @@ public sealed class ThemeSettingsStoreTests : IDisposable
     [Fact]
     public void Save_WritesEnumAsString_NotNumber()
     {
-        NewStore().Save(new ThemeSettings(AppTheme.Dark));
+        NewStore().Save(new ThemeSettings(AppTheme.Dark, AcrylicEffects: true));
 
         var text = File.ReadAllText(Path_);
 
         // 写成数字的话，AppTheme 的成员顺序一旦重排，旧文件会静默读成别的档位。
         Assert.Contains("Dark", text, StringComparison.Ordinal);
         Assert.DoesNotContain("\"theme\": 2", text, StringComparison.Ordinal);
+
+        // 新字段显式落盘，下次读取不靠「缺字段」的默认值。
+        Assert.Contains("\"AcrylicEffects\": true", text, StringComparison.Ordinal);
     }
 
     [Fact]

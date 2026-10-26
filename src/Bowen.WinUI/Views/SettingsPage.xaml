@@ -225,6 +225,15 @@
                                     </controls:SettingsRow.RightContent>
                                 </controls:SettingsRow>
                                 <Border Style="{StaticResource BowenSettingsRowDivider}" />
+                                <controls:SettingsRow Description="关闭后应用内的磨砂表面改用实色底，减少显卡占用；系统下拉与托盘菜单仍跟随 Windows 的透明效果设置" Header="亚克力效果">
+                                    <controls:SettingsRow.RightContent>
+                                        <ToggleSwitch
+                                            IsOn="{x:Bind ViewModel.Theme.UseAcrylicEffects, Mode=TwoWay}"
+                                            MinWidth="0" OffContent="" OnContent=""
+                                            AutomationProperties.Name="亚克力效果" />
+                                    </controls:SettingsRow.RightContent>
+                                </controls:SettingsRow>
+                                <Border Style="{StaticResource BowenSettingsRowDivider}" />
                                 <controls:SettingsRow Description="改后重启应用生效；缺字体时回退系统默认" Header="界面字体">
                                     <controls:SettingsRow.RightContent>
                                         <controls:FontPicker

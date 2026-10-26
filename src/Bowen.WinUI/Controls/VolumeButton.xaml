@@ -71,14 +71,14 @@
                 PointerExited="OnVolumePointerExited">
                 <Border
                     Padding="12"
-                    Background="{ThemeResource ToolTipBackground}"
-                    BorderBrush="{ThemeResource ToolTipBorderBrush}"
+                    Background="{ThemeResource BowenAcrylicBrush}"
+                    BorderBrush="{ThemeResource SurfaceStrokeColorFlyoutBrush}"
                     BorderThickness="1"
                     CornerRadius="8">
                     <StackPanel HorizontalAlignment="Center" Spacing="8">
                         <TextBlock
                             HorizontalAlignment="Center"
-                            Foreground="{ThemeResource ToolTipForeground}"
+                            Foreground="{ThemeResource TextFillColorPrimaryBrush}"
                             Style="{StaticResource CaptionTextBlockStyle}"
                             Text="{x:Bind local:Formats.Percent(ViewModel.Volume), Mode=OneWay}" />
                         <Slider

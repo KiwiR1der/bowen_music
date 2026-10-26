@@ -206,8 +206,8 @@ https://h5app.kuwo.cn/m/bodian/collection.html?uid={分享者uid}&playlistId={id
 会让菜单从它的左边缘往右铺，直接顶出窗口右边。宽度也收了一道 —— presenter 模板里的
 `MinWidth` 是按「最宽的菜单项」算的（给二级菜单对齐用），两项短文案用不上。
 
-背景与圆角是显式给的（`ThemeFlyoutBackground` + `RadiusMd`）：`MenuFlyout` 的默认背景是
-系统那套半透明亚克力，与项目里其余菜单（都走 `ThemeFlyoutBackground`）不是一个观感。
+背景与圆角是显式给的（`BowenAcrylicBrush` + `RadiusMd`），与其余下拉、菜单一致。
+2026-10-26 起统一为应用亚克力刷，可在设置里关闭，见 [`ui-refresh.md`](ui-refresh.md) §24.5。
 
 ### 6.1 删之前先补了传输层
 

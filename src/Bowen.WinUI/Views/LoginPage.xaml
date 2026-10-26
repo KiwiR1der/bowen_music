@@ -14,7 +14,6 @@
         -->
         <ContentDialog
             x:Name="LoginDialog"
-            Background="{ThemeResource ThemeFlyoutBackground}"
             CornerRadius="{StaticResource RadiusMd}"
             KeyDown="OnDialogKeyDown">
             <ContentDialog.Resources>

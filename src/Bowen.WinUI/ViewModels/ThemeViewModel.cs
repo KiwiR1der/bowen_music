@@ -1,5 +1,6 @@
 using Bowen.Core.Models;
 using Bowen.Core.Services.Abstractions;
+using Bowen.WinUI.Services;
 using CommunityToolkit.Mvvm.ComponentModel;
 using Microsoft.UI.Xaml;
 
@@ -22,6 +23,7 @@ namespace Bowen.WinUI.ViewModels;
 public sealed partial class ThemeViewModel : ObservableObject
 {
     private readonly IThemeSettingsStore _store;
+    private bool _useAcrylicEffects;
     internal Func<Action, Task>? Transition { get; set; }
 
     public ThemeViewModel(IThemeSettingsStore store)
@@ -29,7 +31,12 @@ public sealed partial class ThemeViewModel : ObservableObject
         ArgumentNullException.ThrowIfNull(store);
 
         _store = store;
-        Current = store.Load().Theme;
+        var settings = store.Load();
+        Current = settings.Theme;
+        _useAcrylicEffects = settings.AcrylicEffects ?? true;
+
+        // 第一帧之前就定下来，避免启动时先画一帧亚克力再切成实色。
+        AcrylicMaterial.SetEnabled(_useAcrylicEffects);
     }
 
     /// <summary>当前档位。</summary>
@@ -66,6 +73,30 @@ public sealed partial class ThemeViewModel : ObservableObject
     public bool IsDark => Current == AppTheme.Dark;
 
     /// <summary>
+    /// 应用内的磨砂表面是否使用亚克力。改后立刻生效并落盘。
+    /// </summary>
+    /// <remarks>
+    /// 只影响应用自己定义的表面（弹层、对话框、抽屉、设置卡片与发现页/排行榜卡片）；
+    /// 系统控件的下拉与托盘菜单仍跟随 Windows 的透明效果设置。
+    /// </remarks>
+    public bool UseAcrylicEffects
+    {
+        get => _useAcrylicEffects;
+        set
+        {
+            if (_useAcrylicEffects == value)
+            {
+                return;
+            }
+
+            _useAcrylicEffects = value;
+            _store.Save(new ThemeSettings(Current, value));
+            AcrylicMaterial.SetEnabled(value);
+            OnPropertyChanged(nameof(UseAcrylicEffects));
+        }
+    }
+
+    /// <summary>
     /// 切到某个档位并立刻落盘。
     /// </summary>
     /// <remarks>
@@ -80,7 +111,7 @@ public sealed partial class ThemeViewModel : ObservableObject
         }
 
         Current = theme;
-        _store.Save(new ThemeSettings(theme));
+        _store.Save(new ThemeSettings(theme, _useAcrylicEffects));
 
         void NotifyTheme()
         {

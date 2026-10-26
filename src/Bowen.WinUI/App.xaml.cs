@@ -457,6 +457,10 @@ public partial class App : Application
             return;
         }
 
+        // 应用自己的亚克力刷必须赶在任何窗口加载之前注入。不能放在构造函数里：
+        // 那时 Application.Resources 还取不到（COMException 0x8000FFFF）。
+        AcrylicMaterial.Initialize();
+
         MainWindow window;
 
         // 日志工厂也放进 App 资源：XAML 实例化的控件（构造函数必须无参）拿不到 DI 容器，

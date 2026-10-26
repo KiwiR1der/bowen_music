@@ -166,7 +166,7 @@
                 Tapped="OnCardTapped">
 
                 <Border
-                    Background="{ThemeResource HomeCardBackgroundBrush}"
+                    Background="{ThemeResource BowenAcrylicBrush}"
                     CornerRadius="{StaticResource RadiusMd}" />
 
                 <Grid Padding="16" RowSpacing="10">

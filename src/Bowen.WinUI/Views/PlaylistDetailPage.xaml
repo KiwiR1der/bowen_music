@@ -166,11 +166,9 @@
                                 <Setter Property="MaxWidth" Value="200" />
 
                                 <!--
-                                    背景用与其它弹出菜单同一个画刷 —— 曲目行那颗「更多」就是这么写的。
-                                    MenuFlyout 的默认背景是系统那套半透明亚克力，在这个外壳里显得太透，
-                                    与项目里其余弹层也不是一个观感。
+                                    背景与其余下拉、菜单统一：应用亚克力刷，与字体选择器同源。
                                 -->
-                                <Setter Property="Background" Value="{ThemeResource ThemeFlyoutBackground}" />
+                                <Setter Property="Background" Value="{ThemeResource BowenAcrylicBrush}" />
                                 <Setter Property="CornerRadius" Value="{StaticResource RadiusMd}" />
                             </Style>
                         </MenuFlyout.MenuFlyoutPresenterStyle>

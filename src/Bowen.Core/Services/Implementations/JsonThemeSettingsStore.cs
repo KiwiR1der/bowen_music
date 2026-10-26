@@ -61,7 +61,11 @@ public sealed class JsonThemeSettingsStore : IThemeSettingsStore
                 return ThemeSettings.Default;
             }
 
-            return loaded;
+            // 旧版文件没有 AcrylicEffects 字段：缺字段时按默认（开启）处理，
+            // 不能让它落成 bool 的默认值 false，把已有的磨砂效果静默关掉。
+            return loaded.AcrylicEffects is null
+                ? loaded with { AcrylicEffects = true }
+                : loaded;
         }
         catch (Exception ex) when (ex is IOException or JsonException or UnauthorizedAccessException)
         {

@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    对话框的共享外观。
+
+    WinUI 的默认 ContentDialog 底色是实色（ContentDialogBackground），与字体选择器、
+    下拉菜单用的亚克力不一致。这里用隐式样式统一底色，所有 ContentDialog 自动生效，
+    不必在每个构造对话框的地方逐个设置。
+
+    只改底色：内边距、最小/最大尺寸与模板仍来自 DefaultContentDialogStyle。
+    Background 走 TemplateBinding，模板不需要改。
+-->
+<ResourceDictionary
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <Style TargetType="ContentDialog" BasedOn="{StaticResource DefaultContentDialogStyle}">
+        <Setter Property="Background" Value="{ThemeResource BowenAcrylicBrush}" />
+    </Style>
+
+</ResourceDictionary>

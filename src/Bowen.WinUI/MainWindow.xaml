@@ -410,10 +410,7 @@
                                  弹窗比头像按钮宽得多，右对齐会把整块甩到头像左边去。 -->
                             <Flyout Opening="OnAccountFlyoutOpening" Placement="Bottom">
                                 <!--
-                                    底色与主题弹层用同一个实色画刷。
-                                    不写这段的话会回落到框架默认的 FlyoutPresenter 样式 ——
-                                    它的背景是亚克力（半透明），叠在窗口的氛围渐变上，
-                                    亮色主题看着接近实色、暗色主题就明显透，像是两个主题不一致。
+                                    底色与其余下拉、菜单统一：应用亚克力刷，与字体选择器同源。
 
                                     显式给 Style 会整份替换掉框架默认样式，所以 Padding 与 MaxWidth
                                     要照着原来的值写回来（框架默认是 12 与 456）：
@@ -423,7 +420,7 @@
                                 -->
                                 <Flyout.FlyoutPresenterStyle>
                                     <Style TargetType="FlyoutPresenter">
-                                        <Setter Property="Background" Value="{ThemeResource ThemeFlyoutBackground}" />
+                                        <Setter Property="Background" Value="{ThemeResource BowenAcrylicBrush}" />
                                         <Setter Property="Padding" Value="12" />
                                         <Setter Property="CornerRadius" Value="{StaticResource RadiusMd}" />
                                         <Setter Property="MaxWidth" Value="456" />
@@ -768,7 +765,7 @@
                             <Flyout Opening="OnThemeFlyoutOpening" Placement="Bottom">
                                 <Flyout.FlyoutPresenterStyle>
                                     <Style TargetType="FlyoutPresenter">
-                                        <Setter Property="Background" Value="{ThemeResource ThemeFlyoutBackground}" />
+                                        <Setter Property="Background" Value="{ThemeResource BowenAcrylicBrush}" />
                                         <Setter Property="Padding" Value="6" />
                                         <Setter Property="CornerRadius" Value="{StaticResource RadiusMd}" />
                                     </Style>
@@ -1204,11 +1201,8 @@
               抽屉开在下面也没人看得见。现在歌词页自己的传输组也有队列按钮了，
               再让它排在下面就是「点了没反应」。
 
-            ★ 背景用 CommentPanelBackgroundBrush 而不是 ThemeFlyoutBackground：两者现在都是实色
-              （#FAFBFD / #FAFAFA），但后者是弹层底色、靠外圈阴影与描边分层，而这条抽屉铺满
-              窗口一整侧，与评论抽屉同源更合适（理由也在那边：
-              「实色面板保证封面颜色和动态背景不会透过正文」）。
-              2026-10-04 之前 ThemeFlyoutBackground 还是 #CC 半透明，那时这条是必需的。
+            ★ 背景与下拉、菜单统一用应用亚克力刷：抽屉正文多且可滚动，亚克力是模糊背板，
+              比半透明平色更能保证文字可读，同时透出窗口的氛围渐变。
 
             ★ **四角全圆、离窗口边留出边距**，是一张浮起来的卡片，不是贴边的侧板：
               贴边那种只有左侧圆角，右下两侧顶在窗口边上，视觉上更像把内容区切了一刀。
@@ -1224,7 +1218,7 @@
                 Width="380"
                 Margin="0,8,12,12"
                 HorizontalAlignment="Right"
-                Background="{ThemeResource CommentPanelBackgroundBrush}"
+                Background="{ThemeResource BowenAcrylicBrush}"
                 BorderBrush="{ThemeResource SurfaceStrokeColorDefaultBrush}"
                 BorderThickness="1"
                 CornerRadius="16"
@@ -1246,8 +1240,8 @@
             ★ 左边距要让开图标轨（48 + 8），不然会把收起栏整个盖住 —— 盖住以后
               那颗图标就点不着，也没法看出自己是从哪儿弹出来的。
 
-            ★ 背景必须实色（CommentPanelBackgroundBrush）：面板压在内容区上，
-              半透明会把底下的正文透出来。理由同 QueuePane。
+            ★ 背景与播放队列抽屉一致：应用亚克力刷，两块浮层是一套东西照镜子。
+              亚克力是模糊背板，不会像半透明平色那样把底下的正文透出来。
 
             ★ 行用 PlaylistListView —— 与「收藏的歌单」页是同一个控件，48 封面那套行，
               380 宽放得下名称与曲目数。放 ImmersiveHost 之前：全屏歌词页要盖住它。
@@ -1264,7 +1258,7 @@
                 Width="{StaticResource SizePlaylistPaneWidth}"
                 Margin="56,8,0,12"
                 HorizontalAlignment="Left"
-                Background="{ThemeResource CommentPanelBackgroundBrush}"
+                Background="{ThemeResource BowenAcrylicBrush}"
                 BorderBrush="{ThemeResource SurfaceStrokeColorDefaultBrush}"
                 BorderThickness="1"
                 CornerRadius="16"
@@ -1374,7 +1368,7 @@
             VerticalAlignment="Top"
             Visibility="Collapsed"
             Padding="6"
-            Background="{ThemeResource ThemeFlyoutBackground}"
+            Background="{ThemeResource BowenAcrylicBrush}"
             BorderBrush="{ThemeResource SurfaceStrokeColorDefaultBrush}"
             BorderThickness="1"
             CornerRadius="{StaticResource RadiusMd}"

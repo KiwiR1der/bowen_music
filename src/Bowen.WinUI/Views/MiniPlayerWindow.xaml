@@ -324,6 +324,7 @@
                                 ShouldConstrainToRootBounds="False">
                                 <Flyout.FlyoutPresenterStyle>
                                     <Style TargetType="FlyoutPresenter">
+                                        <Setter Property="Background" Value="{ThemeResource BowenAcrylicBrush}" />
                                         <Setter Property="Padding" Value="12,10" />
                                         <Setter Property="CornerRadius" Value="{StaticResource RadiusMd}" />
                                     </Style>

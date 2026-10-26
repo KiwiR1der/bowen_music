@@ -39,6 +39,9 @@
                 -->
                 <ResourceDictionary Source="ms-appx:///Themes/FontOverride.xaml" />
 
+                <!-- 对话框的共享外观：底色统一为应用亚克力刷（设置里可关闭） -->
+                <ResourceDictionary Source="ms-appx:///Themes/Styles/Dialogs.xaml" />
+
                 <!-- 页面骨架的共享样式。必须在 Tokens 之后（要用里面的尺寸 token） -->
                 <ResourceDictionary Source="ms-appx:///Themes/Styles/Pages.xaml" />
 
