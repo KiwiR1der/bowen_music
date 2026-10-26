@@ -92,6 +92,22 @@ public sealed partial class PlayQueueViewModel : ObservableObject
     /// <summary>删除入口的同步包装；界面要等退场动画时直接调 <see cref="RemoveAsync"/>。</summary>
     public void Remove(int position) => _ = RemoveAsync(position);
 
+    /// <summary>
+    /// 删除并立刻同步 <see cref="Rows"/>，供界面在退场动画结束后调用。
+    /// </summary>
+    /// <remarks>
+    /// <b>与 <see cref="RemoveAsync"/> 的区别只是不等 dispatcher 下一轮。</b>
+    /// 平时改条目要排下一轮，是因为队列很可能就在 ListView 的事件栈里被改；
+    /// 这里调用方已经等完 170 ms 退场动画，不在那层事件栈里。同步删行才能让界面
+    /// 在同一个 UI 回合里还原容器 —— 先还原再删，容器即使被回收也不会把透明度带走，
+    /// 两者之间也没有布局/绘制把行闪出来。
+    /// </remarks>
+    public void RemoveNow(int position)
+    {
+        _ = _coordinator.RemoveQueueItemAsync(position);
+        Refresh();
+    }
+
     /// <summary>清空队列。确认框由界面负责，这里只管执行。</summary>
     public void Clear() => _coordinator.ClearQueue();
 

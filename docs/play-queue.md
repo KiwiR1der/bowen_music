@@ -684,6 +684,26 @@ Changed
 删除单曲时该行先向上轻移 6 DIP 并淡出 170 ms，动画结束才真正从队列移除；其余行由增量删行补位，
 不整表重建，也不回队首。
 
+**删除是一段让位动画，不能叠两层。** ListView 默认带 `AddDeleteThemeTransition`，删行时会在
+手写动画之后再播一遍，表现为「这一行消失后又闪一下」；容器还会被回收给下一行，带着透明度 0
+过去。面板因此把 `ItemContainerTransitions` 整份关掉，删除动画由自己编排（180 ms）：
+
+1. 被删行**向右抽出 36 DIP 并淡出**；同时下方已实例化的行用 `TranslationTransition`
+   上滑一整行高度（与拖动排序同一个 `SetShift`）。其余行在动画期间就补到位，
+   不会在删的那一瞬间硬跳。
+2. 动画结束后用 `PlayQueueViewModel.RemoveNow` 同步删行。少了一条后布局会把下面的行整体
+   上移一行；把 `Translation` 无过渡地清零，视觉位置正好不变，容器也不会带着偏移被回收。
+3. 被删容器保持透明，等它真的被回收给下一行（`DataContext` 变化）时再还原。
+   删前或删后立刻还原都会让它闪一下；不还原又会让下一行带着 0 的不透明度出现。
+
+★ **这套动画只能用 `UIElement` 的 `TranslationTransition` / `OpacityTransition`，不能混用
+`AppMotion`。** `AppMotion` 走 `ElementCompositionPreview`；同一个元素进过那套 API 之后，
+再设 `TranslationTransition` 会被运行时拒绝——实测抛 `UnauthorizedAccessException`，
+异步 void 里的异常直接闪退。删除、让位与拖动排序因此统一用同一套过渡 API。
+
+平时改条目仍排 dispatcher 下一轮 —— 只有这条路径已经等完退场动画、不在 ListView 事件栈里，
+才允许同步删。
+
 **顺带修好的两件事**：行内那三态（序号 / 拖动条 / 起伏条）本来就靠 `IsCurrent` 的通知刷新，
 所以不用重建也跟得上；拖拽途中自动续播不再把用户手里的拖动打断（原来靠集合变更来收尾，
 现在条目没动，`_dragFrom` 依然有效）。

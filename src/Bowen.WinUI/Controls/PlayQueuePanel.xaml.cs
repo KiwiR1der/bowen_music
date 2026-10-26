@@ -43,8 +43,11 @@ public sealed partial class PlayQueuePanel : UserControl
     /// <summary>让位的行滑到新位置用的时长。</summary>
     private static readonly TimeSpan ShiftDuration = TimeSpan.FromMilliseconds(140);
 
-    /// <summary>删除一行时，淡出再移除的时长。</summary>
-    private static readonly TimeSpan RemoveDuration = TimeSpan.FromMilliseconds(170);
+    /// <summary>删除一行时，向右抽出并淡出的时长。</summary>
+    private static readonly TimeSpan RemoveDuration = TimeSpan.FromMilliseconds(180);
+
+    /// <summary>删除时这一行向右抽出的距离。</summary>
+    private const float RemoveSlideDistance = 36;
 
     /// <summary>
     /// 打开时定位最多重试几轮。
@@ -59,6 +62,12 @@ public sealed partial class PlayQueuePanel : UserControl
     private const float GhostLift = 32;
 
     private readonly ThemeShadow _ghostShadow = new();
+
+    /// <summary>
+    /// 删除后等待容器被回收的还原回调。键是行容器；容器被复用（<c>DataContext</c> 变化）
+    /// 或卸载时摘掉。用它代替在容器上直接挂匿名回调，避免同一容器反复删除时越挂越多。
+    /// </summary>
+    private readonly Dictionary<ListViewItem, (TypedEventHandler<FrameworkElement, DataContextChangedEventArgs> Changed, RoutedEventHandler Unloaded)> _reuseWaiters = new();
 
     private PlayQueueViewModel? _attached;
     private uint? _dragPointerId;
@@ -389,9 +398,17 @@ public sealed partial class PlayQueuePanel : UserControl
     }
 
     /// <remarks>
-    /// <b>先播退场再删。</b> 行立即消失会让下面的行硬跳一格；淡出加轻微上移之后，
-    /// 删除动作看起来是「这一行退出去」，而不是列表被刷新了一次。
-    /// 动画期间队列可能已被别的入口改动，所以删之前重新读一次 <c>row.Position</c>。
+    /// <para>
+    /// <b>退场与让位同时进行。</b> 被删的一行淡出并轻微上移；它下面已经实例化的行
+    /// 用 <c>TranslationTransition</c> 同时上滑一整行的高度（与拖动排序同一套
+    /// <see cref="SetShift"/>）。动画结束后才真正删行，其余行早就补到位，不会在删的一瞬间硬跳。
+    /// </para>
+    /// <para>
+    /// <b>删行后立刻把让位位移归零。</b> 行集合少一条后布局会把下面的行整体上移一行；
+    /// 把 <c>Translation</c> 无过渡地清零，视觉位置正好不变，容器也不会带着偏移被回收。
+    /// 被删那行保持透明，等容器真的换了 <c>DataContext</c>（被复用）时再还原 ——
+    /// 提前还原等于把旧行重新点亮，就是删除时那一下闪。框架的删除过渡已在 XAML 里关掉。
+    /// </para>
     /// </remarks>
     private async void OnRemoveClick(object sender, RoutedEventArgs e)
     {
@@ -401,31 +418,183 @@ public sealed partial class PlayQueuePanel : UserControl
         }
 
         var container = RowList.ContainerFromItem(row) as ListViewItem;
+        var index = ViewModel.Rows.IndexOf(row);
+
+        if (container is not null && index >= 0)
+        {
+            ShiftRowsUp(index, container.ActualHeight + container.Margin.Top + container.Margin.Bottom);
+            await ExitRowAsync(container);
+        }
+
+        // 动画期间队列可能被别的入口改过，删之前重新读一次行号。
+        var removeIndex = ViewModel.Rows.IndexOf(row);
+
+        if (removeIndex < 0)
+        {
+            // 已经被别处删掉。布局已经补过位，把上滑的位移撤掉，
+            // 容器交给回收回调处理（直接还原会让旧行闪一下）。
+            ClearShifts();
+            if (container is not null)
+            {
+                ResetWhenReused(container, row);
+            }
+
+            return;
+        }
 
         if (container is not null)
         {
-            await AppMotion.ExitAsync(container, 0, -6, RemoveDuration);
+            ResetWhenReused(container, row);
         }
 
-        if (!RowList.Items.Contains(row))
+        ViewModel.RemoveNow(removeIndex);
+
+        // 队列拒绝了这次删除（例如它已经是当前曲目），行还在：还原容器并把让位滑回去。
+        if (container is not null && RowList.Items.Contains(row))
+        {
+            StopWaitingForReuse(container);
+            ResetRowContainer(container);
+            RestoreShifts();
+            return;
+        }
+
+        // 删除成功：布局已经整体上移一行，位移无过渡地清零，视觉位置不变。
+        ClearShifts();
+    }
+
+    /// <summary>被删行下方的行同时上滑一行，作为删除时的让位动画。</summary>
+    private void ShiftRowsUp(int removedIndex, double pitch)
+    {
+        if (RowList.ItemsPanelRoot is not { } panel)
         {
             return;
         }
 
-        await ViewModel.RemoveAsync(row.Position);
-
-        // 队列拒绝这次删除（例如它已经是当前曲目）时，行还在，把视觉状态还回去。
-        // 排到下一轮再查：增量删行本身也是排到 dispatcher 里执行的，同步检查会误判「还在」。
-        if (container is not null)
+        foreach (var child in panel.Children)
         {
-            DispatcherQueue.TryEnqueue(() =>
+            if (child is FrameworkElement container && RowList.IndexFromContainer(container) > removedIndex)
             {
-                if (RowList.Items.Contains(row))
-                {
-                    AppMotion.Reset(container);
-                }
-            });
+                SetShift(container, -pitch);
+            }
         }
+    }
+
+    /// <summary>让位动画取消时把行滑回原位。</summary>
+    private void RestoreShifts()
+    {
+        if (RowList.ItemsPanelRoot is not { } panel)
+        {
+            return;
+        }
+
+        foreach (var child in panel.Children)
+        {
+            if (child is FrameworkElement container)
+            {
+                SetShift(container, 0);
+            }
+        }
+    }
+
+    /// <summary>删行后把让位位移归零，且不播过渡 —— 布局已经替我们完成了这次位移。</summary>
+    private void ClearShifts()
+    {
+        if (RowList.ItemsPanelRoot is not { } panel)
+        {
+            return;
+        }
+
+        foreach (var child in panel.Children)
+        {
+            if (child is FrameworkElement container)
+            {
+                ClearShift(container);
+            }
+        }
+    }
+
+    private static void ClearShift(FrameworkElement container)
+    {
+        // 先摘掉 TranslationTransition，否则归零自己也会播 140 ms，列表会先弹下去再回来。
+        container.TranslationTransition = null;
+        container.Translation = Vector3.Zero;
+    }
+
+    /// <summary>
+    /// 被删的那一行向右抽出并淡出。
+    /// </summary>
+    /// <remarks>
+    /// <b>这里只能用 <c>UIElement</c> 的过渡 API，不能走 <see cref="AppMotion"/>。</b>
+    /// <c>AppMotion</c> 走 <c>ElementCompositionPreview</c>；同一个元素一旦进过那套 API，
+    /// 再设 <c>TranslationTransition</c> 会被运行时拒绝（实测抛
+    /// <c>UnauthorizedAccessException</c>，异步 void 里的异常直接把应用带崩）。
+    /// 删除动画、下方让位、拖动排序因此统一用 <c>TranslationTransition</c> 这一套。
+    /// </remarks>
+    private static async Task ExitRowAsync(FrameworkElement container)
+    {
+        if (!AppMotion.IsEnabled)
+        {
+            container.TranslationTransition = null;
+            container.OpacityTransition = null;
+            container.Translation = new Vector3(RemoveSlideDistance, 0, 0);
+            container.Opacity = 0;
+            return;
+        }
+
+        container.TranslationTransition = new Vector3Transition { Duration = RemoveDuration };
+        container.OpacityTransition = new ScalarTransition { Duration = RemoveDuration };
+        container.Translation = new Vector3(RemoveSlideDistance, 0, 0);
+        container.Opacity = 0;
+
+        await Task.Delay(RemoveDuration);
+    }
+
+    /// <summary>把容器恢复到正常显示状态，并摘掉删除时挂的过渡。</summary>
+    private static void ResetRowContainer(FrameworkElement container)
+    {
+        container.TranslationTransition = null;
+        container.OpacityTransition = null;
+        container.Translation = Vector3.Zero;
+        container.Opacity = 1;
+    }
+
+    /// <summary>
+    /// 容器被回收给另一行时还原合成状态。删除时容器是透明的，直接还原会让旧行闪一下，
+    /// 不还原又会让下一行带着 0 的不透明度出现，所以等 <c>DataContext</c> 真的换掉再还原。
+    /// </summary>
+    private void ResetWhenReused(ListViewItem container, PlayQueueRow removedRow)
+    {
+        // 先摘掉上一次删除留下的回调（同一容器可能被连续复用）。
+        StopWaitingForReuse(container);
+
+        void OnDataContextChanged(FrameworkElement sender, DataContextChangedEventArgs args)
+        {
+            if (ReferenceEquals(args.NewValue, removedRow))
+            {
+                return;
+            }
+
+            StopWaitingForReuse(container);
+            ResetRowContainer(container);
+        }
+
+        void OnUnloaded(object sender, RoutedEventArgs e) => StopWaitingForReuse(container);
+
+        _reuseWaiters[container] = (OnDataContextChanged, OnUnloaded);
+        container.DataContextChanged += OnDataContextChanged;
+        container.Unloaded += OnUnloaded;
+    }
+
+    /// <summary>摘掉 <see cref="ResetWhenReused"/> 挂的回调。</summary>
+    private void StopWaitingForReuse(ListViewItem container)
+    {
+        if (!_reuseWaiters.Remove(container, out var waiters))
+        {
+            return;
+        }
+
+        container.DataContextChanged -= waiters.Changed;
+        container.Unloaded -= waiters.Unloaded;
     }
 
     private void OnClearClick(object sender, RoutedEventArgs e) => ClearRequested?.Invoke(this, EventArgs.Empty);

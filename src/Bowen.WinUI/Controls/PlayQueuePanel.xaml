@@ -79,6 +79,16 @@
                 ScrollViewer.HorizontalScrollMode="Disabled"
                 VerticalAlignment="Stretch"
                 AutomationProperties.Name="播放队列">
+                <!--
+                    关掉框架自带的 item 过渡（默认含 AddDeleteThemeTransition）：
+                    删除动画由 OnRemoveClick 手写（淡出 + 上移 6 DIP），如果不关，
+                    删行时框架会再播一遍删除过渡，表现为这一行淡出后又闪一下。
+                    其余几项（Entrance / Content / Reorder）在这份列表里也用不上：
+                    打开时的露面与拖动让位都由面板自己做。
+                -->
+                <ListView.ItemContainerTransitions>
+                    <TransitionCollection />
+                </ListView.ItemContainerTransitions>
                 <ListView.ItemContainerStyle>
                     <Style TargetType="ListViewItem" BasedOn="{StaticResource DefaultListViewItemStyle}">
                         <Setter Property="MinWidth" Value="0" />
