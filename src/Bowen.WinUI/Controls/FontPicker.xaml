@@ -1,0 +1,122 @@
+<?xml version="1.0" encoding="utf-8"?>
+<UserControl
+    x:Class="Bowen.WinUI.Controls.FontPicker"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:controls="using:Bowen.WinUI.Controls"
+    xmlns:viewmodels="using:Bowen.WinUI.ViewModels">
+
+    <Button
+        x:Name="PickerButton"
+        MinWidth="180"
+        MaxWidth="240"
+        MinHeight="32"
+        Padding="11,5,11,5"
+        HorizontalAlignment="Right"
+        HorizontalContentAlignment="Stretch"
+        Background="{ThemeResource ControlFillColorDefaultBrush}"
+        BorderBrush="{ThemeResource ControlStrokeColorDefaultBrush}"
+        BorderThickness="1"
+        CornerRadius="{ThemeResource ControlCornerRadius}"
+        FontSize="{ThemeResource ControlContentThemeFontSize}">
+        <Grid ColumnSpacing="8">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+            <TextBlock
+                x:Name="PickerText"
+                VerticalAlignment="Center"
+                Text="默认字体"
+                TextTrimming="CharacterEllipsis" />
+            <FontIcon
+                Grid.Column="1"
+                VerticalAlignment="Center"
+                FontSize="12"
+                Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                Glyph="&#xE70D;" />
+        </Grid>
+        <Button.Flyout>
+            <Flyout x:Name="PickerFlyout" Placement="BottomEdgeAlignedRight">
+                <Flyout.FlyoutPresenterStyle>
+                    <Style TargetType="FlyoutPresenter">
+                        <Setter Property="Padding" Value="0" />
+                        <Setter Property="MinWidth" Value="0" />
+                        <Setter Property="MaxWidth" Value="340" />
+                        <Setter Property="Background" Value="{ThemeResource AcrylicBackgroundFillColorDefaultBrush}" />
+                        <Setter Property="BorderBrush" Value="{ThemeResource SurfaceStrokeColorFlyoutBrush}" />
+                        <Setter Property="BorderThickness" Value="1" />
+                        <Setter Property="CornerRadius" Value="{ThemeResource OverlayCornerRadius}" />
+                    </Style>
+                </Flyout.FlyoutPresenterStyle>
+                <ListView
+                    x:Name="FontList"
+                    MaxHeight="400"
+                    MaxWidth="320"
+                    MinWidth="200"
+                    Padding="0,4,0,4"
+                    SelectionChanged="OnFontSelectionChanged"
+                    SelectionMode="Single">
+                    <ListView.Resources>
+                        <x:Boolean x:Key="ListViewItemSelectionIndicatorVisualEnabled">True</x:Boolean>
+                        <x:Boolean x:Key="ListViewItemSelectionCheckMarkVisualEnabled">False</x:Boolean>
+                    </ListView.Resources>
+                    <ListView.ItemContainerStyle>
+                        <Style TargetType="ListViewItem" BasedOn="{StaticResource DefaultListViewItemStyle}">
+                            <Setter Property="MinHeight" Value="32" />
+                            <Setter Property="Padding" Value="11,0,11,0" />
+                            <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+                            <Setter Property="CornerRadius" Value="{ThemeResource ControlCornerRadius}" />
+                        </Style>
+                    </ListView.ItemContainerStyle>
+                    <ListView.ItemTemplate>
+                        <DataTemplate x:DataType="viewmodels:FontOption">
+                            <TextBlock Text="{x:Bind DisplayName}" TextTrimming="CharacterEllipsis" />
+                        </DataTemplate>
+                    </ListView.ItemTemplate>
+                    <ListView.GroupStyle>
+                        <GroupStyle>
+                            <GroupStyle.HeaderContainerStyle>
+                                <Style TargetType="ListViewHeaderItem">
+                                    <Setter Property="IsTabStop" Value="False" />
+                                    <Setter Property="Margin" Value="0" />
+                                    <Setter Property="Padding" Value="0" />
+                                    <Setter Property="MinHeight" Value="0" />
+                                    <Setter Property="Background" Value="Transparent" />
+                                    <Setter Property="BorderThickness" Value="0" />
+                                    <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+                                    <Setter Property="Template">
+                                        <Setter.Value>
+                                            <ControlTemplate TargetType="ListViewHeaderItem">
+                                                <ContentPresenter
+                                                    Margin="{TemplateBinding Padding}"
+                                                    HorizontalAlignment="Stretch"
+                                                    Content="{TemplateBinding Content}"
+                                                    ContentTemplate="{TemplateBinding ContentTemplate}" />
+                                            </ControlTemplate>
+                                        </Setter.Value>
+                                    </Setter>
+                                </Style>
+                            </GroupStyle.HeaderContainerStyle>
+                            <GroupStyle.HeaderTemplate>
+                                <DataTemplate x:DataType="controls:FontGroupInfo">
+                                    <StackPanel Margin="11,7,11,0">
+                                        <TextBlock
+                                            FontSize="{StaticResource BodyTextBlockFontSize}"
+                                            FontWeight="SemiBold"
+                                            Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                            Text="{x:Bind Label}" />
+                                        <Rectangle
+                                            Height="1"
+                                            Margin="0,4,0,0"
+                                            Fill="{ThemeResource ControlStrokeColorDefaultBrush}" />
+                                    </StackPanel>
+                                </DataTemplate>
+                            </GroupStyle.HeaderTemplate>
+                        </GroupStyle>
+                    </ListView.GroupStyle>
+                </ListView>
+            </Flyout>
+        </Button.Flyout>
+    </Button>
+</UserControl>

@@ -99,9 +99,9 @@ public sealed partial class SettingsViewModel : ObservableObject
         // 选项本身按「读起来就是当前状态」写，不再用「列表显示方式」这种带默认暗示的开关文案。
         ListDisplayOptions = ["行列表", "封面卡片"];
 
-        // 三个字体下拉的选项一致：首项固定「默认字体」，其余是当前区域下的系统字体名。
-        var fontOptions = new List<string> { "默认字体" };
-        fontOptions.AddRange(Font.FontNames);
+        // 三个字体下拉共用同一份列表：首项固定「默认字体」，其余按字形覆盖分组。
+        var fontOptions = new List<FontOption> { FontOption.Default };
+        fontOptions.AddRange(Font.Fonts);
         FontOptions = fontOptions;
 
         SyncFromSources();
@@ -129,7 +129,7 @@ public sealed partial class SettingsViewModel : ObservableObject
     public IReadOnlyList<string> ListDisplayOptions { get; }
 
     /// <summary>界面 / 全屏歌词 / 桌面歌词三个字体下拉共用的选项；首项是「默认字体」。</summary>
-    public IReadOnlyList<string> FontOptions { get; }
+    public IReadOnlyList<FontOption> FontOptions { get; }
 
     public ThemeViewModel Theme { get; }
 
@@ -291,7 +291,7 @@ public sealed partial class SettingsViewModel : ObservableObject
             DesktopLyricsColorIndex = PaletteIndexOf(DesktopLyrics.TextColor);
             DesktopLyricsAlignmentIndex = (int)DesktopLyrics.Alignment;
 
-            // 字体下标：首项「默认字体」是 0，往后 1 起对应 Font.FontNames 的下标 + 1。
+            // 字体下标：首项「默认字体」是 0，往后 1 起对应 Font.Fonts 的下标 + 1。
             AppFontIndex = FontIndexOf(Font.CurrentFontFamily);
             LyricsFontIndex = FontIndexOf(Lyrics.FontFamily);
             DesktopLyricsFontIndex = FontIndexOf(DesktopLyrics.FontFamily);
@@ -424,20 +424,25 @@ public sealed partial class SettingsViewModel : ObservableObject
         return -1;
     }
 
-    /// <summary>字体名下标：0 = 默认，往后对应 <see cref="FontSettingsViewModel.FontNames"/> 下标 + 1。</summary>
+    /// <summary>字体名下标：0 = 默认，往后对应 <see cref="FontOptions"/> 下标 + 1。</summary>
     private int FontIndexOf(string fontFamily)
     {
         if (string.IsNullOrWhiteSpace(fontFamily)) return 0;
-        for (var i = 0; i < Font.FontNames.Count; i++)
+        for (var i = 1; i < FontOptions.Count; i++)
         {
-            if (string.Equals(Font.FontNames[i], fontFamily, StringComparison.OrdinalIgnoreCase)) return i + 1;
+            var option = FontOptions[i];
+            if (string.Equals(option.FamilyName, fontFamily, StringComparison.OrdinalIgnoreCase)
+                || string.Equals(option.CanonicalName, fontFamily, StringComparison.OrdinalIgnoreCase))
+            {
+                return i;
+            }
         }
         return 0;
     }
 
     /// <summary>下标换回字体名；越界或 0 一律回空（默认）。</summary>
     private string FontNameAt(int index)
-        => index is >= 1 && index <= Font.FontNames.Count ? Font.FontNames[index - 1] : string.Empty;
+        => index >= 1 && index < FontOptions.Count ? FontOptions[index].FamilyName : string.Empty;
 
     private static Color ToColor(uint argb) =>
         Color.FromArgb((byte)(argb >> 24), (byte)(argb >> 16), (byte)(argb >> 8), (byte)argb);

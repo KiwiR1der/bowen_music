@@ -227,7 +227,7 @@
                                 <Border Style="{StaticResource BowenSettingsRowDivider}" />
                                 <controls:SettingsRow Description="改后重启应用生效；缺字体时回退系统默认" Header="界面字体">
                                     <controls:SettingsRow.RightContent>
-                                        <ComboBox
+                                        <controls:FontPicker
                                             ItemsSource="{x:Bind ViewModel.FontOptions}"
                                             SelectedIndex="{x:Bind ViewModel.AppFontIndex, Mode=TwoWay}" />
                                     </controls:SettingsRow.RightContent>
@@ -293,7 +293,7 @@
                                 <Border Style="{StaticResource BowenSettingsRowDivider}" />
                                 <controls:SettingsRow Description="全屏歌词的字体；缺字体时回退默认" Header="歌词字体">
                                     <controls:SettingsRow.RightContent>
-                                        <ComboBox
+                                        <controls:FontPicker
                                             ItemsSource="{x:Bind ViewModel.FontOptions}"
                                             SelectedIndex="{x:Bind ViewModel.LyricsFontIndex, Mode=TwoWay}" />
                                     </controls:SettingsRow.RightContent>
@@ -331,7 +331,7 @@
                                 <Border Style="{StaticResource BowenSettingsRowDivider}" />
                                 <controls:SettingsRow IsRowEnabled="{x:Bind ViewModel.DesktopLyricsRowsEnabled, Mode=OneWay}" Description="悬浮条用什么字，默认跟随渲染层内置字体" Header="桌面歌词字体">
                                     <controls:SettingsRow.RightContent>
-                                        <ComboBox
+                                        <controls:FontPicker
                                             ItemsSource="{x:Bind ViewModel.FontOptions}"
                                             SelectedIndex="{x:Bind ViewModel.DesktopLyricsFontIndex, Mode=TwoWay}" />
                                     </controls:SettingsRow.RightContent>

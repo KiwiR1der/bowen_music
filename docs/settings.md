@@ -8,6 +8,8 @@
 
 2026-10-15 补充：新增「界面 / 全屏歌词 / 桌面歌词」三个字体配置项，见 §10。
 
+2026-10-26 补充：字体下拉改为按字形覆盖分组，见 §10.5。
+
 ---
 
 ## 1. 入口与布局
@@ -600,3 +602,24 @@ FontOverride 按框架定义原样重抄、唯一差别是字体走 `{ThemeResou
 
 人工验收：界面字体覆盖全部分类栏粗体、设置行、裸文本区域；用户实测
 `HarmonyOS Sans SC`（Regular/Medium/Bold 同家族、字重元数据正确）正常生效。
+
+### 10.5 字体分组（2026-10-26）
+
+字体下拉按**字形覆盖**分组，不按名字语言：`Microsoft YaHei UI` 名字是英文，但覆盖中文，归入「中文」；
+多语言字体只出现一次，归到它覆盖的最高优先级分组。分组为「默认 / 中文 / 西文 / 符号 / 未安装」。
+
+判定用 Win2D 的 `CanvasFontSet.GetSystemFontSet()` 遍历字体面，`CanvasFontFace.HasCharacter`
+检查 `中`、`汉`、`A`，并用 `FamilyNames` 取本地化名（优先 `zh-CN` / `zh-Hans-CN` / `zh-Hans`，
+最后 `en-US`）。旧版本存的 en-US 名字在启动时按 canonical → localized 映射迁移。
+
+原生 ComboBox 不支持分组标题，所以下拉换成 `Controls/FontPicker`：
+`Button + Flyout + 分组 ListView`，`CollectionViewSource.IsSourceGrouped` + `GroupStyle.HeaderTemplate`。
+分组表头必须用 `GroupStyle.HeaderContainerStyle`，不是 `ContainerStyle`（后者管的是组容器）；
+默认的 `ListViewHeaderItem` 自带 `Padding=12,8,12,0` 和一条分隔线，需要自定义模板去掉。
+
+自定义 `ItemContainerStyle` 必须 `BasedOn="{StaticResource DefaultListViewItemStyle}"`，
+否则会替换掉包含原生选中指示器的模板；`ListViewItemSelectionIndicatorVisualEnabled` 决定是否显示
+左侧强调竖条。打开浮层后用 `ScrollViewer.ChangeView` 把选中项居中，`ScrollIntoView` 只保证可见，
+会保留上次偏移。
+
+验收：构建 0 警告 0 错误；离线测试 1698 项通过；手动验证三处字体下拉的分组、选中竖条和居中。

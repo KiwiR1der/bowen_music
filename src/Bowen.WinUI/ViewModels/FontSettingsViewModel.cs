@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using Bowen.Core.Models;
 using Bowen.Core.Services.Abstractions;
 using Bowen.WinUI.Services;
@@ -24,57 +25,47 @@ public sealed partial class FontSettingsViewModel : ObservableObject
         _logger = logger;
         CurrentFontFamily = store.Load().Normalized().FontFamily;
 
-        // ApplicationLanguages 返回的是 zh-Hans-CN。部分 Win2D/DirectWrite 版本按字面匹配，
-        // 认不出带 script 的标签，会退回 en-US；先显式放 zh-CN。
-        var locales = new List<string> { "zh-CN", "zh-Hans-CN" };
-        foreach (var locale in ApplicationLanguages.Languages)
-        {
-            if (!locales.Any(item => string.Equals(item, locale, StringComparison.OrdinalIgnoreCase)))
-                locales.Add(locale);
-        }
-        if (!locales.Any(item => string.Equals(item, "en-US", StringComparison.OrdinalIgnoreCase)))
-            locales.Add("en-US");
+        var locales = BuildLocaleList();
+        var (fonts, canonicalToLocalized, installedNames) = LoadFonts(locales);
 
-        var localized = CanvasTextFormat.GetSystemFontFamilies(locales)
-            .Where(name => !string.IsNullOrWhiteSpace(name))
-            .ToArray();
-
-        // 旧版本可能存的是 en-US 名字。两份列表同源同序，按下标换成中文名，
-        // 避免下拉里同时出现「Alibaba PuHuiTi 3.0」和「阿里巴巴普惠体 3.0」。
-        if (localized.Length > 0 && !string.IsNullOrEmpty(CurrentFontFamily))
+        // 旧版本可能存的是 en-US 名字。换成本地化名，避免下拉里中英文各一条。
+        if (!string.IsNullOrEmpty(CurrentFontFamily)
+            && canonicalToLocalized.TryGetValue(CurrentFontFamily, out var localized)
+            && !string.IsNullOrWhiteSpace(localized))
         {
-            var canonical = CanvasTextFormat.GetSystemFontFamilies();
-            if (canonical.Length == localized.Length)
-            {
-                var index = Array.FindIndex(canonical,
-                    name => string.Equals(name, CurrentFontFamily, StringComparison.OrdinalIgnoreCase));
-                if (index >= 0) CurrentFontFamily = localized[index];
-            }
+            CurrentFontFamily = localized;
         }
 
         // 在 DI 首次解析本服务时执行；组合根保证它发生在主窗口创建之前。
         if (!string.IsNullOrEmpty(CurrentFontFamily))
             Application.Current.Resources["ContentControlThemeFontFamily"] = new FontFamily(CurrentFontFamily);
 
-        IEnumerable<string> installed = localized;
-        if (!string.IsNullOrEmpty(CurrentFontFamily)) installed = installed.Append(CurrentFontFamily);
-        FontNames = [.. installed
-            .Distinct(StringComparer.CurrentCultureIgnoreCase)
-            .Order(StringComparer.CurrentCultureIgnoreCase)];
+        // 存档里的字体本机已不存在时，也让它出现在下拉里，而不是悄悄退回「默认字体」。
+        if (!string.IsNullOrEmpty(CurrentFontFamily) && !installedNames.Contains(CurrentFontFamily))
+        {
+            fonts.Add(new FontOption(CurrentFontFamily, CurrentFontFamily, CurrentFontFamily, FontGroup.Missing));
+            fonts = [.. fonts
+                .OrderBy(option => option.Group)
+                .ThenBy(option => option.DisplayName, StringComparer.CurrentCultureIgnoreCase)];
+        }
+
+        Fonts = fonts;
 
         _logger.LogInformation(
-            "字体列表：{Count} 个，语言 {Locales}，中文名 {Cjk} 个，当前 {Current}",
-            FontNames.Count, string.Join(",", locales),
-            FontNames.Count(name => name.Any(IsCjk)), CurrentFontFamily);
+            "字体列表：{Count} 个（中文 {Chinese}，西文 {Western}，符号 {Symbol}，未安装 {Missing}），当前 {Current}",
+            Fonts.Count,
+            Fonts.Count(option => option.Group == FontGroup.Chinese),
+            Fonts.Count(option => option.Group == FontGroup.Western),
+            Fonts.Count(option => option.Group == FontGroup.Symbol),
+            Fonts.Count(option => option.Group == FontGroup.Missing),
+            CurrentFontFamily);
     }
-
-    private static bool IsCjk(char c) => c >= 0x4E00 && c <= 0x9FFF;
 
     /// <summary>已保存的字体族名；空串 = 跟随系统默认。</summary>
     public string CurrentFontFamily { get; private set; }
 
-    /// <summary>当前区域下已安装的字体族名，不含「默认字体」选项。</summary>
-    public IReadOnlyList<string> FontNames { get; }
+    /// <summary>当前区域下可选的字体，已按分组和名称排序，不含「默认字体」。</summary>
+    public IReadOnlyList<FontOption> Fonts { get; }
 
     /// <summary>
     /// 保存下次启动使用的字体，不改当前窗口。返回是否写入成功。
@@ -111,4 +102,130 @@ public sealed partial class FontSettingsViewModel : ObservableObject
     /// </summary>
     internal INoticeSink? Notice { get => _notice; set => _notice = value; }
     private INoticeSink? _notice;
+
+    private static List<string> BuildLocaleList()
+    {
+        var locales = new List<string> { "zh-CN", "zh-Hans-CN", "zh-Hans" };
+        foreach (var locale in ApplicationLanguages.Languages)
+        {
+            if (!locales.Any(item => string.Equals(item, locale, StringComparison.OrdinalIgnoreCase)))
+                locales.Add(locale);
+        }
+
+        if (!locales.Any(item => string.Equals(item, "en-US", StringComparison.OrdinalIgnoreCase)))
+            locales.Add("en-US");
+        return locales;
+    }
+
+    private (List<FontOption> Fonts, Dictionary<string, string> CanonicalToLocalized, HashSet<string> InstalledNames)
+        LoadFonts(IReadOnlyList<string> locales)
+    {
+        var stopwatch = Stopwatch.StartNew();
+        var byCanonical = new Dictionary<string, FontAccumulator>(StringComparer.OrdinalIgnoreCase);
+
+        try
+        {
+            using var fontSet = CanvasFontSet.GetSystemFontSet();
+            foreach (var face in fontSet.Fonts)
+            {
+                var names = face.FamilyNames;
+                if (names.Count == 0) continue;
+
+                var displayName = PickName(names, locales);
+                if (string.IsNullOrWhiteSpace(displayName)) continue;
+
+                var canonicalName = PickName(names, ["en-US"]);
+                if (string.IsNullOrWhiteSpace(canonicalName)) canonicalName = displayName;
+
+                if (!byCanonical.TryGetValue(canonicalName, out var accumulator))
+                {
+                    accumulator = new FontAccumulator(displayName, canonicalName);
+                    byCanonical.Add(canonicalName, accumulator);
+                }
+
+                accumulator.HasChinese |= face.HasCharacter(0x4E2Du) && face.HasCharacter(0x6C49u);
+                accumulator.HasLatin |= face.HasCharacter(0x41u);
+                accumulator.IsSymbol |= face.IsSymbolFont;
+            }
+        }
+        catch (Exception exception)
+        {
+            _logger.LogWarning(exception, "系统字体集枚举失败，退回按家族名分类");
+            return LoadFontsByName(locales);
+        }
+
+        var fonts = byCanonical.Values
+            .Select(accumulator => accumulator.ToOption())
+            .OrderBy(option => option.Group)
+            .ThenBy(option => option.DisplayName, StringComparer.CurrentCultureIgnoreCase)
+            .ToList();
+
+        var canonicalToLocalized = byCanonical.Values
+            .ToDictionary(accumulator => accumulator.CanonicalName, accumulator => accumulator.DisplayName,
+                StringComparer.OrdinalIgnoreCase);
+        var installedNames = fonts
+            .Select(option => option.FamilyName)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        stopwatch.Stop();
+        _logger.LogInformation("字体枚举：{Count} 个，用时 {Elapsed} ms", fonts.Count, stopwatch.ElapsedMilliseconds);
+        return (fonts, canonicalToLocalized, installedNames);
+    }
+
+    private (List<FontOption> Fonts, Dictionary<string, string> CanonicalToLocalized, HashSet<string> InstalledNames)
+        LoadFontsByName(IReadOnlyList<string> locales)
+    {
+        var names = CanvasTextFormat.GetSystemFontFamilies(locales)
+            .Where(name => !string.IsNullOrWhiteSpace(name))
+            .Distinct(StringComparer.CurrentCultureIgnoreCase)
+            .Order(StringComparer.CurrentCultureIgnoreCase)
+            .ToList();
+
+        var fonts = names
+            .Select(name => new FontOption(name, name, name,
+                name.Any(IsCjk) ? FontGroup.Chinese : FontGroup.Western))
+            .OrderBy(option => option.Group)
+            .ThenBy(option => option.DisplayName, StringComparer.CurrentCultureIgnoreCase)
+            .ToList();
+        var canonicalToLocalized = names.ToDictionary(name => name, name => name, StringComparer.OrdinalIgnoreCase);
+        var installedNames = names.ToHashSet(StringComparer.OrdinalIgnoreCase);
+        return (fonts, canonicalToLocalized, installedNames);
+    }
+
+    private static string PickName(IReadOnlyDictionary<string, string> names, IReadOnlyList<string> locales)
+    {
+        foreach (var locale in locales)
+        {
+            foreach (var (key, value) in names)
+            {
+                if (string.Equals(key, locale, StringComparison.OrdinalIgnoreCase)
+                    && !string.IsNullOrWhiteSpace(value))
+                {
+                    return value;
+                }
+            }
+        }
+
+        return names.Values.FirstOrDefault(value => !string.IsNullOrWhiteSpace(value)) ?? string.Empty;
+    }
+
+    private static bool IsCjk(char c) => c >= 0x4E00 && c <= 0x9FFF;
+
+    private sealed class FontAccumulator(string displayName, string canonicalName)
+    {
+        public string DisplayName { get; } = displayName;
+        public string CanonicalName { get; } = canonicalName;
+        public bool HasChinese { get; set; }
+        public bool HasLatin { get; set; }
+        public bool IsSymbol { get; set; }
+
+        public FontOption ToOption() => new(
+            DisplayName,
+            CanonicalName,
+            DisplayName,
+            HasChinese ? FontGroup.Chinese
+            : IsSymbol ? FontGroup.Symbol
+            : HasLatin ? FontGroup.Western
+            : FontGroup.Symbol);
+    }
 }
