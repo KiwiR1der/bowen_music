@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using Bowen.Core.Services.Implementations;
 using Bowen.WinUI.Services;
@@ -9,6 +10,9 @@ namespace Bowen.WinUI;
 
 internal static class Program
 {
+    /// <summary>托盘「重启」传给新进程的开关，后面跟旧进程的 pid。</summary>
+    private const string RestartWaitSwitch = "--restart-wait";
+
     private static readonly object LogGate = new();
     private static readonly List<string> StartupMessages = new();
     private static ILogger? _logger;
@@ -17,6 +21,8 @@ internal static class Program
     [STAThread]
     private static void Main(string[] args)
     {
+        WaitForPreviousInstance(args);
+
         var enabled = new JsonInputMethodSettingsStore().Load().CompatibilityEnabled
             || args.Contains("--ime-compatibility", StringComparer.OrdinalIgnoreCase);
         using var compatibility = enabled ? LegacyImeCompatibility.TryEnable(Report) : null;
@@ -24,6 +30,34 @@ internal static class Program
         if (IsInputMethodCompatibilityActive)
             Report("输入法兼容版本：final-minimal，仅跳过初始化限制；不改 IMM 上下文、候选位置或托盘生命周期");
         RunWinUi();
+    }
+
+    /// <summary>
+    /// 重启出来的新进程先等旧进程退完。
+    /// </summary>
+    /// <remarks>
+    /// 旧进程退出时要释放播放引擎、托盘图标并把播放位置落盘；单实例互斥量的寿命又是进程寿命。
+    /// 不等的话，新进程会在旧进程还活着时做单实例判定，把自己当成第二个实例，只把正在关闭的
+    /// 窗口唤到前台 —— 重启就变成「点了没反应」。
+    /// </remarks>
+    private static void WaitForPreviousInstance(string[] args)
+    {
+        var index = Array.IndexOf(args, RestartWaitSwitch);
+        if (index < 0 || index + 1 >= args.Length || !int.TryParse(args[index + 1], out var processId))
+        {
+            return;
+        }
+
+        try
+        {
+            using var previous = Process.GetProcessById(processId);
+            // 收尾链是同步的，正常远不到一秒；上限只是兜住慢盘或杀毒扫描。
+            previous.WaitForExit(TimeSpan.FromSeconds(20));
+        }
+        catch (ArgumentException)
+        {
+            // 旧进程已经退出，GetProcessById 会抛这个。
+        }
     }
 
     // Resolve XAML only after the optional initialization compatibility handler is installed.

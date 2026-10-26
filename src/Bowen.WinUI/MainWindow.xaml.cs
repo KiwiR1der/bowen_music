@@ -978,7 +978,7 @@ public sealed partial class MainWindow : Window, IPlaylistLibrarySink, IWindowHa
         AppWindow.Hide();
     }
 
-    /// <summary>托盘菜单的「退出」，也是整个应用唯一真正结束进程的入口。</summary>
+    /// <summary>托盘菜单的「退出」。结束进程只走这一条路，重启也从这里收尾。</summary>
     /// <remarks>
     /// 只置位再关窗口 —— 真正的收尾全部复用 App 那条既有的清理串，这里不重复实现任何一步。
     /// </remarks>
@@ -987,6 +987,48 @@ public sealed partial class MainWindow : Window, IPlaylistLibrarySink, IWindowHa
     {
         _exitRequested = true;
         Close();
+    }
+
+    /// <summary>
+    /// 托盘菜单的「重启」：先拉起新进程，再走 <see cref="ExitApp"/> 的收尾链。
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// 新进程带 <c>--restart-wait &lt;pid&gt;</c>，由 <see cref="Program"/> 在单实例判定之前
+    /// 等本进程退完。直接起会被单实例互斥量判成第二个实例 —— 它的寿命等于进程寿命，
+    /// 于是新进程只发一次唤醒广播然后自己退出，表现成「点了没反应」。
+    /// </para>
+    /// <para>
+    /// <b>拉不起来就不退出。</b> 用户点的是重启，变成「关掉不再打开」是更坏的结果。
+    /// 本类没有日志设施（同 <see cref="DisposeTray"/> 的取舍），失败走通知条。
+    /// </para>
+    /// </remarks>
+    [RelayCommand]
+    private void RestartApp()
+    {
+        if (Environment.ProcessPath is not { Length: > 0 } executable)
+        {
+            Notifications.Show("无法确定程序路径，重启失败", NoticeSeverity.Error);
+            return;
+        }
+
+        try
+        {
+            Process.Start(new ProcessStartInfo(executable)
+            {
+                Arguments = $"--restart-wait {Environment.ProcessId}",
+                // 从快捷方式启动时当前目录可能是别处，新进程统一落在程序目录。
+                WorkingDirectory = AppContext.BaseDirectory,
+                UseShellExecute = true,
+            });
+        }
+        catch (Exception)
+        {
+            Notifications.Show("重启失败，请手动退出后重新打开", NoticeSeverity.Error);
+            return;
+        }
+
+        ExitApp();
     }
 
     /// <summary>

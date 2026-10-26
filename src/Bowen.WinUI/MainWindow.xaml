@@ -1870,7 +1870,20 @@
                     </controls:TrayMenuItem>
 
                     <!--
-                        退出 = 唯一真正结束进程的入口。它只置一个位再关窗口，
+                        重启 = 更新界面字体后不必手动退出再打开。先拉起新进程、再走「退出」的
+                        收尾链；新进程会等本进程退完才继续（restart-wait 开关），原因见 RestartApp。
+                    -->
+                    <controls:TrayMenuItem Style="{StaticResource TrayMenuItemStyle}" Command="{x:Bind RestartAppCommand}">
+                        <controls:TrayMenuItem.Body>
+                            <StackPanel Orientation="Horizontal" Spacing="8" Margin="8,6,8,6">
+                                <controls:Icon Data="{StaticResource IconRefresh}" Size="16" VerticalAlignment="Center" />
+                                <TextBlock Text="重启" VerticalAlignment="Center" />
+                            </StackPanel>
+                        </controls:TrayMenuItem.Body>
+                    </controls:TrayMenuItem>
+
+                    <!--
+                        退出 = 结束后不再拉起新进程。它只置一个位再关窗口，
                         走的是 App 在 OnLaunched 里挂的那条清理串（桌面歌词窗 → 小窗 → SMTC →
                         播放引擎 → 容器），一行都没有重复实现。
                     -->
