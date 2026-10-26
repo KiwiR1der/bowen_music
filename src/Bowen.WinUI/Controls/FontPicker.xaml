@@ -58,7 +58,7 @@
                     SelectionChanged="OnFontSelectionChanged"
                     SelectionMode="Single">
                     <ListView.Resources>
-                        <x:Boolean x:Key="ListViewItemSelectionIndicatorVisualEnabled">True</x:Boolean>
+                        <x:Boolean x:Key="ListViewItemSelectionIndicatorVisualEnabled">False</x:Boolean>
                         <x:Boolean x:Key="ListViewItemSelectionCheckMarkVisualEnabled">False</x:Boolean>
                     </ListView.Resources>
                     <ListView.ItemContainerStyle>

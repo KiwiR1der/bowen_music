@@ -214,6 +214,17 @@
             <SolidColorBrush x:Key="ListViewItemSelectionIndicatorPointerOverBrush" Color="{ThemeResource BrandAccentSecondary}" />
             <SolidColorBrush x:Key="ListViewItemSelectionIndicatorPressedBrush" Color="{ThemeResource BrandAccentTertiary}" />
             <SolidColorBrush x:Key="ListViewItemSelectionIndicatorDisabledBrush" Color="{ThemeResource BrandAccentDisabled}" />
+            <!--
+                ComboBox 下拉项：选中只用底色，去掉左侧强调竖条。
+                竖条（模板里的 Pill）默认取 AccentFillColorDefaultBrush，统一强调色后变成亮薄荷绿，
+                在下拉弹层里格外显眼，也和侧栏、列表的选中样式不一致。
+                底色沿用侧栏那套 black/10、选中悬停 14%、选中按下 18%。
+            -->
+            <SolidColorBrush x:Key="ComboBoxItemPillFillBrush" Color="Transparent" />
+            <SolidColorBrush x:Key="ComboBoxItemBackgroundSelected" Color="#1A000000" />
+            <SolidColorBrush x:Key="ComboBoxItemBackgroundSelectedUnfocused" Color="#1A000000" />
+            <SolidColorBrush x:Key="ComboBoxItemBackgroundSelectedPointerOver" Color="#24000000" />
+            <SolidColorBrush x:Key="ComboBoxItemBackgroundSelectedPressed" Color="#2E000000" />
             <!-- 进度与文本框 -->
             <SolidColorBrush x:Key="ProgressBarForeground" Color="{ThemeResource BrandAccent}" />
             <SolidColorBrush x:Key="ProgressBarForegroundThemeBrush" Color="{ThemeResource BrandAccent}" />
@@ -508,6 +519,12 @@
             <SolidColorBrush x:Key="ListViewItemSelectionIndicatorPointerOverBrush" Color="{ThemeResource BrandAccentSecondary}" />
             <SolidColorBrush x:Key="ListViewItemSelectionIndicatorPressedBrush" Color="{ThemeResource BrandAccentTertiary}" />
             <SolidColorBrush x:Key="ListViewItemSelectionIndicatorDisabledBrush" Color="{ThemeResource BrandAccentDisabled}" />
+            <!-- ComboBox 下拉项：选中只用底色，理由与配色见浅色那一份 -->
+            <SolidColorBrush x:Key="ComboBoxItemPillFillBrush" Color="Transparent" />
+            <SolidColorBrush x:Key="ComboBoxItemBackgroundSelected" Color="#1AFFFFFF" />
+            <SolidColorBrush x:Key="ComboBoxItemBackgroundSelectedUnfocused" Color="#1AFFFFFF" />
+            <SolidColorBrush x:Key="ComboBoxItemBackgroundSelectedPointerOver" Color="#24FFFFFF" />
+            <SolidColorBrush x:Key="ComboBoxItemBackgroundSelectedPressed" Color="#2EFFFFFF" />
             <!-- 进度与文本框 -->
             <SolidColorBrush x:Key="ProgressBarForeground" Color="{ThemeResource BrandAccent}" />
             <SolidColorBrush x:Key="ProgressBarForegroundThemeBrush" Color="{ThemeResource BrandAccent}" />

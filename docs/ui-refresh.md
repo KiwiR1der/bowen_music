@@ -2285,6 +2285,14 @@ WinUI 构建通过，0 错误，1 个既有 `AiPlaylistPage.xaml:28` `WMC1506` �
 - 进度：`ProgressBarForeground`、`ProgressBarForegroundThemeBrush`、`ProgressRingForegroundThemeBrush`
 - 文本框：`TextControlBorderBrushFocused`（保留框架原版渐变，只让底部 2px 用 `BrandFocus`；
   换成纯色刷会把四面 1px 边框一起染色）、`TextControlSelectionHighlightColor`
+- ComboBox：**不映射强调色**。下拉项的选中态改为纯底色，去掉左侧 Pill —— 把
+  `ComboBoxItemPillFillBrush` 设为 `Transparent`，选中底沿用侧栏那套 `black/10`
+  （深色 `white/10`，选中悬停 / 按下分别为 14% / 18%）。竖条原本取
+  `AccentFillColorDefaultBrush`，统一强调色后变成亮薄荷绿，在下拉弹层里格外显眼。
+  高对比度档不覆盖，保留系统配色。
+- 自绘下拉（`Controls/FontPicker.xaml`）：同样只用底色表示选中。把
+  `ListViewItemSelectionIndicatorVisualEnabled` 设为 `False`，去掉左侧强调竖条；
+  其余自定义下拉本就关闭该指示条。
 
 新增带强调色的控件时，把它的 `*Checked / *On / *Focused` 键补到这一段映射里；颜色本身只改
 上面的 token。
