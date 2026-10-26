@@ -14,7 +14,11 @@
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:controls="using:Bowen.WinUI.Controls">
 
-    <!-- 根是 Border 而不是 Grid：整行可点时的高亮底需要一个能带圆角与内边距的面。 -->
+    <!--
+        根是 Border 而不是 Grid：整行可点时的高亮底需要一个能带圆角与内边距的面。
+        这里的 8,10 是**有说明的两行行**用的默认值；没有说明的单行行由 code-behind
+        把上下留白收到 6，见 ApplyDescription。
+    -->
     <Border
         x:Name="RowSurface"
         Padding="8,10"

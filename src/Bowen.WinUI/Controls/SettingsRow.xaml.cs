@@ -137,8 +137,13 @@ public sealed partial class SettingsRow : UserControl
 
     private void ApplyDescription()
     {
+        var hasDescription = !string.IsNullOrWhiteSpace(Description);
         DescriptionText.Text = Description;
-        DescriptionText.Visibility = string.IsNullOrWhiteSpace(Description) ? Visibility.Collapsed : Visibility.Visible;
+        DescriptionText.Visibility = hasDescription ? Visibility.Visible : Visibility.Collapsed;
+
+        // 单行行把上下留白收一档：行高本来就由右侧 32 DIP 的开关 / 下拉 / 按钮定死，
+        // 再按两行内容的留白排会显得整块发空。快捷键那组全是这种单行。
+        RowSurface.Padding = hasDescription ? new Thickness(8, 10, 8, 10) : new Thickness(8, 6, 8, 6);
     }
 
     private void ApplyRightContent() => RightHost.Content = RightContent;
