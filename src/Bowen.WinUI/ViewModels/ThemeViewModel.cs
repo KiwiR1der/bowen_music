@@ -24,6 +24,7 @@ public sealed partial class ThemeViewModel : ObservableObject
 {
     private readonly IThemeSettingsStore _store;
     private bool _useAcrylicEffects;
+    private StartupSection _startupPage;
     internal Func<Action, Task>? Transition { get; set; }
 
     public ThemeViewModel(IThemeSettingsStore store)
@@ -34,6 +35,7 @@ public sealed partial class ThemeViewModel : ObservableObject
         var settings = store.Load();
         Current = settings.Theme;
         _useAcrylicEffects = settings.AcrylicEffects ?? true;
+        _startupPage = settings.StartupPage;
 
         // 第一帧之前就定下来，避免启动时先画一帧亚克力再切成实色。
         AcrylicMaterial.SetEnabled(_useAcrylicEffects);
@@ -90,9 +92,31 @@ public sealed partial class ThemeViewModel : ObservableObject
             }
 
             _useAcrylicEffects = value;
-            _store.Save(new ThemeSettings(Current, value));
+            _store.Save(new ThemeSettings(Current, value, _startupPage));
             AcrylicMaterial.SetEnabled(value);
             OnPropertyChanged(nameof(UseAcrylicEffects));
+        }
+    }
+
+    /// <summary>
+    /// 启动后进入的侧栏根页。改后立刻落盘，下次启动生效。
+    /// </summary>
+    /// <remarks>
+    /// 只在启动时读：改它不会把用户从当前页面拽走。未登录时账号专属页由外壳回退到发现页。
+    /// </remarks>
+    public StartupSection StartupPage
+    {
+        get => _startupPage;
+        set
+        {
+            if (_startupPage == value)
+            {
+                return;
+            }
+
+            _startupPage = value;
+            _store.Save(new ThemeSettings(Current, _useAcrylicEffects, value));
+            OnPropertyChanged(nameof(StartupPage));
         }
     }
 
@@ -111,7 +135,7 @@ public sealed partial class ThemeViewModel : ObservableObject
         }
 
         Current = theme;
-        _store.Save(new ThemeSettings(theme, _useAcrylicEffects));
+        _store.Save(new ThemeSettings(theme, _useAcrylicEffects, _startupPage));
 
         void NotifyTheme()
         {

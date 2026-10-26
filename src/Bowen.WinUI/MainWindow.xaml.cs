@@ -1391,17 +1391,17 @@ public sealed partial class MainWindow : Window, IPlaylistLibrarySink, IWindowHa
         if (_login.IsAuthenticated)
         {
             EnterAuthenticatedShell();
-            _navigation.NavigateRoot<FavoritesPage>();
+            NavigateToStartupPage();
             return;
         }
 
-        // 没有会话：进匿名外壳（发现页），并弹一次登录框。
+        // 没有会话：进匿名外壳，落点按设置走（账号专属页回退发现页），并弹一次登录框。
         // ★ 关掉之后本次运行不再自动弹 —— 未登录也能搜索与浏览，登录只影响播放与账号数据。
         //   这也是「登录框能关掉」的前提：关掉之后有一块能用的界面，而不是一个死胡同。
         // ★ 必须显式进外壳：已登录那条路是靠 EnterAuthenticatedShell 把外壳立起来的，
         //   而匿名**不会触发那个事件**，不叫这一次的话搜索框与账号入口还停在 XAML 的初始态。
         EnterAnonymousShell();
-        _navigation.NavigateRoot<DiscoverPage>();
+        NavigateToStartupPage();
         ShowLoginDialog();
     }
 
@@ -2343,11 +2343,55 @@ public sealed partial class MainWindow : Window, IPlaylistLibrarySink, IWindowHa
     private void OnItemInvoked(NavigationView sender, NavigationViewItemInvokedEventArgs args)
     {
         // 标题与分隔符没有 Tag，点击时不该做任何事。
-        if (args.InvokedItemContainer is not NavigationViewItem { Tag: { } tag })
+        if (args.InvokedItemContainer is not NavigationViewItem { Tag: string tag })
         {
             return;
         }
 
+        NavigateToTag(tag);
+    }
+
+    /// <summary>
+    /// 启动后按外观设置进入选定的侧栏根页。
+    /// </summary>
+    /// <remarks>
+    /// <b>只在启动时读一次。</b> 改设置不会把人从当前页面拽走。
+    /// 未登录时账号专属页没有入口（侧栏里也是藏起来的），落回发现页 ——
+    /// 与匿名外壳「发现 / 榜单 / 乐库 / 最近播放照常可用」的既有约定一致。
+    /// </remarks>
+    private void NavigateToStartupPage()
+    {
+        var section = Theme.StartupPage;
+
+        if (!_login.IsAuthenticated && IsAccountOnlySection(section))
+        {
+            section = StartupSection.Discover;
+        }
+
+        NavigateToTag(section switch
+        {
+            StartupSection.Discover => DiscoverTag,
+            StartupSection.Bangs => BangsTag,
+            StartupSection.Library => LibraryTag,
+            StartupSection.Favorites => FavoritesTag,
+            StartupSection.Recent => RecentTag,
+            StartupSection.CollectedAlbums => CollectedAlbumsTag,
+            StartupSection.CollectedPlaylists => CollectedPlaylistsTag,
+            StartupSection.FollowedArtists => FollowedArtistsTag,
+            _ => DiscoverTag,
+        });
+    }
+
+    /// <summary>启动落点里「登录才有意义」的那几页。</summary>
+    private static bool IsAccountOnlySection(StartupSection section) =>
+        section is StartupSection.Favorites
+            or StartupSection.CollectedAlbums
+            or StartupSection.CollectedPlaylists
+            or StartupSection.FollowedArtists;
+
+    /// <summary>按侧栏项的 Tag 换根。启动落点与点击共用这一份，避免两处映射漂移。</summary>
+    private void NavigateToTag(string tag)
+    {
         switch (tag)
         {
             case DiscoverTag:

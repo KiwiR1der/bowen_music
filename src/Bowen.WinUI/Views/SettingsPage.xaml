@@ -225,6 +225,14 @@
                                     </controls:SettingsRow.RightContent>
                                 </controls:SettingsRow>
                                 <Border Style="{StaticResource BowenSettingsRowDivider}" />
+                                <controls:SettingsRow Description="启动后直接进入的页面；未登录时账号页回退到发现" Header="默认打开的页面">
+                                    <controls:SettingsRow.RightContent>
+                                        <ComboBox
+                                            ItemsSource="{x:Bind ViewModel.StartupPageOptions}"
+                                            SelectedIndex="{x:Bind ViewModel.StartupPageIndex, Mode=TwoWay}" />
+                                    </controls:SettingsRow.RightContent>
+                                </controls:SettingsRow>
+                                <Border Style="{StaticResource BowenSettingsRowDivider}" />
                                 <controls:SettingsRow Description="关闭后应用内的磨砂表面改用实色底，减少显卡占用；系统下拉与托盘菜单仍跟随 Windows 的透明效果设置" Header="亚克力效果">
                                     <controls:SettingsRow.RightContent>
                                         <ToggleSwitch

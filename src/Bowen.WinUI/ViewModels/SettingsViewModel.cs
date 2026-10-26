@@ -99,6 +99,10 @@ public sealed partial class SettingsViewModel : ObservableObject
         // 选项本身按「读起来就是当前状态」写，不再用「列表显示方式」这种带默认暗示的开关文案。
         ListDisplayOptions = ["行列表", "封面卡片"];
 
+        // 顺序必须与 StartupSections 一一对应。默认是「我喜欢的」（StartupSection 的默认值），
+        // 不是列表首项。
+        StartupPageOptions = ["发现", "排行榜", "乐库", "我喜欢的", "最近播放", "收藏的专辑", "收藏的歌单", "关注的歌手"];
+
         // 三个字体下拉共用同一份列表：首项固定「默认字体」，其余按字形覆盖分组。
         var fontOptions = new List<FontOption> { FontOption.Default };
         fontOptions.AddRange(Font.Fonts);
@@ -112,6 +116,19 @@ public sealed partial class SettingsViewModel : ObservableObject
 
     private static readonly PlayMode[] PlayModes =
         [PlayMode.Sequential, PlayMode.ListLoop, PlayMode.SingleLoop, PlayMode.Shuffle];
+
+    /// <summary>下拉框下标到启动落点的映射，顺序与 <see cref="StartupPageOptions"/> 一致。</summary>
+    private static readonly StartupSection[] StartupSections =
+    [
+        StartupSection.Discover,
+        StartupSection.Bangs,
+        StartupSection.Library,
+        StartupSection.Favorites,
+        StartupSection.Recent,
+        StartupSection.CollectedAlbums,
+        StartupSection.CollectedPlaylists,
+        StartupSection.FollowedArtists,
+    ];
 
     /// <summary>左侧分类栏的项。顺序即下标，与下面那六个 <c>IsXxxSelected</c> 一一对应。</summary>
     public IReadOnlyList<SettingsCategoryItem> Categories { get; }
@@ -127,6 +144,9 @@ public sealed partial class SettingsViewModel : ObservableObject
     public IReadOnlyList<string> AlignmentOptions { get; }
 
     public IReadOnlyList<string> ListDisplayOptions { get; }
+
+    /// <summary>「默认打开的页面」下拉框的选项，顺序与 <see cref="StartupSections"/> 一致。</summary>
+    public IReadOnlyList<string> StartupPageOptions { get; }
 
     /// <summary>界面 / 全屏歌词 / 桌面歌词三个字体下拉共用的选项；首项是「默认字体」。</summary>
     public IReadOnlyList<FontOption> FontOptions { get; }
@@ -191,6 +211,9 @@ public sealed partial class SettingsViewModel : ObservableObject
 
     [ObservableProperty]
     public partial int ThemeIndex { get; set; }
+
+    [ObservableProperty]
+    public partial int StartupPageIndex { get; set; }
 
     [ObservableProperty]
     public partial int QualityIndex { get; set; }
@@ -285,6 +308,7 @@ public sealed partial class SettingsViewModel : ObservableObject
         try
         {
             ThemeIndex = (int)Theme.Current;
+            StartupPageIndex = Math.Max(0, Array.IndexOf(StartupSections, Theme.StartupPage));
 
             // 读的是「默认音质」这个偏好，不是正在播的那首当前用的档位 —— 两者在切换后会不一致。
             QualityIndex = (int)Coordinator.PreferredQuality;
@@ -347,6 +371,16 @@ public sealed partial class SettingsViewModel : ObservableObject
         }
 
         Theme.Select((AppTheme)value);
+    }
+
+    partial void OnStartupPageIndexChanged(int value)
+    {
+        if (_syncing || value < 0 || value >= StartupSections.Length)
+        {
+            return;
+        }
+
+        Theme.StartupPage = StartupSections[value];
     }
 
     partial void OnQualityIndexChanged(int value)

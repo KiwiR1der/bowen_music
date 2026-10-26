@@ -43,6 +43,39 @@ public sealed class ThemeSettingsStoreTests : IDisposable
     }
 
     [Fact]
+    public void NoFile_DefaultsToFavoritesStartupPage()
+    {
+        Assert.Equal(StartupSection.Favorites, NewStore().Load().StartupPage);
+    }
+
+    [Fact]
+    public void Save_ThenLoad_RoundTripsStartupPage()
+    {
+        NewStore().Save(new ThemeSettings(AppTheme.System, StartupPage: StartupSection.Recent));
+
+        Assert.Equal(StartupSection.Recent, NewStore().Load().StartupPage);
+    }
+
+    [Fact]
+    public void LegacyFileWithoutStartupField_DefaultsToFavorites()
+    {
+        Directory.CreateDirectory(_directory);
+        File.WriteAllText(Path_, """{ "Theme": "Dark", "AcrylicEffects": true }""");
+
+        // 旧文件没有启动页字段；缺字段时必须保持原来的落点，不能落成枚举的数值 0（发现）。
+        Assert.Equal(StartupSection.Favorites, NewStore().Load().StartupPage);
+    }
+
+    [Fact]
+    public void OutOfRangeStartupPageNumeric_FallsBackToFavorites()
+    {
+        Directory.CreateDirectory(_directory);
+        File.WriteAllText(Path_, """{ "Theme": "Dark", "StartupPage": 99 }""");
+
+        Assert.Equal(StartupSection.Favorites, NewStore().Load().StartupPage);
+    }
+
+    [Fact]
     public void Save_ThenLoad_RoundTripsAcrylicDisabled()
     {
         NewStore().Save(new ThemeSettings(AppTheme.Dark, AcrylicEffects: false));
@@ -119,6 +152,7 @@ public sealed class ThemeSettingsStoreTests : IDisposable
 
         // 新字段显式落盘，下次读取不靠「缺字段」的默认值。
         Assert.Contains("\"AcrylicEffects\": true", text, StringComparison.Ordinal);
+        Assert.Contains("\"StartupPage\": \"Favorites\"", text, StringComparison.Ordinal);
     }
 
     [Fact]

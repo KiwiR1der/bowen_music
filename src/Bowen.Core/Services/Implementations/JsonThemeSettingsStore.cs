@@ -63,9 +63,20 @@ public sealed class JsonThemeSettingsStore : IThemeSettingsStore
 
             // 旧版文件没有 AcrylicEffects 字段：缺字段时按默认（开启）处理，
             // 不能让它落成 bool 的默认值 false，把已有的磨砂效果静默关掉。
-            return loaded.AcrylicEffects is null
+            loaded = loaded.AcrylicEffects is null
                 ? loaded with { AcrylicEffects = true }
                 : loaded;
+
+            // StartupPage 同样要挡未定义的数字：字符串枚举会挡掉未知名字，
+            // 但数字仍能反序列化成枚举范围外的值。
+            if (!Enum.IsDefined(loaded.StartupPage))
+            {
+                _logger.LogWarning("启动页设置的值不在枚举范围内（{Value}），按「我喜欢的」继续", loaded.StartupPage);
+
+                return loaded with { StartupPage = StartupSection.Favorites };
+            }
+
+            return loaded;
         }
         catch (Exception ex) when (ex is IOException or JsonException or UnauthorizedAccessException)
         {
