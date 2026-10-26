@@ -637,6 +637,7 @@ FontOverride 按框架定义原样重抄、唯一差别是字体走 `{ThemeResou
 全屏歌词：`LyricsViewModel.FontFamily` → `LyricsRenderer.SetFontFamily`（标记整份文档重排）→
 `LyricsLayout.GetFormat` 检测字体变化重建 `CanvasTextFormat`。空串回退渲染层内置的
 `Segoe UI Variable Display`。改译文开关时保留字体（落盘读改写整份 `LyricsSettings`）。
+歌词页外观面板的字体与设置页共用这一份 `FontFamily`，见 [`lyrics-appearance.md`](lyrics-appearance.md)。
 
 桌面歌词：`DesktopLyricsViewModel.FontFamily` → `DesktopLyricsRenderInput` 携带字体 →
 字体变化时重建行渲染器。「恢复默认」一并重置字体。

@@ -1,5 +1,18 @@
 namespace Bowen.Core.Models;
 
+/// <summary>全屏歌词的横向对齐方式。</summary>
+public enum LyricsAlignment
+{
+    /// <summary>居左。</summary>
+    Left = 0,
+
+    /// <summary>居中。</summary>
+    Center = 1,
+
+    /// <summary>居右。</summary>
+    Right = 2,
+}
+
 /// <summary>
 /// 歌词相关界面的偏好：全屏歌词页与小窗歌词。
 /// </summary>
@@ -43,16 +56,112 @@ public sealed record LyricsSettings
     /// </remarks>
     public string MiniPlayerFontFamily { get; init; } = string.Empty;
 
-    /// <summary>默认设置：显示译文、跟随系统字体。</summary>
+    /// <summary>全屏歌词字号下限（DIP）。</summary>
+    public const double MinimumFontSize = 24;
+
+    /// <summary>全屏歌词字号上限（DIP）。</summary>
+    public const double MaximumFontSize = 80;
+
+    /// <summary>全屏歌词默认字号（DIP）。</summary>
+    public const double DefaultFontSize = 48;
+
+    /// <summary>行距下限（DIP）。0 表示只保留文本自身行高。</summary>
+    public const double MinimumLineGap = 0;
+
+    /// <summary>行距上限（DIP）。</summary>
+    public const double MaximumLineGap = 64;
+
+    /// <summary>默认行距（DIP）。</summary>
+    public const double DefaultLineGap = 24;
+
+    /// <summary>水平偏移下限，占歌词区域宽度的百分比。</summary>
+    public const double MinimumHorizontalOffsetPercent = -30;
+
+    /// <summary>水平偏移上限，占歌词区域宽度的百分比。</summary>
+    public const double MaximumHorizontalOffsetPercent = 30;
+
+    /// <summary>垂直偏移下限，占歌词区域高度的百分比。</summary>
+    public const double MinimumVerticalOffsetPercent = -25;
+
+    /// <summary>垂直偏移上限，占歌词区域高度的百分比。</summary>
+    public const double MaximumVerticalOffsetPercent = 25;
+
+    /// <summary>默认位置偏移百分比。</summary>
+    public const double DefaultOffsetPercent = 0;
+
+    /// <summary>默认高亮色：不透明白色。</summary>
+    public const uint DefaultHighlightColor = 0xFFFFFFFF;
+
+    /// <summary>
+    /// 可选的高亮色。与桌面歌词一样只给基础色，不做色轮。
+    /// </summary>
+    /// <remarks>
+    /// 默认白色放在首位：未唱部分固定白色半透明，高亮保持白色时两者只差透明度。
+    /// </remarks>
+    public static readonly (uint Argb, string Name)[] HighlightPalette =
+    [
+        (0xFFFFFFFF, "白色"), (0xFF00E5BF, "青绿"), (0xFF4D9CFF, "蓝色"),
+        (0xFFFF6FB5, "粉色"), (0xFFFF922B, "橙色"), (0xFFFADB14, "黄色"),
+        (0xFF37D67A, "绿色"), (0xFFFF4D4F, "红色"),
+    ];
+
+    /// <summary>全屏歌词字号，DIP。</summary>
+    public double FontSize { get; init; } = DefaultFontSize;
+
+    /// <summary>全屏歌词的横向对齐方式。</summary>
+    public LyricsAlignment Alignment { get; init; } = LyricsAlignment.Left;
+
+    /// <summary>已唱部分的高亮色，<c>0xAARRGGBB</c>；未唱部分固定白色半透明。</summary>
+    public uint HighlightColorArgb { get; init; } = DefaultHighlightColor;
+
+    /// <summary>行与行之间的额外间距，DIP；0 表示只保留文本自身行高。</summary>
+    public double LineGap { get; init; } = DefaultLineGap;
+
+    /// <summary>
+    /// 水平偏移，占歌词区域宽度的百分比；在对齐结果之上继续左右移动。
+    /// </summary>
+    public double HorizontalOffsetPercent { get; init; } = DefaultOffsetPercent;
+
+    /// <summary>
+    /// 垂直偏移，占歌词区域高度的百分比；正数向下移动。
+    /// </summary>
+    public double VerticalOffsetPercent { get; init; } = DefaultOffsetPercent;
+
+    /// <summary>默认设置：显示译文、跟随系统字体、白色高亮。</summary>
     public static LyricsSettings Default { get; } = new();
 
-    /// <summary>规范化字体名，保持空字符串 = 跟随默认的约定。</summary>
+    /// <summary>规范化字体名与数值范围。</summary>
     /// <remarks>
+    /// 逐项夹取，不整份退回默认：某一项写坏了，不该把字体、对齐、颜色一起抹掉。
     /// 保留这个入口与其他设置同一个形状：新增需要夹取范围的偏好时不必改 store 的调用点。
     /// </remarks>
     public LyricsSettings Normalized() => this with
     {
         FontFamily = FontFamily?.Trim() ?? string.Empty,
         MiniPlayerFontFamily = MiniPlayerFontFamily?.Trim() ?? string.Empty,
+
+        // 0 不是合法的字号，只可能来自旧文件缺字段，按默认处理。
+        FontSize = double.IsFinite(FontSize) && FontSize > 0
+            ? Math.Clamp(FontSize, MinimumFontSize, MaximumFontSize)
+            : DefaultFontSize,
+
+        LineGap = double.IsFinite(LineGap)
+            ? Math.Clamp(LineGap, MinimumLineGap, MaximumLineGap)
+            : DefaultLineGap,
+
+        // 0 不是合法的高亮色；其余颜色把 alpha 顶回不透明（色板不提供透明度）。
+        HighlightColorArgb = HighlightColorArgb == 0
+            ? DefaultHighlightColor
+            : HighlightColorArgb | 0xFF000000,
+
+        HorizontalOffsetPercent = double.IsFinite(HorizontalOffsetPercent)
+            ? Math.Clamp(HorizontalOffsetPercent, MinimumHorizontalOffsetPercent, MaximumHorizontalOffsetPercent)
+            : DefaultOffsetPercent,
+
+        VerticalOffsetPercent = double.IsFinite(VerticalOffsetPercent)
+            ? Math.Clamp(VerticalOffsetPercent, MinimumVerticalOffsetPercent, MaximumVerticalOffsetPercent)
+            : DefaultOffsetPercent,
+
+        Alignment = Enum.IsDefined(Alignment) ? Alignment : LyricsAlignment.Left,
     };
 }

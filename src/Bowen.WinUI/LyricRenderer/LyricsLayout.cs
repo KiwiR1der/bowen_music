@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.Numerics;
+using Bowen.Core.Models;
 using Bowen.Core.Models.Lyrics;
 using Microsoft.Graphics.Canvas.Brushes;
 using Microsoft.Graphics.Canvas.Effects;
@@ -485,8 +486,10 @@ internal sealed class LyricsLayoutEngine(LyricsRenderSettings settings) : IDispo
 
     private CanvasTextFormat GetFormat()
     {
+        var alignment = ToCanvasAlignment(settings.Alignment);
         if (_format is not null && (Math.Abs(_format.FontSize - settings.BaseFontSize) > 0.1
-            || !string.Equals(_format.FontFamily, settings.FontFamily, StringComparison.Ordinal)))
+            || !string.Equals(_format.FontFamily, settings.FontFamily, StringComparison.Ordinal)
+            || _format.HorizontalAlignment != alignment))
         {
             _format.Dispose();
             _format = null;
@@ -500,8 +503,7 @@ internal sealed class LyricsLayoutEngine(LyricsRenderSettings settings) : IDispo
         // 中文按字断行；WrapWholeWords 会把整句中文当成一个词，长句溢出。
         WordWrapping = CanvasWordWrapping.Wrap,
 
-        // 左对齐，并以左侧为缩放锚点。
-        HorizontalAlignment = CanvasHorizontalAlignment.Left,
+        HorizontalAlignment = alignment,
         VerticalAlignment = CanvasVerticalAlignment.Top,
 
         LineSpacingMode = CanvasLineSpacingMode.Uniform,
@@ -510,4 +512,11 @@ internal sealed class LyricsLayoutEngine(LyricsRenderSettings settings) : IDispo
         LineSpacingBaseline = (float)(settings.BaseFontSize * settings.LineHeight * 0.8),
     };
     }
+
+    private static CanvasHorizontalAlignment ToCanvasAlignment(LyricsAlignment alignment) => alignment switch
+    {
+        LyricsAlignment.Center => CanvasHorizontalAlignment.Center,
+        LyricsAlignment.Right => CanvasHorizontalAlignment.Right,
+        _ => CanvasHorizontalAlignment.Left,
+    };
 }

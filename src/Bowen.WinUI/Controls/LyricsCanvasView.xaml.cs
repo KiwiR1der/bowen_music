@@ -1,6 +1,7 @@
 using System.ComponentModel;
 using System.Diagnostics;
 using System.Numerics;
+using Bowen.Core.Models;
 using Bowen.Core.Playback;
 using Bowen.WinUI.LyricRenderer;
 using Bowen.WinUI.Playback;
@@ -17,6 +18,7 @@ using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Hosting;
 using Windows.Foundation;
+using Windows.UI;
 
 namespace Bowen.WinUI.Controls;
 
@@ -30,8 +32,13 @@ public sealed partial class LyricsCanvasView : UserControl
     private readonly ILoggerFactory _loggerFactory;
     private LyricsRenderLoop? _renderLoop;
     private XamlRoot? _subscribedRoot;
-    private double _fontSize = 40;
+    private double _fontSize = LyricsSettings.DefaultFontSize;
     private string _fontFamily = "";
+    private double _lineGap = LyricsSettings.DefaultLineGap;
+    private LyricsAlignment _alignment = LyricsAlignment.Left;
+    private double _horizontalOffsetPercent;
+    private double _verticalOffsetPercent;
+    private Color _highlightColor = Color.FromArgb(255, 255, 255, 255);
     private bool _loaded;
     private bool _paused;
     private bool _resourcesSuspended;
@@ -110,6 +117,46 @@ public sealed partial class LyricsCanvasView : UserControl
     {
         _fontFamily = fontFamily;
         _renderLoop?.Send(renderer => renderer.SetFontFamily(fontFamily));
+    }
+
+    /// <summary>切换行距。渲染线程收到后整份文档重排。</summary>
+    public void SetLineGap(double lineGap)
+    {
+        if (Math.Abs(_lineGap - lineGap) < 0.01) return;
+        _lineGap = lineGap;
+        _renderLoop?.Send(renderer => renderer.SetLineGap(lineGap));
+    }
+
+    /// <summary>切换横向对齐。渲染线程收到后整份文档重排。</summary>
+    public void SetAlignment(LyricsAlignment alignment)
+    {
+        if (_alignment == alignment) return;
+        _alignment = alignment;
+        _renderLoop?.Send(renderer => renderer.SetAlignment(alignment));
+    }
+
+    /// <summary>切换水平偏移，占歌词区域宽度的百分比。</summary>
+    public void SetHorizontalOffsetPercent(double percent)
+    {
+        if (Math.Abs(_horizontalOffsetPercent - percent) < 0.01) return;
+        _horizontalOffsetPercent = percent;
+        _renderLoop?.Send(renderer => renderer.SetHorizontalOffsetPercent(percent));
+    }
+
+    /// <summary>切换垂直偏移，占歌词区域高度的百分比。</summary>
+    public void SetVerticalOffsetPercent(double percent)
+    {
+        if (Math.Abs(_verticalOffsetPercent - percent) < 0.01) return;
+        _verticalOffsetPercent = percent;
+        _renderLoop?.Send(renderer => renderer.SetVerticalOffsetPercent(percent));
+    }
+
+    /// <summary>切换已唱部分的高亮色。只换颜色纹理，不改排版。</summary>
+    public void SetHighlightColor(Color color)
+    {
+        if (_highlightColor == color) return;
+        _highlightColor = color;
+        _renderLoop?.Send(renderer => renderer.SetPlayedColor(color));
     }
 
     public void ResumeFollowing() => _renderLoop?.Send(renderer => renderer.ResumeFollowing());
@@ -191,6 +238,11 @@ public sealed partial class LyricsCanvasView : UserControl
         _renderLoop = loop;
         loop.SetDocument(_viewModel.Document);
         loop.Send(renderer => renderer.SetFontFamily(_fontFamily));
+        loop.Send(renderer => renderer.SetLineGap(_lineGap));
+        loop.Send(renderer => renderer.SetAlignment(_alignment));
+        loop.Send(renderer => renderer.SetHorizontalOffsetPercent(_horizontalOffsetPercent));
+        loop.Send(renderer => renderer.SetVerticalOffsetPercent(_verticalOffsetPercent));
+        loop.Send(renderer => renderer.SetPlayedColor(_highlightColor));
         ResizeSurface();
         loop.Start();
     }

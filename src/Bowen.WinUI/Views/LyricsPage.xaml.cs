@@ -17,6 +17,7 @@ using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Media;
 using Microsoft.UI.Xaml.Shapes;
 using Windows.Foundation;
+using Windows.UI;
 using VirtualKey = Windows.System.VirtualKey;
 
 namespace Bowen.WinUI.Views;
@@ -30,6 +31,10 @@ public sealed partial class LyricsPage : Page, INavigationAware
 
     /// <summary>底部「更多」菜单要用它现造菜单状态（与曲目行那颗同一个装配点）。</summary>
     private readonly TrackActionsService _trackActions;
+    private readonly IReadOnlyList<FontOption> _fontOptions;
+    private readonly List<(Border Dot, uint Color)> _colorDots = [];
+    private bool _syncingAppearance;
+    private bool _appearanceOpen;
     private FrameworkElement? _themeRoot;
     private readonly LyricsCanvasView _canvas;
     private readonly AudioSpectrumView _spectrum;
@@ -77,7 +82,8 @@ public sealed partial class LyricsPage : Page, INavigationAware
 
     public LyricsPage(MainWindow window, LyricsCanvasView canvas, AudioSpectrumView spectrum, PlayerViewModel player,
         LyricsViewModel lyrics, SongCommentsViewModel comments,
-        INavigationService navigation, Func<Track, MvPage> mvFactory, TrackActionsService trackActions)
+        INavigationService navigation, Func<Track, MvPage> mvFactory, TrackActionsService trackActions,
+        FontSettingsViewModel font)
     {
         ArgumentNullException.ThrowIfNull(window);
         ArgumentNullException.ThrowIfNull(canvas);
@@ -88,6 +94,7 @@ public sealed partial class LyricsPage : Page, INavigationAware
         ArgumentNullException.ThrowIfNull(navigation);
         ArgumentNullException.ThrowIfNull(mvFactory);
         ArgumentNullException.ThrowIfNull(trackActions);
+        ArgumentNullException.ThrowIfNull(font);
         _window = window;
         _navigation = navigation;
         _mvFactory = mvFactory;
@@ -100,10 +107,17 @@ public sealed partial class LyricsPage : Page, INavigationAware
         Lyrics = lyrics;
         Comments = comments;
         InitializeComponent();
+        _fontOptions = BuildFontOptions(font);
+        LyricsFontPicker.ItemsSource = _fontOptions;
+        LyricsFontPicker.StretchToAvailableWidth();
+        LyricsFontPicker.RegisterPropertyChangedCallback(
+            FontPicker.SelectedIndexProperty, OnLyricsFontPickerSelectionChanged);
+        BuildColorPalette();
         _commentsPanel = new SongCommentsPanel(comments);
         _commentsPanel.CloseRequested += (_, _) => CloseComments();
         CommentsHost.Content = _commentsPanel;
         ElementCompositionPreview.SetIsTranslationEnabled(CommentsPane, true);
+        ElementCompositionPreview.SetIsTranslationEnabled(AppearancePane, true);
         CanvasHost.Content = canvas;
         SpectrumHost.Content = spectrum;
         canvas.BrowsingChanged += (_, _) => FollowButton.Visibility = canvas.IsBrowsing ? Visibility.Visible : Visibility.Collapsed;
@@ -181,7 +195,7 @@ public sealed partial class LyricsPage : Page, INavigationAware
         _windowVisible = _window.AppWindow.IsVisible;
         _themeRoot = _window.ThemeRoot;
         _themeRoot.ActualThemeChanged += OnAppThemeChanged;
-        SyncCommentsTheme();
+        SyncPanelThemes();
         if (Player.CurrentTrackId is > 0) _ = Comments.LoadBadgeAsync(Player.CurrentTrackId.Value);
         _window.VisibilityChanged += OnWindowVisibilityChanged;
         _window.RenderingStateChanged += OnWindowRenderingStateChanged;
@@ -350,6 +364,7 @@ public sealed partial class LyricsPage : Page, INavigationAware
         Lyrics.PropertyChanged -= OnLyricsChanged;
         _volumePopupOpen = false;
         _moreFlyoutOpen = false;
+        CloseAppearance(restoreFocus: false);
         MoreFlyout.Hide();
         _progressSeeking = _keyboardSeeking = false;
         Player.IsSeeking = false;
@@ -445,9 +460,9 @@ public sealed partial class LyricsPage : Page, INavigationAware
         ReflectionView.Width = size;
         ReflectionView.Height = size * 0.55;
         Canvas.SetTop(ReflectionView, size + 2);
-        _canvas.SetFontSize(Math.Max(ActualHeight * 0.05, ActualWidth * 0.025));
-        _canvas.SetFontFamily(Lyrics.FontFamily);
+        ApplyLyricsAppearance();
         CommentsPane.Width = Math.Max(0, Math.Min(420, ActualWidth - 32));
+        if (_appearanceOpen) AppearancePane.MaxHeight = Math.Max(0, ActualHeight - 178);
         UpdateChromeInsets();
         UpdateCoverScale();
     }
@@ -619,7 +634,8 @@ public sealed partial class LyricsPage : Page, INavigationAware
     {
         _chromeTimer.Stop();
         if (Comments.IsOpen || !Lyrics.IsOpen || !_windowVisible || _window.IsRenderingSuspended || !_chromeVisible || _pointerOverChrome
-            || _progressSeeking || _keyboardSeeking || _volumePopupOpen || _moreFlyoutOpen || HasChromeKeyboardFocus()) return;
+            || _progressSeeking || _keyboardSeeking || _volumePopupOpen || _moreFlyoutOpen
+            || _appearanceOpen || HasChromeKeyboardFocus()) return;
         _chromeTimer.Start();
     }
 
@@ -633,7 +649,8 @@ public sealed partial class LyricsPage : Page, INavigationAware
     private void HideChrome()
     {
         if (Comments.IsOpen || !Lyrics.IsOpen || !_windowVisible || _window.IsRenderingSuspended || _pointerOverChrome
-            || _progressSeeking || _keyboardSeeking || _volumePopupOpen || _moreFlyoutOpen || HasChromeKeyboardFocus())
+            || _progressSeeking || _keyboardSeeking || _volumePopupOpen || _moreFlyoutOpen
+            || _appearanceOpen || HasChromeKeyboardFocus())
             return;
         SetChromeVisibility(false);
     }
@@ -674,15 +691,17 @@ public sealed partial class LyricsPage : Page, INavigationAware
         else ScheduleChromeHide();
     }
 
-    private void OnAppThemeChanged(FrameworkElement sender, object args) => SyncCommentsTheme();
+    private void OnAppThemeChanged(FrameworkElement sender, object args) => SyncPanelThemes();
 
-    private void SyncCommentsTheme()
+    private void SyncPanelThemes()
     {
-        // 歌词舞台固定深色，评论控件应跟随主窗口的实际主题，包含“跟随系统”。
+        // 歌词舞台固定深色，两块浮层跟随主窗口的实际主题，包含“跟随系统”。
+        // 外观面板的亚克力刷也按这个主题取浅色 / 深色那一份。
         var theme = _window.ThemeRoot.ActualTheme;
         CommentsPane.RequestedTheme = theme;
         _commentsPanel.RequestedTheme = theme;
         CommentsImageViewer.RequestedTheme = theme;
+        AppearancePane.RequestedTheme = theme;
     }
 
     private async void OnCommentsClick(object sender, RoutedEventArgs args)
@@ -692,6 +711,7 @@ public sealed partial class LyricsPage : Page, INavigationAware
             CloseComments();
             return;
         }
+        if (_appearanceOpen) CloseAppearance(restoreFocus: false);
         if (Player.CurrentTrackId is not > 0) return;
         var loading = Comments.ShowAsync(Player.CurrentTrackId.Value, Player.Title);
         ProgressTimePopup.IsOpen = false;
@@ -799,7 +819,7 @@ public sealed partial class LyricsPage : Page, INavigationAware
     private void OnQualityFlyoutOpened(object? sender, object e) => ApplyFlyoutTheme(QualityPicker);
 
     /// <summary>
-    /// 弹层跟随主窗口主题，而不是继承歌词页固定的深色（评论面板同理，见 <see cref="SyncCommentsTheme"/>）。
+    /// 弹层跟随主窗口主题，而不是继承歌词页固定的深色（评论面板与外观面板同理，见 <see cref="SyncPanelThemes"/>）。
     /// </summary>
     private void ApplyFlyoutTheme(FrameworkElement content)
         => PopupTheme.Apply(content, _window.ThemeRoot.ActualTheme);
@@ -889,16 +909,282 @@ public sealed partial class LyricsPage : Page, INavigationAware
             ? Visibility.Visible
             : Visibility.Collapsed;
 
-    /// <summary>译文按钮的状态由 ViewModel 两位共同决定，任一变化都要重画。</summary>
+    // ── 歌词外观面板 ────────────────────────────────────────────────────────
+
+    /// <summary>字体列表与设置页一致：首项「默认字体」，其后是系统已装字体。</summary>
+    private static IReadOnlyList<FontOption> BuildFontOptions(FontSettingsViewModel font)
+    {
+        var options = new List<FontOption> { FontOption.Default };
+        options.AddRange(font.Fonts);
+        return options;
+    }
+
+    private int FontIndexOf(string fontFamily)
+    {
+        for (var index = 0; index < _fontOptions.Count; index++)
+        {
+            if (string.Equals(_fontOptions[index].FamilyName, fontFamily, StringComparison.OrdinalIgnoreCase))
+            {
+                return index;
+            }
+        }
+
+        return 0;
+    }
+
+    private string FontNameAt(int index)
+        => index >= 0 && index < _fontOptions.Count ? _fontOptions[index].FamilyName : string.Empty;
+
+    /// <summary>
+    /// 圆点色板。与桌面歌词一样在代码里生成，颜色定义只留 `LyricsSettings.HighlightPalette` 一处。
+    /// </summary>
+    private void BuildColorPalette()
+    {
+        foreach (var (argb, name) in LyricsSettings.HighlightPalette)
+        {
+            var color = ToColor(argb);
+            var dot = new Border
+            {
+                Width = 18,
+                Height = 18,
+                CornerRadius = new CornerRadius(9),
+                Background = new SolidColorBrush(color),
+                VerticalAlignment = VerticalAlignment.Center,
+
+                // 白色与浅色底上的点都需要一圈中性描边，否则边界看不出来。
+                BorderBrush = new SolidColorBrush(Color.FromArgb(0x66, 0x80, 0x80, 0x80)),
+                BorderThickness = new Thickness(1),
+            };
+
+            var button = new Button
+            {
+                Content = dot,
+                Width = 28,
+                Height = 28,
+                MinWidth = 0,
+                Padding = new Thickness(5),
+                BorderThickness = new Thickness(0),
+                CornerRadius = new CornerRadius(14),
+                Background = new SolidColorBrush(Color.FromArgb(0, 0, 0, 0)),
+            };
+            button.Click += (_, _) => Lyrics.SetHighlightColor(argb);
+            ToolTipService.SetToolTip(button, name);
+            Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(button, $"高亮颜色：{name}");
+            _colorDots.Add((dot, argb));
+            LyricsColorPalette.Children.Add(button);
+        }
+    }
+
+    private void UpdateColorPaletteSelection()
+    {
+        foreach (var (dot, argb) in _colorDots)
+        {
+            var selected = Lyrics.HighlightColorArgb == argb;
+
+            // 选中用品牌强调色描边：白色描边在浅色底上看不出来。
+            dot.BorderBrush = new SolidColorBrush(selected
+                ? Color.FromArgb(0xFF, 0x00, 0xD9, 0xA0)
+                : Color.FromArgb(0x66, 0x80, 0x80, 0x80));
+            dot.BorderThickness = new Thickness(selected ? 2 : 1);
+        }
+    }
+
+    /// <summary>把 ViewModel 的当前值回填到面板控件；回填期间不反向写设置。</summary>
+    private void SyncAppearanceControls()
+    {
+        _syncingAppearance = true;
+        try
+        {
+            LyricsFontPicker.SelectedIndex = FontIndexOf(Lyrics.FontFamily);
+            LyricsFontSizeSlider.Value = Lyrics.FontSize;
+            LyricsFontSizeValue.Text = ((int)Math.Round(Lyrics.FontSize)).ToString();
+            LyricsLineGapSlider.Value = Lyrics.LineGap;
+            LyricsLineGapValue.Text = ((int)Math.Round(Lyrics.LineGap)).ToString();
+            SyncAlignmentButtons(Lyrics.Alignment);
+            LyricsHorizontalOffsetSlider.Value = Lyrics.HorizontalOffsetPercent;
+            LyricsHorizontalOffsetValue.Text = FormatOffsetPercent(Lyrics.HorizontalOffsetPercent);
+            LyricsVerticalOffsetSlider.Value = Lyrics.VerticalOffsetPercent;
+            LyricsVerticalOffsetValue.Text = FormatOffsetPercent(Lyrics.VerticalOffsetPercent);
+            UpdateColorPaletteSelection();
+        }
+        finally
+        {
+            _syncingAppearance = false;
+        }
+    }
+
+    private void OnLyricsFontPickerSelectionChanged(DependencyObject sender, DependencyProperty dp)
+    {
+        if (_syncingAppearance || !_appearanceOpen) return;
+        Lyrics.SetFontFamily(FontNameAt(LyricsFontPicker.SelectedIndex));
+    }
+
+    private void OnLyricsFontSizeChanged(object sender, RangeBaseValueChangedEventArgs args)
+    {
+        if (_syncingAppearance || !_appearanceOpen) return;
+        LyricsFontSizeValue.Text = ((int)Math.Round(args.NewValue)).ToString();
+        Lyrics.SetFontSize(args.NewValue);
+    }
+
+    private void OnLyricsLineGapChanged(object sender, RangeBaseValueChangedEventArgs args)
+    {
+        if (_syncingAppearance || !_appearanceOpen) return;
+        LyricsLineGapValue.Text = ((int)Math.Round(args.NewValue)).ToString();
+        Lyrics.SetLineGap(args.NewValue);
+    }
+
+    private void OnAlignLeftClick(object sender, RoutedEventArgs args) => SetAlignment(LyricsAlignment.Left);
+    private void OnAlignCenterClick(object sender, RoutedEventArgs args) => SetAlignment(LyricsAlignment.Center);
+    private void OnAlignRightClick(object sender, RoutedEventArgs args) => SetAlignment(LyricsAlignment.Right);
+
+    private void SetAlignment(LyricsAlignment alignment)
+    {
+        if (!_appearanceOpen) return;
+        SyncAlignmentButtons(alignment);
+        Lyrics.SetAlignment(alignment);
+    }
+
+    private void SyncAlignmentButtons(LyricsAlignment alignment)
+    {
+        AlignLeftButton.IsChecked = alignment == LyricsAlignment.Left;
+        AlignCenterButton.IsChecked = alignment == LyricsAlignment.Center;
+        AlignRightButton.IsChecked = alignment == LyricsAlignment.Right;
+    }
+
+    private void OnResetFontSizeClick(object sender, RoutedEventArgs args)
+    {
+        if (!_appearanceOpen) return;
+        Lyrics.SetFontSize(LyricsSettings.DefaultFontSize);
+    }
+
+    private void OnResetLineGapClick(object sender, RoutedEventArgs args)
+    {
+        if (!_appearanceOpen) return;
+        Lyrics.SetLineGap(LyricsSettings.DefaultLineGap);
+    }
+
+    private void OnLyricsHorizontalOffsetChanged(object sender, RangeBaseValueChangedEventArgs args)
+    {
+        if (_syncingAppearance || !_appearanceOpen) return;
+        LyricsHorizontalOffsetValue.Text = FormatOffsetPercent(args.NewValue);
+        Lyrics.SetHorizontalOffsetPercent(args.NewValue);
+    }
+
+    private void OnLyricsVerticalOffsetChanged(object sender, RangeBaseValueChangedEventArgs args)
+    {
+        if (_syncingAppearance || !_appearanceOpen) return;
+        LyricsVerticalOffsetValue.Text = FormatOffsetPercent(args.NewValue);
+        Lyrics.SetVerticalOffsetPercent(args.NewValue);
+    }
+
+    private void OnResetHorizontalOffsetClick(object sender, RoutedEventArgs args)
+    {
+        if (!_appearanceOpen) return;
+        Lyrics.SetHorizontalOffsetPercent(LyricsSettings.DefaultOffsetPercent);
+    }
+
+    private void OnResetVerticalOffsetClick(object sender, RoutedEventArgs args)
+    {
+        if (!_appearanceOpen) return;
+        Lyrics.SetVerticalOffsetPercent(LyricsSettings.DefaultOffsetPercent);
+    }
+
+    private static string FormatOffsetPercent(double percent)
+    {
+        var rounded = (int)Math.Round(percent);
+        return rounded > 0 ? $"+{rounded}%" : $"{rounded}%";
+    }
+
+    /// <summary>外观按钮：开、关共用同一颗；外观面板与评论面板互斥。</summary>
+    private void OnAppearanceClick(object sender, RoutedEventArgs args)
+    {
+        if (_appearanceOpen)
+        {
+            CloseAppearance();
+            return;
+        }
+
+        if (Comments.IsOpen) CloseComments(restoreFocus: false);
+        OpenAppearance();
+    }
+
+    private void OpenAppearance()
+    {
+        if (_appearanceOpen || !Lyrics.IsOpen) return;
+        _appearanceOpen = true;
+        _chromeTimer.Stop();
+        SyncAppearanceControls();
+        SyncPanelThemes();
+        AppearanceOverlay.Visibility = Visibility.Visible;
+        AppearancePane.MaxHeight = Math.Max(0, ActualHeight - 178);
+
+        // 从左侧滑入，与评论面板从右侧滑入对称。
+        var visual = ElementCompositionPreview.GetElementVisual(AppearancePane);
+        using var slide = visual.Compositor.CreateScalarKeyFrameAnimation();
+        slide.InsertKeyFrame(0, -28);
+        slide.InsertKeyFrame(1, 0);
+        slide.Duration = TimeSpan.FromMilliseconds(220);
+        visual.StartAnimation("Translation.X", slide);
+
+        ShowChrome();
+        var focusState = CurrentFocusVisualState;
+        DispatcherQueue.TryEnqueue(() =>
+        {
+            if (_appearanceOpen) AppearanceCloseButton.Focus(focusState);
+        });
+    }
+
+    private void CloseAppearance(bool restoreFocus = true)
+    {
+        if (!_appearanceOpen) return;
+        _appearanceOpen = false;
+        AppearanceOverlay.Visibility = Visibility.Collapsed;
+        if (restoreFocus) AppearanceButton.Focus(FocusState.Programmatic);
+        ScheduleChromeHide();
+    }
+
+    private void OnAppearanceCloseClick(object sender, RoutedEventArgs args) => CloseAppearance();
+
+    private void OnAppearanceDismissTapped(object sender, TappedRoutedEventArgs args)
+    {
+        CloseAppearance();
+        args.Handled = true;
+    }
+
+    private static Color ToColor(uint argb) => Color.FromArgb(
+        (byte)(argb >> 24), (byte)(argb >> 16), (byte)(argb >> 8), (byte)argb);
+
+    /// <summary>把当前外观偏好下发给 Win2D 画布。</summary>
+    private void ApplyLyricsAppearance()
+    {
+        _canvas.SetFontSize(Lyrics.FontSize);
+        _canvas.SetFontFamily(Lyrics.FontFamily);
+        _canvas.SetLineGap(Lyrics.LineGap);
+        _canvas.SetAlignment(Lyrics.Alignment);
+        _canvas.SetHorizontalOffsetPercent(Lyrics.HorizontalOffsetPercent);
+        _canvas.SetVerticalOffsetPercent(Lyrics.VerticalOffsetPercent);
+        _canvas.SetHighlightColor(ToColor(Lyrics.HighlightColorArgb));
+    }
+
+    /// <summary>译文按钮与歌词外观都由 ViewModel 驱动，任一变化都要重画。</summary>
     private void OnLyricsChanged(object? sender, PropertyChangedEventArgs args)
     {
         if (args.PropertyName is nameof(LyricsViewModel.HasTranslation) or nameof(LyricsViewModel.ShowTranslation))
         {
             SyncTranslation();
+            return;
         }
-        else if (args.PropertyName is nameof(LyricsViewModel.FontFamily))
+
+        if (args.PropertyName is nameof(LyricsViewModel.FontFamily)
+            or nameof(LyricsViewModel.FontSize)
+            or nameof(LyricsViewModel.Alignment)
+            or nameof(LyricsViewModel.HighlightColorArgb)
+            or nameof(LyricsViewModel.LineGap)
+            or nameof(LyricsViewModel.HorizontalOffsetPercent)
+            or nameof(LyricsViewModel.VerticalOffsetPercent))
         {
-            _canvas.SetFontFamily(Lyrics.FontFamily);
+            ApplyLyricsAppearance();
+            if (_appearanceOpen) SyncAppearanceControls();
         }
     }
 
@@ -908,6 +1194,7 @@ public sealed partial class LyricsPage : Page, INavigationAware
     private async void OnEscapeInvoked(KeyboardAccelerator sender, KeyboardAcceleratorInvokedEventArgs args)
     {
         args.Handled = true;
+        if (_appearanceOpen) { CloseAppearance(); return; }
         if (Comments.IsImageOpen) { Comments.CloseImage(); _commentsPanel.FocusCloseButton(); return; }
         if (Comments.IsThreadOpen) { Comments.CloseThread(); _commentsPanel.FocusCloseButton(); return; }
         if (Comments.IsOpen) { CloseComments(); return; }

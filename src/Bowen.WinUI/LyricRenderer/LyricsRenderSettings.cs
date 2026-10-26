@@ -1,3 +1,5 @@
+using Bowen.Core.Models;
+
 namespace Bowen.WinUI.LyricRenderer;
 
 /// <summary>全屏歌词的原生渲染参数。每个视图持有自己的实例。</summary>
@@ -6,7 +8,26 @@ public sealed record LyricsRenderSettings
     public static LyricsRenderSettings Default => new();
     public double BaseFontSize { get; set; } = 40;
     public double LineHeight { get; init; } = 1.35;
-    public double LineGap { get; init; } = 24;
+
+    /// <summary>
+    /// 行与行之间的额外间距。可变：外观面板改行距后由渲染线程更新并标记重排。
+    /// </summary>
+    public double LineGap { get; set; } = 24;
+
+    /// <summary>
+    /// 横向对齐方式。可变：外观面板改对齐后由渲染线程更新并标记重排。
+    /// </summary>
+    public LyricsAlignment Alignment { get; set; } = LyricsAlignment.Left;
+
+    /// <summary>
+    /// 在对齐结果之上的水平偏移，占歌词区域宽度的百分比。
+    /// </summary>
+    public double HorizontalOffsetPercent { get; set; }
+
+    /// <summary>
+    /// 垂直偏移，占歌词区域高度的百分比；正数向下。
+    /// </summary>
+    public double VerticalOffsetPercent { get; set; }
 
     /// <summary>
     /// 字体族名。<b>可变</b>：设置页改歌词字体后由渲染线程调

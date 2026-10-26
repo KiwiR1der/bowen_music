@@ -84,6 +84,12 @@ public sealed partial class LyricsViewModel : ObservableObject
         ShowTranslation = DefaultShowTranslation;
         FontFamily = loaded.FontFamily;
         MiniPlayerFontFamily = loaded.MiniPlayerFontFamily;
+        FontSize = loaded.FontSize;
+        Alignment = loaded.Alignment;
+        HighlightColorArgb = loaded.HighlightColorArgb;
+        LineGap = loaded.LineGap;
+        HorizontalOffsetPercent = loaded.HorizontalOffsetPercent;
+        VerticalOffsetPercent = loaded.VerticalOffsetPercent;
         _loading = false;
 
         // 启动时恢复出来的那一首也算「有歌可看」：播放条已经铺好了曲目，
@@ -144,8 +150,26 @@ public sealed partial class LyricsViewModel : ObservableObject
     /// </remarks>
     public string MiniPlayerFontFamily { get; private set; } = string.Empty;
 
+    /// <summary>全屏歌词字号，DIP。</summary>
+    public double FontSize { get; private set; } = LyricsSettings.DefaultFontSize;
+
+    /// <summary>全屏歌词的横向对齐方式。</summary>
+    public LyricsAlignment Alignment { get; private set; } = LyricsAlignment.Left;
+
+    /// <summary>已唱部分的高亮色，<c>0xAARRGGBB</c>。</summary>
+    public uint HighlightColorArgb { get; private set; } = LyricsSettings.DefaultHighlightColor;
+
+    /// <summary>行与行之间的额外间距，DIP。</summary>
+    public double LineGap { get; private set; } = LyricsSettings.DefaultLineGap;
+
+    /// <summary>在对齐结果之上的水平偏移，占歌词区域宽度的百分比。</summary>
+    public double HorizontalOffsetPercent { get; private set; } = LyricsSettings.DefaultOffsetPercent;
+
+    /// <summary>垂直偏移，占歌词区域高度的百分比；正数向下。</summary>
+    public double VerticalOffsetPercent { get; private set; } = LyricsSettings.DefaultOffsetPercent;
+
     /// <summary>
-    /// 设置页改歌词字体：落盘，并发通知让渲染层重排当前文档（不必重启）。
+    /// 设置页或歌词页面板改歌词字体：落盘，并发通知让渲染层重排当前文档（不必重启）。
     /// </summary>
     public void SetFontFamily(string fontFamily)
     {
@@ -157,12 +181,7 @@ public sealed partial class LyricsViewModel : ObservableObject
 
         FontFamily = fontFamily;
         OnPropertyChanged(nameof(FontFamily));
-        _settings.Save(new LyricsSettings
-        {
-            ShowTranslation = DefaultShowTranslation,
-            FontFamily = fontFamily,
-            MiniPlayerFontFamily = MiniPlayerFontFamily,
-        });
+        Persist();
     }
 
     /// <summary>
@@ -178,12 +197,7 @@ public sealed partial class LyricsViewModel : ObservableObject
 
         MiniPlayerFontFamily = fontFamily;
         OnPropertyChanged(nameof(MiniPlayerFontFamily));
-        _settings.Save(new LyricsSettings
-        {
-            ShowTranslation = DefaultShowTranslation,
-            FontFamily = FontFamily,
-            MiniPlayerFontFamily = fontFamily,
-        });
+        Persist();
     }
 
     /// <summary>
@@ -198,16 +212,123 @@ public sealed partial class LyricsViewModel : ObservableObject
 
         DefaultShowTranslation = value;
         OnPropertyChanged(nameof(DefaultShowTranslation));
-        _settings.Save(new LyricsSettings
-        {
-            ShowTranslation = value,
-            FontFamily = FontFamily,
-            MiniPlayerFontFamily = MiniPlayerFontFamily,
-        });
+        Persist();
 
         // 同步应用到当前这次，否则用户改完默认值还要手动去歌词页再按一下才看到效果。
         ShowTranslation = value;
     }
+
+    /// <summary>歌词页改字号：夹取后落盘，渲染层订阅后整份重排。</summary>
+    public void SetFontSize(double fontSize)
+    {
+        fontSize = double.IsFinite(fontSize) && fontSize > 0
+            ? Math.Clamp(fontSize, LyricsSettings.MinimumFontSize, LyricsSettings.MaximumFontSize)
+            : LyricsSettings.DefaultFontSize;
+        if (Math.Abs(FontSize - fontSize) < 0.01)
+        {
+            return;
+        }
+
+        FontSize = fontSize;
+        OnPropertyChanged(nameof(FontSize));
+        Persist();
+    }
+
+    /// <summary>歌词页改对齐：落盘，渲染层订阅后整份重排。</summary>
+    public void SetAlignment(LyricsAlignment alignment)
+    {
+        if (!Enum.IsDefined(alignment))
+        {
+            alignment = LyricsAlignment.Left;
+        }
+
+        if (Alignment == alignment)
+        {
+            return;
+        }
+
+        Alignment = alignment;
+        OnPropertyChanged(nameof(Alignment));
+        Persist();
+    }
+
+    /// <summary>歌词页改高亮色：alpha 归一为不透明后落盘。</summary>
+    public void SetHighlightColor(uint argb)
+    {
+        argb = argb == 0 ? LyricsSettings.DefaultHighlightColor : argb | 0xFF000000;
+        if (HighlightColorArgb == argb)
+        {
+            return;
+        }
+
+        HighlightColorArgb = argb;
+        OnPropertyChanged(nameof(HighlightColorArgb));
+        Persist();
+    }
+
+    /// <summary>歌词页改行距：夹到 0–64 DIP 后落盘。</summary>
+    public void SetLineGap(double lineGap)
+    {
+        lineGap = double.IsFinite(lineGap)
+            ? Math.Clamp(lineGap, LyricsSettings.MinimumLineGap, LyricsSettings.MaximumLineGap)
+            : LyricsSettings.DefaultLineGap;
+        if (Math.Abs(LineGap - lineGap) < 0.01)
+        {
+            return;
+        }
+
+        LineGap = lineGap;
+        OnPropertyChanged(nameof(LineGap));
+        Persist();
+    }
+
+    /// <summary>歌词页改水平偏移：夹到 -30%–30% 后落盘。</summary>
+    public void SetHorizontalOffsetPercent(double percent)
+    {
+        percent = double.IsFinite(percent)
+            ? Math.Clamp(percent, LyricsSettings.MinimumHorizontalOffsetPercent, LyricsSettings.MaximumHorizontalOffsetPercent)
+            : LyricsSettings.DefaultOffsetPercent;
+        if (Math.Abs(HorizontalOffsetPercent - percent) < 0.01)
+        {
+            return;
+        }
+
+        HorizontalOffsetPercent = percent;
+        OnPropertyChanged(nameof(HorizontalOffsetPercent));
+        Persist();
+    }
+
+    /// <summary>歌词页改垂直偏移：夹到 -25%–25% 后落盘。</summary>
+    public void SetVerticalOffsetPercent(double percent)
+    {
+        percent = double.IsFinite(percent)
+            ? Math.Clamp(percent, LyricsSettings.MinimumVerticalOffsetPercent, LyricsSettings.MaximumVerticalOffsetPercent)
+            : LyricsSettings.DefaultOffsetPercent;
+        if (Math.Abs(VerticalOffsetPercent - percent) < 0.01)
+        {
+            return;
+        }
+
+        VerticalOffsetPercent = percent;
+        OnPropertyChanged(nameof(VerticalOffsetPercent));
+        Persist();
+    }
+
+    /// <summary>
+    /// 写回整份偏好。新增字段只改这一处，避免某个 setter 漏写。
+    /// </summary>
+    private void Persist() => _settings.Save(new LyricsSettings
+    {
+        ShowTranslation = DefaultShowTranslation,
+        FontFamily = FontFamily,
+        MiniPlayerFontFamily = MiniPlayerFontFamily,
+        FontSize = FontSize,
+        Alignment = Alignment,
+        HighlightColorArgb = HighlightColorArgb,
+        LineGap = LineGap,
+        HorizontalOffsetPercent = HorizontalOffsetPercent,
+        VerticalOffsetPercent = VerticalOffsetPercent,
+    });
 
     /// <summary>
     /// 当前装载的歌词文档。

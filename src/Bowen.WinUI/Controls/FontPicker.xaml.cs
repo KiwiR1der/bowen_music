@@ -52,6 +52,16 @@ public sealed partial class FontPicker : UserControl
         set => SetValue(SelectedIndexProperty, value);
     }
 
+    /// <summary>
+    /// 让选择器撑满所在列。设置页用的是默认形态（右对齐、限宽 220）；
+    /// 歌词外观浮层需要与滑杆、胶囊同宽，由页面在构造时显式调用。
+    /// </summary>
+    public void StretchToAvailableWidth()
+    {
+        PickerButton.HorizontalAlignment = HorizontalAlignment.Stretch;
+        PickerButton.MaxWidth = 360;
+    }
+
     private static void OnSelectedIndexChanged(DependencyObject d, DependencyPropertyChangedEventArgs args)
     {
         var picker = (FontPicker)d;

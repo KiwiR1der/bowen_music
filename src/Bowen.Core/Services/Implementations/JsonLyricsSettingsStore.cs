@@ -39,8 +39,29 @@ public sealed class JsonLyricsSettingsStore : ILyricsSettingsStore
         try
         {
             var bytes = File.ReadAllBytes(_path);
-            var loaded = JsonSerializer.Deserialize(bytes, LyricsSettingsJsonContext.Default.LyricsSettings);
-            return loaded?.Normalized() ?? LyricsSettings.Default;
+            using var document = JsonDocument.Parse(bytes);
+            var loaded = document.RootElement.Deserialize(LyricsSettingsJsonContext.Default.LyricsSettings);
+            if (loaded is null)
+            {
+                return LyricsSettings.Default;
+            }
+
+            // 源生成的 record 走参数化构造：文件里缺字段时塞 CLR 默认值，属性初始值不参与。
+            // 旧 lyrics.json 没有外观字段，行距会读成合法的 0、高亮会读成 0，必须按
+            // 「文件里有没有这个属性」补默认。行距 0 本身是合法选择，只能靠这一点区分。
+            bool Has(string name)
+                => document.RootElement.ValueKind == JsonValueKind.Object
+                    && document.RootElement.TryGetProperty(name, out _);
+
+            loaded = loaded with
+            {
+                FontSize = Has("FontSize") ? loaded.FontSize : LyricsSettings.DefaultFontSize,
+                Alignment = Has("Alignment") ? loaded.Alignment : LyricsAlignment.Left,
+                HighlightColorArgb = Has("HighlightColorArgb") ? loaded.HighlightColorArgb : LyricsSettings.DefaultHighlightColor,
+                LineGap = Has("LineGap") ? loaded.LineGap : LyricsSettings.DefaultLineGap,
+            };
+
+            return loaded.Normalized();
         }
         catch (Exception ex) when (ex is IOException or JsonException or UnauthorizedAccessException)
         {

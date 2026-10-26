@@ -180,7 +180,9 @@ internal sealed class LyricsRenderLoop
     {
         var input = Volatile.Read(ref _input);
         if (input.Width <= 0 || input.Height <= 0) return;
-        var resized = _width != input.Width || _height != input.Height || _scale != input.Scale || _fontSize != input.FontSize;
+
+        // 字号只影响排版，不改绘制表面尺寸。拖字号滑块时不能每帧重建同一尺寸的表面。
+        var resized = _width != input.Width || _height != input.Height || _scale != input.Scale;
         // 合并表面重建，期间继续用已提交的尺寸绘制动画，合成器负责连续缩放。
         if (resized && _width > 0 && Volatile.Read(ref _forceResize) == 0
             && Stopwatch.GetElapsedTime(input.ResizeTimestamp) < ResizeDelay) resized = false;
@@ -193,10 +195,10 @@ internal sealed class LyricsRenderLoop
             _width = input.Width;
             _height = input.Height;
             _scale = input.Scale;
-            _fontSize = input.FontSize;
             _renderer.SetDpi((float)(input.Scale * 96));
             _renderer.SetViewport(input.Width, input.Height);
         }
+        _fontSize = input.FontSize;
         _renderer.SetFontSize(_fontSize);
         _renderer.SetDocument(input.Document);
         var commanded = false;

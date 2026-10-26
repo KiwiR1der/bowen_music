@@ -3,10 +3,54 @@
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:controls="using:Bowen.WinUI.Controls"
-    xmlns:local="using:Bowen.WinUI" RequestedTheme="Dark"
+    xmlns:local="using:Bowen.WinUI"
+    xmlns:models="using:Bowen.Core.Models" RequestedTheme="Dark"
     KeyboardAcceleratorPlacementMode="Hidden">
     <Page.Resources>
         <!-- 按钮外观与图标都不再单写：外观在 Themes/Styles/Player.xaml，图标走 Controls/Icon。 -->
+
+        <!-- 歌词外观浮层：沿用设置页 / 评论面板已有的字号、圆角与间距 token。 -->
+        <Style x:Key="LyricsSectionTitleStyle" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="{StaticResource FontSizeBodyLarge}" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Foreground" Value="{ThemeResource TextFillColorPrimaryBrush}" />
+        </Style>
+        <Style x:Key="LyricsValueTextStyle" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="{StaticResource FontSizeBody}" />
+            <Setter Property="Foreground" Value="{ThemeResource TextFillColorSecondaryBrush}" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+        </Style>
+        <Style x:Key="LyricsResetButtonStyle" TargetType="Button" BasedOn="{StaticResource PlayerBareIconButtonStyle}">
+            <Setter Property="Width" Value="24" />
+            <Setter Property="Height" Value="24" />
+            <Setter Property="MinWidth" Value="0" />
+            <Setter Property="MinHeight" Value="0" />
+            <Setter Property="Padding" Value="0" />
+            <Setter Property="Foreground" Value="{ThemeResource TextFillColorTertiaryBrush}" />
+        </Style>
+        <Style x:Key="LyricsSliderStyle" TargetType="Slider">
+            <Setter Property="Height" Value="32" />
+            <Setter Property="MinWidth" Value="0" />
+            <Setter Property="Padding" Value="0" />
+            <Setter Property="IsThumbToolTipEnabled" Value="False" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+        </Style>
+
+        <!--
+            对齐分段：与评论面板的「推荐 / 最新」同一套 ToggleButton 形态。
+            选中态由 AccentFillColorDefaultBrush 提供，只亮当前一颗。
+        -->
+        <Style x:Key="LyricsSegmentButtonStyle" TargetType="ToggleButton">
+            <Setter Property="MinWidth" Value="72" />
+            <Setter Property="Height" Value="32" />
+            <Setter Property="Padding" Value="14,4" />
+            <Setter Property="CornerRadius" Value="{StaticResource RadiusMd}" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="FontSize" Value="{StaticResource FontSizeBody}" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Foreground" Value="{ThemeResource TextFillColorSecondaryBrush}" />
+            <Setter Property="Background" Value="Transparent" />
+        </Style>
     </Page.Resources>
     <!--
         KeyboardAcceleratorPlacementMode="Hidden" 是必须的，不是可选装饰。
@@ -195,50 +239,68 @@
                     <RowDefinition Height="*" />
                 </Grid.RowDefinitions>
                 <!--
-                    传输组：播放模式 · 上一首 · 播放/暂停 · 下一首 · 播放列表。
-                    与底部播放条**同一组五颗、同一套尺寸**（模式 26 / 上下一首 28 / 播放 24 / 队列 22）。
+                    传输组：外观 · 播放模式 · 上一首 · 播放/暂停 · 下一首 · 播放列表。
+                    中间五颗与底部播放条**同一套尺寸**（模式 26 / 上下一首 28 / 播放 24 / 队列 22）。
                     改这里时播放条也要一起改，两边别各走各的。
+
+                    外观按钮只在歌词页出现。右侧放一颗等宽的透明占位，
+                    抵消左侧新增的按钮与间距，播放/暂停才能继续落在窗口水平中线。
                 -->
-                <StackPanel Grid.Row="0" Orientation="Horizontal" HorizontalAlignment="Center" Spacing="24">
-                    <Button AutomationProperties.Name="播放模式"
-                        Command="{x:Bind Player.CyclePlayModeCommand}"
-                        Style="{StaticResource PlayerBareIconButtonStyle}"
-                        ToolTipService.ToolTip="{x:Bind Player.PlayModeText, Mode=OneWay}">
-                        <Grid>
-                            <controls:Icon Data="{StaticResource IconSequential}" Size="26"
-                                Visibility="{x:Bind local:Formats.Visible(Player.IsSequentialMode), Mode=OneWay}" />
-                            <controls:Icon Data="{StaticResource IconListLoop}" Size="26"
-                                Visibility="{x:Bind local:Formats.Visible(Player.IsListLoopMode), Mode=OneWay}" />
-                            <controls:Icon Data="{StaticResource IconSingleLoop}" Size="26"
-                                Visibility="{x:Bind local:Formats.Visible(Player.IsSingleLoopMode), Mode=OneWay}" />
-                            <controls:Icon Data="{StaticResource IconShuffle}" Size="26"
-                                Visibility="{x:Bind local:Formats.Visible(Player.IsShuffleMode), Mode=OneWay}" />
-                        </Grid>
+                <Grid Grid.Row="0" HorizontalAlignment="Center" VerticalAlignment="Center">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+                    <Button x:Name="AppearanceButton" Width="36" Height="36" MinWidth="0" Padding="0"
+                        Margin="0,0,24,0" Style="{StaticResource PlayerBareIconButtonStyle}"
+                        Click="OnAppearanceClick"
+                        AutomationProperties.Name="歌词外观" ToolTipService.ToolTip="歌词外观">
+                        <TextBlock Text="A" FontSize="{StaticResource FontSizeTitle}" FontWeight="SemiBold"
+                            HorizontalAlignment="Center" VerticalAlignment="Center" />
                     </Button>
-                    <Button Style="{StaticResource PlayerBareIconButtonStyle}" Command="{x:Bind Player.PreviousCommand}"
-                        IsEnabled="{x:Bind Player.CanGoPrevious, Mode=OneWay}" AutomationProperties.Name="上一首" ToolTipService.ToolTip="上一首">
-                        <controls:Icon Data="{StaticResource IconPrevious}" Size="28" />
-                    </Button>
-                    <Button Style="{StaticResource PlayerAccentButtonStyle}" Command="{x:Bind Player.TogglePlayPauseCommand}"
-                        IsEnabled="{x:Bind Player.HasTrack, Mode=OneWay}" AutomationProperties.Name="播放 / 暂停" ToolTipService.ToolTip="播放 / 暂停 (Space)">
-                        <Grid>
-                            <controls:Icon Size="24" Data="{StaticResource IconPlay}"
-                                Visibility="{x:Bind local:Formats.VisibleWhenFalse(Player.IsPlaying), Mode=OneWay}" />
-                            <controls:Icon Size="24" Data="{StaticResource IconPause}"
-                                Visibility="{x:Bind local:Formats.Visible(Player.IsPlaying), Mode=OneWay}" />
-                        </Grid>
-                    </Button>
-                    <Button Style="{StaticResource PlayerBareIconButtonStyle}" Command="{x:Bind Player.NextCommand}"
-                        IsEnabled="{x:Bind Player.CanGoNext, Mode=OneWay}" AutomationProperties.Name="下一首" ToolTipService.ToolTip="下一首">
-                        <controls:Icon Data="{StaticResource IconNext}" Size="28" />
-                    </Button>
-                    <!-- 队列抽屉归主窗口管（要盖住内容区），这里只抛给它去开合。 -->
-                    <Button AutomationProperties.Name="播放列表" Click="OnQueueClick"
-                        Style="{StaticResource PlayerBareIconButtonStyle}"
-                        ToolTipService.ToolTip="播放列表">
-                        <controls:Icon Data="{StaticResource IconQueue}" Size="22" />
-                    </Button>
-                </StackPanel>
+                    <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="24">
+                        <Button AutomationProperties.Name="播放模式"
+                            Command="{x:Bind Player.CyclePlayModeCommand}"
+                            Style="{StaticResource PlayerBareIconButtonStyle}"
+                            ToolTipService.ToolTip="{x:Bind Player.PlayModeText, Mode=OneWay}">
+                            <Grid>
+                                <controls:Icon Data="{StaticResource IconSequential}" Size="26"
+                                    Visibility="{x:Bind local:Formats.Visible(Player.IsSequentialMode), Mode=OneWay}" />
+                                <controls:Icon Data="{StaticResource IconListLoop}" Size="26"
+                                    Visibility="{x:Bind local:Formats.Visible(Player.IsListLoopMode), Mode=OneWay}" />
+                                <controls:Icon Data="{StaticResource IconSingleLoop}" Size="26"
+                                    Visibility="{x:Bind local:Formats.Visible(Player.IsSingleLoopMode), Mode=OneWay}" />
+                                <controls:Icon Data="{StaticResource IconShuffle}" Size="26"
+                                    Visibility="{x:Bind local:Formats.Visible(Player.IsShuffleMode), Mode=OneWay}" />
+                            </Grid>
+                        </Button>
+                        <Button Style="{StaticResource PlayerBareIconButtonStyle}" Command="{x:Bind Player.PreviousCommand}"
+                            IsEnabled="{x:Bind Player.CanGoPrevious, Mode=OneWay}" AutomationProperties.Name="上一首" ToolTipService.ToolTip="上一首">
+                            <controls:Icon Data="{StaticResource IconPrevious}" Size="28" />
+                        </Button>
+                        <Button Style="{StaticResource PlayerAccentButtonStyle}" Command="{x:Bind Player.TogglePlayPauseCommand}"
+                            IsEnabled="{x:Bind Player.HasTrack, Mode=OneWay}" AutomationProperties.Name="播放 / 暂停" ToolTipService.ToolTip="播放 / 暂停 (Space)">
+                            <Grid>
+                                <controls:Icon Size="24" Data="{StaticResource IconPlay}"
+                                    Visibility="{x:Bind local:Formats.VisibleWhenFalse(Player.IsPlaying), Mode=OneWay}" />
+                                <controls:Icon Size="24" Data="{StaticResource IconPause}"
+                                    Visibility="{x:Bind local:Formats.Visible(Player.IsPlaying), Mode=OneWay}" />
+                            </Grid>
+                        </Button>
+                        <Button Style="{StaticResource PlayerBareIconButtonStyle}" Command="{x:Bind Player.NextCommand}"
+                            IsEnabled="{x:Bind Player.CanGoNext, Mode=OneWay}" AutomationProperties.Name="下一首" ToolTipService.ToolTip="下一首">
+                            <controls:Icon Data="{StaticResource IconNext}" Size="28" />
+                        </Button>
+                        <!-- 队列抽屉归主窗口管（要盖住内容区），这里只抛给它去开合。 -->
+                        <Button AutomationProperties.Name="播放列表" Click="OnQueueClick"
+                            Style="{StaticResource PlayerBareIconButtonStyle}"
+                            ToolTipService.ToolTip="播放列表">
+                            <controls:Icon Data="{StaticResource IconQueue}" Size="22" />
+                        </Button>
+                    </StackPanel>
+                    <Border Grid.Column="2" Width="36" Margin="24,0,0,0" IsHitTestVisible="False" />
+                </Grid>
                 <StackPanel Grid.Row="0" Orientation="Horizontal" HorizontalAlignment="Left" VerticalAlignment="Center" Spacing="8">
                     <controls:TrackStatisticButton x:Name="FavoriteButton" Data="{StaticResource IconHeart}" ActiveData="{StaticResource IconHeartFilled}"
                         Foreground="#CCFFFFFF"
@@ -397,6 +459,199 @@
                     <ResourceDictionary Source="ms-appx:///Themes/Styles/ImmersiveProgressSlider.xaml" />
                 </Slider.Resources>
             </Slider>
+        </Grid>
+        <!--
+            歌词外观：与评论面板同一套浮层形态，从左侧滑出，盖住封面、让右侧歌词保持可见。
+            底色用应用统一的亚克力刷；关闭亚克力时它自动退回实色兜底。空白区点击收起。
+        -->
+        <Grid x:Name="AppearanceOverlay" Margin="0,72,0,94" Visibility="Collapsed">
+            <Rectangle Fill="Transparent" Tapped="OnAppearanceDismissTapped" />
+            <Border x:Name="AppearancePane" Width="360" HorizontalAlignment="Left" VerticalAlignment="Top"
+                Margin="20,0,12,12" Background="{ThemeResource BowenAcrylicBrush}"
+                BorderBrush="{ThemeResource CommentBorderBrush}" BorderThickness="1" CornerRadius="16">
+                <Border.Resources>
+                    <!-- 对齐分段沿用评论面板的选中态：品牌强调色底 + 深色字。 -->
+                    <SolidColorBrush x:Key="ToggleButtonBackgroundChecked" Color="{ThemeResource BrandAccent}" />
+                    <SolidColorBrush x:Key="ToggleButtonBackgroundCheckedPointerOver" Color="{ThemeResource BrandAccentSecondary}" />
+                    <SolidColorBrush x:Key="ToggleButtonBackgroundCheckedPressed" Color="{ThemeResource BrandAccentTertiary}" />
+                    <SolidColorBrush x:Key="ToggleButtonForegroundChecked" Color="{ThemeResource BrandOnAccent}" />
+                    <SolidColorBrush x:Key="ToggleButtonForegroundCheckedPointerOver" Color="{ThemeResource BrandOnAccent}" />
+                    <SolidColorBrush x:Key="ToggleButtonForegroundCheckedPressed" Color="{ThemeResource BrandOnAccent}" />
+                    <SolidColorBrush x:Key="ToggleButtonBorderBrushChecked" Color="Transparent" />
+                    <SolidColorBrush x:Key="ToggleButtonBorderBrushCheckedPointerOver" Color="Transparent" />
+                    <SolidColorBrush x:Key="ToggleButtonBorderBrushCheckedPressed" Color="Transparent" />
+                </Border.Resources>
+                <Grid Padding="20,18,20,20" RowSpacing="16">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                    </Grid.RowDefinitions>
+                    <Grid>
+                        <StackPanel Spacing="2">
+                            <TextBlock Text="歌词外观" FontSize="{StaticResource FontSizeTitle}"
+                                FontWeight="SemiBold" Foreground="{ThemeResource TextFillColorPrimaryBrush}" />
+                            <TextBlock Text="字体、字号、间距与颜色" FontSize="{StaticResource FontSizeCaption}"
+                                Foreground="{ThemeResource TextFillColorTertiaryBrush}" />
+                        </StackPanel>
+                        <Button x:Name="AppearanceCloseButton" Click="OnAppearanceCloseClick"
+                            HorizontalAlignment="Right" Style="{StaticResource PlayerRoundIconButtonStyle}"
+                            AutomationProperties.Name="关闭歌词外观" ToolTipService.ToolTip="关闭">
+                            <controls:Icon Data="{StaticResource IconDismiss}" Size="12" />
+                        </Button>
+                    </Grid>
+                    <ScrollViewer Grid.Row="1" HorizontalScrollBarVisibility="Disabled"
+                        VerticalScrollBarVisibility="Auto">
+                        <StackPanel Spacing="{StaticResource SpaceSection}">
+                            <Grid ColumnSpacing="12">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="56" />
+                                    <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Text="字体" Style="{StaticResource LyricsSectionTitleStyle}"
+                                    VerticalAlignment="Center" />
+                                <controls:FontPicker x:Name="LyricsFontPicker" Grid.Column="1" />
+                            </Grid>
+
+                            <StackPanel Spacing="8">
+                                <TextBlock Style="{StaticResource LyricsSectionTitleStyle}" Text="字号与间距" />
+
+                                <StackPanel Spacing="6">
+                                    <Grid>
+                                        <StackPanel Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
+                                            <TextBlock Text="字体大小" FontSize="{StaticResource FontSizeBody}"
+                                                Foreground="{ThemeResource TextFillColorPrimaryBrush}" VerticalAlignment="Center" />
+                                            <Button Style="{StaticResource LyricsResetButtonStyle}" Click="OnResetFontSizeClick"
+                                                AutomationProperties.Name="恢复默认字号" ToolTipService.ToolTip="恢复默认字号">
+                                                <controls:Icon Data="{StaticResource IconRefresh}" Size="{StaticResource SizeIconSm}" />
+                                            </Button>
+                                        </StackPanel>
+                                        <TextBlock x:Name="LyricsFontSizeValue" HorizontalAlignment="Right"
+                                            Style="{StaticResource LyricsValueTextStyle}" />
+                                    </Grid>
+                                    <Grid ColumnSpacing="12">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="Auto" />
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="Auto" />
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Text="A-" Style="{StaticResource LyricsValueTextStyle}" />
+                                        <Slider x:Name="LyricsFontSizeSlider" Grid.Column="1" Minimum="24" Maximum="80"
+                                            StepFrequency="1" Style="{StaticResource LyricsSliderStyle}"
+                                            ValueChanged="OnLyricsFontSizeChanged" AutomationProperties.Name="歌词字号" />
+                                        <TextBlock Grid.Column="2" Text="A+" Style="{StaticResource LyricsValueTextStyle}" />
+                                    </Grid>
+                                </StackPanel>
+
+                                <StackPanel Spacing="6">
+                                    <Grid>
+                                        <StackPanel Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
+                                            <TextBlock Text="歌词间距" FontSize="{StaticResource FontSizeBody}"
+                                                Foreground="{ThemeResource TextFillColorPrimaryBrush}" VerticalAlignment="Center" />
+                                            <Button Style="{StaticResource LyricsResetButtonStyle}" Click="OnResetLineGapClick"
+                                                AutomationProperties.Name="恢复默认间距" ToolTipService.ToolTip="恢复默认间距">
+                                                <controls:Icon Data="{StaticResource IconRefresh}" Size="{StaticResource SizeIconSm}" />
+                                            </Button>
+                                        </StackPanel>
+                                        <TextBlock x:Name="LyricsLineGapValue" HorizontalAlignment="Right"
+                                            Style="{StaticResource LyricsValueTextStyle}" />
+                                    </Grid>
+                                    <Grid ColumnSpacing="12">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="Auto" />
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="Auto" />
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Text="−" Style="{StaticResource LyricsValueTextStyle}" />
+                                        <Slider x:Name="LyricsLineGapSlider" Grid.Column="1" Minimum="0" Maximum="64"
+                                            StepFrequency="1" Style="{StaticResource LyricsSliderStyle}"
+                                            ValueChanged="OnLyricsLineGapChanged" AutomationProperties.Name="歌词行距" />
+                                        <TextBlock Grid.Column="2" Text="+" Style="{StaticResource LyricsValueTextStyle}" />
+                                    </Grid>
+                                </StackPanel>
+                            </StackPanel>
+
+                            <StackPanel Spacing="8">
+                                <TextBlock Style="{StaticResource LyricsSectionTitleStyle}" Text="歌词位置" />
+                                <Border HorizontalAlignment="Center" Background="{ThemeResource CommentRaisedSurfaceBrush}"
+                                    CornerRadius="{StaticResource RadiusMd}" Padding="3" Margin="0,4,0,0">
+                                    <StackPanel Orientation="Horizontal" Spacing="2">
+                                        <ToggleButton x:Name="AlignLeftButton" Content="居左"
+                                            Style="{StaticResource LyricsSegmentButtonStyle}" Click="OnAlignLeftClick" />
+                                        <ToggleButton x:Name="AlignCenterButton" Content="居中"
+                                            Style="{StaticResource LyricsSegmentButtonStyle}" Click="OnAlignCenterClick" />
+                                        <ToggleButton x:Name="AlignRightButton" Content="居右"
+                                            Style="{StaticResource LyricsSegmentButtonStyle}" Click="OnAlignRightClick" />
+                                    </StackPanel>
+                                </Border>
+
+                                <StackPanel Spacing="6">
+                                    <Grid>
+                                        <StackPanel Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
+                                            <TextBlock Text="水平偏移" FontSize="{StaticResource FontSizeBody}"
+                                                Foreground="{ThemeResource TextFillColorPrimaryBrush}" VerticalAlignment="Center" />
+                                            <Button Style="{StaticResource LyricsResetButtonStyle}" Click="OnResetHorizontalOffsetClick"
+                                                AutomationProperties.Name="恢复水平偏移" ToolTipService.ToolTip="恢复水平偏移">
+                                                <controls:Icon Data="{StaticResource IconRefresh}" Size="{StaticResource SizeIconSm}" />
+                                            </Button>
+                                        </StackPanel>
+                                        <TextBlock x:Name="LyricsHorizontalOffsetValue" HorizontalAlignment="Right"
+                                            Style="{StaticResource LyricsValueTextStyle}" />
+                                    </Grid>
+                                    <Grid ColumnSpacing="12">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="Auto" />
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="Auto" />
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Text="左" Style="{StaticResource LyricsValueTextStyle}" />
+                                        <Slider x:Name="LyricsHorizontalOffsetSlider" Grid.Column="1"
+                                            Minimum="{x:Bind models:LyricsSettings.MinimumHorizontalOffsetPercent}"
+                                            Maximum="{x:Bind models:LyricsSettings.MaximumHorizontalOffsetPercent}"
+                                            StepFrequency="1" Style="{StaticResource LyricsSliderStyle}"
+                                            ValueChanged="OnLyricsHorizontalOffsetChanged" AutomationProperties.Name="水平偏移" />
+                                        <TextBlock Grid.Column="2" Text="右" Style="{StaticResource LyricsValueTextStyle}" />
+                                    </Grid>
+                                </StackPanel>
+
+                                <StackPanel Spacing="6">
+                                    <Grid>
+                                        <StackPanel Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
+                                            <TextBlock Text="垂直偏移" FontSize="{StaticResource FontSizeBody}"
+                                                Foreground="{ThemeResource TextFillColorPrimaryBrush}" VerticalAlignment="Center" />
+                                            <Button Style="{StaticResource LyricsResetButtonStyle}" Click="OnResetVerticalOffsetClick"
+                                                AutomationProperties.Name="恢复垂直偏移" ToolTipService.ToolTip="恢复垂直偏移">
+                                                <controls:Icon Data="{StaticResource IconRefresh}" Size="{StaticResource SizeIconSm}" />
+                                            </Button>
+                                        </StackPanel>
+                                        <TextBlock x:Name="LyricsVerticalOffsetValue" HorizontalAlignment="Right"
+                                            Style="{StaticResource LyricsValueTextStyle}" />
+                                    </Grid>
+                                    <Grid ColumnSpacing="12">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="Auto" />
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="Auto" />
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Text="上" Style="{StaticResource LyricsValueTextStyle}" />
+                                        <Slider x:Name="LyricsVerticalOffsetSlider" Grid.Column="1"
+                                            Minimum="{x:Bind models:LyricsSettings.MinimumVerticalOffsetPercent}"
+                                            Maximum="{x:Bind models:LyricsSettings.MaximumVerticalOffsetPercent}"
+                                            StepFrequency="1" Style="{StaticResource LyricsSliderStyle}"
+                                            ValueChanged="OnLyricsVerticalOffsetChanged" AutomationProperties.Name="垂直偏移" />
+                                        <TextBlock Grid.Column="2" Text="下" Style="{StaticResource LyricsValueTextStyle}" />
+                                    </Grid>
+                                </StackPanel>
+                            </StackPanel>
+
+                            <StackPanel Spacing="8">
+                                <TextBlock Style="{StaticResource LyricsSectionTitleStyle}" Text="高亮颜色" />
+                                <StackPanel x:Name="LyricsColorPalette" Orientation="Horizontal" Spacing="6"
+                                    HorizontalAlignment="Center" Margin="0,4,0,0" />
+                            </StackPanel>
+                        </StackPanel>
+                    </ScrollViewer>
+                </Grid>
+            </Border>
         </Grid>
         <!-- 实色面板保证封面颜色和动态背景不会透过正文；空白区点击收起。 -->
         <Grid x:Name="CommentsOverlay" Margin="0,72,0,94"

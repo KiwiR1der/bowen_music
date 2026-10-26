@@ -1,4 +1,5 @@
 using System.Numerics;
+using Bowen.Core.Models;
 using Bowen.Core.Models.Lyrics;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -39,6 +40,10 @@ internal sealed class LyricsRenderer(LyricsRenderSettings settings, ILogger<Lyri
     private CanvasLinearGradientBrush? _edgeBrush;
     private Color _played = Color.FromArgb(242, 255, 255, 255);
     private Color _unplayed = Color.FromArgb(80, 255, 255, 255);
+
+    // 未播放行固定用白色。高亮色只作用于当前行，不能让整首歌词跟着染色。
+    private static readonly Color InactiveTextColor = Color.FromArgb(242, 255, 255, 255);
+
     // 选中底与侧栏一致：SelectionPillBrush 深色值 #1AFFFFFF + ControlCornerRadius 6。
     // 歌词页固定 RequestedTheme="Dark"，所以只用深色那一档。
     private static readonly Color SelectionPillColor = Color.FromArgb(0x1A, 255, 255, 255);
@@ -57,8 +62,10 @@ internal sealed class LyricsRenderer(LyricsRenderSettings settings, ILogger<Lyri
     {
         if (_device?.Snapshot is not { Count: > 0 } snapshot || _scroll.Count != snapshot.Count) return;
         var anchor = Math.Clamp(CurrentIndex, 0, snapshot.Count - 1);
-        var minimum = snapshot.UnitCenters[0] - _height * settings.PlayingLineTopOffsetFactor;
-        var maximum = snapshot.UnitCenters[^1] - _height * settings.PlayingLineTopOffsetFactor;
+        var focusY = _height * settings.PlayingLineTopOffsetFactor;
+        var verticalOffset = VerticalOffsetPixels;
+        var minimum = snapshot.UnitCenters[0] - focusY - verticalOffset;
+        var maximum = snapshot.UnitCenters[^1] - focusY - verticalOffset;
         _browseTarget = Math.Clamp((_browseTarget ?? _scroll.OffsetAt(anchor)) + delta, minimum, Math.Max(minimum, maximum));
         _browseUntil = now + TimeSpan.FromSeconds(4);
         _scroll.Retarget(_browseTarget.Value, anchor, stagger: false);
@@ -95,7 +102,63 @@ internal sealed class LyricsRenderer(LyricsRenderSettings settings, ILogger<Lyri
         if (_played == played && _unplayed == unplayed) return;
         _played = played;
         _unplayed = unplayed;
+
+        // 颜色只影响当前行的活动层与长音发光，未播放行固定白色。
+        // 不重排整份文档，只释放活动层缓存，下一帧按新颜色重建。
+        if (_device?.Snapshot is { } snapshot)
+        {
+            foreach (var line in snapshot.Lines) line.ReleaseActiveResources();
+        }
+    }
+
+    /// <summary>改已唱部分的高亮色。未唱部分保持白色半透明。</summary>
+    public void SetPlayedColor(Color played) => SetColors(played, _unplayed);
+
+    /// <summary>改行距。0 合法：文本自身行高仍由 LineHeight 提供，不会重叠。</summary>
+    public void SetLineGap(double lineGap)
+    {
+        lineGap = double.IsFinite(lineGap)
+            ? Math.Clamp(lineGap, LyricsSettings.MinimumLineGap, LyricsSettings.MaximumLineGap)
+            : LyricsSettings.DefaultLineGap;
+        if (Math.Abs(settings.LineGap - lineGap) < 0.01) return;
+        settings.LineGap = lineGap;
         _layoutDirty = true;
+    }
+
+    /// <summary>改横向对齐。文字排版与绘制原点都要跟着变，整份文档重排。</summary>
+    public void SetAlignment(LyricsAlignment alignment)
+    {
+        if (!Enum.IsDefined(alignment)) alignment = LyricsAlignment.Left;
+        if (settings.Alignment == alignment) return;
+        settings.Alignment = alignment;
+        _layoutDirty = true;
+    }
+
+    /// <summary>改水平偏移，占歌词区域宽度的百分比。只改绘制原点，不重排版。</summary>
+    public void SetHorizontalOffsetPercent(double percent)
+    {
+        percent = double.IsFinite(percent)
+            ? Math.Clamp(percent, LyricsSettings.MinimumHorizontalOffsetPercent, LyricsSettings.MaximumHorizontalOffsetPercent)
+            : LyricsSettings.DefaultOffsetPercent;
+        if (Math.Abs(settings.HorizontalOffsetPercent - percent) < 0.01) return;
+        settings.HorizontalOffsetPercent = percent;
+    }
+
+    /// <summary>改垂直偏移，占歌词区域高度的百分比。下一帧重新对齐滚动目标。</summary>
+    public void SetVerticalOffsetPercent(double percent)
+    {
+        percent = double.IsFinite(percent)
+            ? Math.Clamp(percent, LyricsSettings.MinimumVerticalOffsetPercent, LyricsSettings.MaximumVerticalOffsetPercent)
+            : LyricsSettings.DefaultOffsetPercent;
+        if (Math.Abs(settings.VerticalOffsetPercent - percent) < 0.01) return;
+        settings.VerticalOffsetPercent = percent;
+
+        // 调整版式时回到跟随状态，避免浏览位置压住新的偏移。
+        if (IsBrowsing)
+        {
+            _browseTarget = null;
+            _browseUntil = TimeSpan.Zero;
+        }
     }
 
     public void SetDocument(LyricDocument document)
@@ -108,7 +171,9 @@ internal sealed class LyricsRenderer(LyricsRenderSettings settings, ILogger<Lyri
 
     public void SetFontSize(double fontSize)
     {
-        fontSize = Math.Clamp(fontSize, 24, 80);
+        fontSize = double.IsFinite(fontSize)
+            ? Math.Clamp(fontSize, LyricsSettings.MinimumFontSize, LyricsSettings.MaximumFontSize)
+            : LyricsSettings.DefaultFontSize;
         if (Math.Abs(settings.BaseFontSize - fontSize) < 0.5) return;
         settings.BaseFontSize = fontSize;
         _layoutDirty = true;
@@ -160,8 +225,11 @@ internal sealed class LyricsRenderer(LyricsRenderSettings settings, ILogger<Lyri
         }
         var current = Math.Max(0, snapshot.Document.IndexOfLineAt(_position));
         // 锚点对齐整个滚动单元的中心：双行歌词绕焦点线居中，单行时与行中心相同。
+        // 垂直偏移按歌词区域高度换算成 DIP，叠加在焦点线上。
+        var focusY = _height * settings.PlayingLineTopOffsetFactor;
+        var verticalOffset = VerticalOffsetPixels;
         var unit = snapshot.UnitOfLine[current];
-        var target = snapshot.UnitCenters[unit] - _height * settings.PlayingLineTopOffsetFactor;
+        var target = snapshot.UnitCenters[unit] - focusY - verticalOffset;
         var seconds = _lastFrame == default ? 1.0 / 60 : Math.Clamp((now - _lastFrame).TotalSeconds, 0, 1);
         _lastFrame = now;
         if (rebuilt || _lastJump != jumpCount || _scroll.Count != snapshot.Count)
@@ -185,7 +253,7 @@ internal sealed class LyricsRenderer(LyricsRenderSettings settings, ILogger<Lyri
         for (var index = 0; index < snapshot.Count; index++)
             centers[index] = snapshot.Tops[index] + snapshot.Lines[index].Height / 2 - _scroll.OffsetAt(index);
         _focusIndex = IsBrowsing
-            ? LyricMotionMath.NearestLine(centers, _height * settings.PlayingLineTopOffsetFactor)
+            ? LyricMotionMath.NearestLine(centers, focusY + verticalOffset)
             : current;
         var rects = _nextHitRects;
         _scaleAnimating = false;
@@ -234,6 +302,7 @@ internal sealed class LyricsRenderer(LyricsRenderSettings settings, ILogger<Lyri
         }
         var pillDrawn = false;
         var previousTransform = session.Transform;
+        var originX = TextOriginX;
         using (session.CreateLayer(_edgeBrush!))
         {
             for (var index = 0; index < snapshot.Count; index++)
@@ -252,7 +321,7 @@ internal sealed class LyricsRenderer(LyricsRenderSettings settings, ILogger<Lyri
                 EnsurePlainImage(line);
                 var active = index == CurrentIndex && _position >= snapshot.Document.Lines[index].Start;
                 var center = new Vector2(0, (float)(top + line.Height / 2));
-                session.Transform = Matrix3x2.CreateTranslation(8, (float)top)
+                session.Transform = Matrix3x2.CreateTranslation(originX, (float)top)
                     * Matrix3x2.CreateScale((float)_scales[index], center) * previousTransform;
                 // 每句只铺一次底，覆盖单元内所有行；即使单元第一行被视口裁掉也照样铺。
                 if (!pillDrawn && selectedUnit >= 0 && snapshot.UnitOfLine[index] == selectedUnit)
@@ -279,14 +348,32 @@ internal sealed class LyricsRenderer(LyricsRenderSettings settings, ILogger<Lyri
         }
     }
 
+    /// <summary>
+    /// 对齐原点。排版宽度是视口宽度减 28，原点按对齐方式补偿：
+    /// 居左 8（左边距 8）、居中 14（文字中心落在视口中线）、居右 20（右边距 8）。
+    /// </summary>
+    private float BaseTextOriginX => settings.Alignment switch
+    {
+        LyricsAlignment.Center => 14f,
+        LyricsAlignment.Right => 20f,
+        _ => 8f,
+    };
+
+    /// <summary>实际绘制原点：对齐原点之后再加水平偏移。</summary>
+    private float TextOriginX => BaseTextOriginX + (float)HorizontalOffsetPixels;
+
+    private double HorizontalOffsetPixels => _width * settings.HorizontalOffsetPercent / 100.0;
+
+    private double VerticalOffsetPixels => _height * settings.VerticalOffsetPercent / 100.0;
+
     /// <summary>整句铺底：横向占满歌词列，纵向覆盖整个滚动单元加半个行距。</summary>
     private void DrawSelectionPill(CanvasDrawingSession session, LyricsLayoutSnapshot snapshot, int lineIndex)
     {
-        // 局部 x=-8 抵消绘制文字时的 8px 平移，底块左缘与歌词列对齐，右缘铺到底。
+        // 底块始终铺满歌词列，不跟随文字的水平偏移；局部 x 抵消对齐原点的平移。
         var unit = snapshot.UnitOfLine[lineIndex];
         var unitTop = snapshot.UnitTops[unit] - snapshot.Tops[lineIndex];
         session.FillRoundedRectangle(
-            new Rect(-8, unitTop - settings.LineGap / 2, (float)_width,
+            new Rect(-BaseTextOriginX, unitTop - settings.LineGap / 2, (float)_width,
                 snapshot.UnitHeights[unit] + settings.LineGap),
             SelectionPillCornerRadius, SelectionPillCornerRadius, SelectionPillColor);
     }
@@ -296,7 +383,7 @@ internal sealed class LyricsRenderer(LyricsRenderSettings settings, ILogger<Lyri
         if (line.PlainImage is not null && line.GlyphMask?.Dpi == _dpi) return;
         line.ReleaseDrawingResources();
         line.GlyphMask = new LyricsLineGlyphMask(_creator!, line, _dpi);
-        line.PlainImage = line.GlyphMask.Paint(WithOpacity(_played, settings.InactiveLineOpacity));
+        line.PlainImage = line.GlyphMask.Paint(WithOpacity(InactiveTextColor, settings.InactiveLineOpacity));
         line.BlurAmount = 0;
         line.Blur = new GaussianBlurEffect
         {
@@ -330,7 +417,7 @@ internal sealed class LyricsRenderer(LyricsRenderSettings settings, ILogger<Lyri
     {
         if (!_layoutDirty || _creator is null || _device is null || _width <= 0) return false;
         var key = new LayoutKey(_document, Math.Max(1, _width - 28), settings.BaseFontSize,
-            settings.FontFamily, _played, _unplayed);
+            settings.FontFamily, settings.Alignment, settings.LineGap);
         if (_device.Snapshot is { } previous)
             foreach (var line in previous.Lines) line.ReleaseDrawingResources();
         _device.Snapshot = null;
@@ -412,7 +499,7 @@ internal sealed class LyricsRenderer(LyricsRenderSettings settings, ILogger<Lyri
     }
 
     private sealed record LayoutKey(LyricDocument Document, double Width, double FontSize,
-        string FontFamily, Color Played, Color Unplayed);
+        string FontFamily, LyricsAlignment Alignment, double LineGap);
     private sealed record CachedLayout(LayoutKey Key, LyricsLayoutSnapshot Snapshot);
 
     private static Color WithOpacity(Color color, double opacity)

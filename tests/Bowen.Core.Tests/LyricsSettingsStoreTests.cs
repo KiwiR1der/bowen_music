@@ -42,6 +42,12 @@ public sealed class LyricsSettingsStoreTests : IDisposable
 
         Assert.True(loaded.ShowTranslation);
         Assert.Equal(string.Empty, loaded.MiniPlayerFontFamily);
+        Assert.Equal(LyricsSettings.DefaultFontSize, loaded.FontSize);
+        Assert.Equal(LyricsAlignment.Left, loaded.Alignment);
+        Assert.Equal(LyricsSettings.DefaultHighlightColor, loaded.HighlightColorArgb);
+        Assert.Equal(LyricsSettings.DefaultLineGap, loaded.LineGap);
+        Assert.Equal(LyricsSettings.DefaultOffsetPercent, loaded.HorizontalOffsetPercent);
+        Assert.Equal(LyricsSettings.DefaultOffsetPercent, loaded.VerticalOffsetPercent);
     }
 
     [Fact]
@@ -52,12 +58,24 @@ public sealed class LyricsSettingsStoreTests : IDisposable
             ShowTranslation = false,
             FontFamily = "Microsoft YaHei UI",
             MiniPlayerFontFamily = "SimSun",
+            FontSize = 56,
+            Alignment = LyricsAlignment.Center,
+            HighlightColorArgb = 0xFF4D9CFF,
+            LineGap = 0,
+            HorizontalOffsetPercent = 15,
+            VerticalOffsetPercent = -10,
         });
 
         var loaded = NewStore().Load();
         Assert.False(loaded.ShowTranslation);
         Assert.Equal("Microsoft YaHei UI", loaded.FontFamily);
         Assert.Equal("SimSun", loaded.MiniPlayerFontFamily);
+        Assert.Equal(56d, loaded.FontSize);
+        Assert.Equal(LyricsAlignment.Center, loaded.Alignment);
+        Assert.Equal(0xFF4D9CFFu, loaded.HighlightColorArgb);
+        Assert.Equal(0d, loaded.LineGap);
+        Assert.Equal(15d, loaded.HorizontalOffsetPercent);
+        Assert.Equal(-10d, loaded.VerticalOffsetPercent);
     }
 
     /// <summary>写盘的字段名与其它设置一致：属性名原样，不转驼峰。</summary>
@@ -69,6 +87,85 @@ public sealed class LyricsSettingsStoreTests : IDisposable
         var json = File.ReadAllText(Path_);
         Assert.Contains("\"ShowTranslation\"", json, StringComparison.Ordinal);
         Assert.Contains("\"MiniPlayerFontFamily\"", json, StringComparison.Ordinal);
+        Assert.Contains("\"FontSize\"", json, StringComparison.Ordinal);
+        Assert.Contains("\"Alignment\"", json, StringComparison.Ordinal);
+        Assert.Contains("\"HighlightColorArgb\"", json, StringComparison.Ordinal);
+        Assert.Contains("\"LineGap\"", json, StringComparison.Ordinal);
+        Assert.Contains("\"HorizontalOffsetPercent\"", json, StringComparison.Ordinal);
+        Assert.Contains("\"VerticalOffsetPercent\"", json, StringComparison.Ordinal);
+    }
+
+    /// <summary>
+    /// 旧版 lyrics.json 没有外观字段。缺字段时源生成的构造会塞 CLR 默认值，
+    /// 行距 0 恰好也是合法值，必须在 store 里按“文件里有没有这个属性”补默认。
+    /// </summary>
+    [Fact]
+    public void LegacyFile_WithoutAppearanceFields_FallsBackToDefaults()
+    {
+        WriteRaw("""
+            {
+              "ShowTranslation": true,
+              "FontFamily": "Microsoft YaHei UI",
+              "MiniPlayerFontFamily": ""
+            }
+            """);
+
+        var loaded = NewStore().Load();
+
+        Assert.Equal(LyricsSettings.DefaultFontSize, loaded.FontSize);
+        Assert.Equal(LyricsAlignment.Left, loaded.Alignment);
+        Assert.Equal(LyricsSettings.DefaultHighlightColor, loaded.HighlightColorArgb);
+        Assert.Equal(LyricsSettings.DefaultLineGap, loaded.LineGap);
+        Assert.Equal(LyricsSettings.DefaultOffsetPercent, loaded.HorizontalOffsetPercent);
+        Assert.Equal(LyricsSettings.DefaultOffsetPercent, loaded.VerticalOffsetPercent);
+    }
+
+    [Theory]
+    [InlineData(1, LyricsSettings.MinimumFontSize)]
+    [InlineData(200, LyricsSettings.MaximumFontSize)]
+    public void FontSize_IsClamped(double stored, double expected)
+    {
+        NewStore().Save(new LyricsSettings { FontSize = stored });
+
+        Assert.Equal(expected, NewStore().Load().FontSize);
+    }
+
+    [Theory]
+    [InlineData(-5, LyricsSettings.MinimumLineGap)]
+    [InlineData(999, LyricsSettings.MaximumLineGap)]
+    public void LineGap_IsClamped(double stored, double expected)
+    {
+        NewStore().Save(new LyricsSettings { LineGap = stored });
+
+        Assert.Equal(expected, NewStore().Load().LineGap);
+    }
+
+    [Theory]
+    [InlineData(-50, LyricsSettings.MinimumHorizontalOffsetPercent)]
+    [InlineData(50, LyricsSettings.MaximumHorizontalOffsetPercent)]
+    public void HorizontalOffset_IsClamped(double stored, double expected)
+    {
+        NewStore().Save(new LyricsSettings { HorizontalOffsetPercent = stored });
+
+        Assert.Equal(expected, NewStore().Load().HorizontalOffsetPercent);
+    }
+
+    [Theory]
+    [InlineData(-40, LyricsSettings.MinimumVerticalOffsetPercent)]
+    [InlineData(40, LyricsSettings.MaximumVerticalOffsetPercent)]
+    public void VerticalOffset_IsClamped(double stored, double expected)
+    {
+        NewStore().Save(new LyricsSettings { VerticalOffsetPercent = stored });
+
+        Assert.Equal(expected, NewStore().Load().VerticalOffsetPercent);
+    }
+
+    [Fact]
+    public void HighlightColor_IsForcedOpaque()
+    {
+        NewStore().Save(new LyricsSettings { HighlightColorArgb = 0x10FF00FF });
+
+        Assert.Equal(0xFFFF00FFu, NewStore().Load().HighlightColorArgb);
     }
 
     [Fact]
