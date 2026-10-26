@@ -151,7 +151,7 @@
                 </Button>
             </StackPanel>
         </Grid>
-        <Border Grid.Row="1" HorizontalAlignment="Left" Background="{ThemeResource CommentRaisedSurfaceBrush}" CornerRadius="10" Padding="3"
+        <Border Grid.Row="1" HorizontalAlignment="Center" Background="{ThemeResource CommentRaisedSurfaceBrush}" CornerRadius="10" Padding="3"
             Visibility="{x:Bind local:Formats.Visible(ViewModel.IsListOpen), Mode=OneWay}">
             <StackPanel Orientation="Horizontal" Spacing="2">
                 <ToggleButton x:Name="RecommendedButton" Content="推荐" Click="OnRecommendedClick"
