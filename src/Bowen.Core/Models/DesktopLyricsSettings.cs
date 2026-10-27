@@ -94,11 +94,10 @@ public sealed record DesktopLyricsSettings
     /// 透明处是否让鼠标穿透。
     /// </summary>
     /// <remarks>
-    /// <b>默认开</b>，那是桌面歌词该有的样子（不挡住底下的东西）。
-    /// 关掉之后整个窗口都变成可抓的 —— 想在空白处按住拖动、或者透明区域老是吃掉点击时，用它。
-    /// 这是用户能自己拿回「移动歌词」这条路的开关，不能省。
+    /// <b>默认关</b>：第一次打开桌面歌词时最常做的是拖动摆位置；默认穿透会让窗口看起来
+    /// 点不动、拖不动，容易被当成故障。需要不挡住下方窗口时，在歌词条工具栏或设置页打开。
     /// </remarks>
-    public bool PassThrough { get; init; } = true;
+    public bool PassThrough { get; init; } = false;
 
     /// <summary>默认设置。</summary>
     public static DesktopLyricsSettings Default { get; } = new();

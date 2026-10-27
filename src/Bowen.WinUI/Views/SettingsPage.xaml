@@ -403,7 +403,7 @@
                                     </controls:SettingsRow.RightContent>
                                 </controls:SettingsRow>
                                 <Border Style="{StaticResource BowenSettingsRowDivider}" />
-                                <controls:SettingsRow IsRowEnabled="{x:Bind ViewModel.DesktopLyricsRowsEnabled, Mode=OneWay}" Description="关掉之后整个歌词窗都可抓，方便摆位置" Header="鼠标穿透">
+                                <controls:SettingsRow IsRowEnabled="{x:Bind ViewModel.DesktopLyricsRowsEnabled, Mode=OneWay}" Description="默认关闭，可直接拖动歌词；打开后歌词区域不挡下方窗口" Header="鼠标穿透">
                                     <controls:SettingsRow.RightContent>
                                         <ToggleSwitch
                                             IsOn="{x:Bind ViewModel.DesktopLyrics.PassThrough, Mode=TwoWay}"

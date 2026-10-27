@@ -46,6 +46,7 @@ public sealed class DesktopLyricsSettingsStoreTests : IDisposable
         Assert.False(loaded.DualLine);
         Assert.Equal(DesktopLyricsAlignment.Center, loaded.Alignment);
         Assert.False(loaded.Locked);
+        Assert.False(loaded.PassThrough);
     }
 
     [Fact]

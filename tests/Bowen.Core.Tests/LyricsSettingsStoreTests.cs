@@ -191,7 +191,7 @@ public sealed class LyricsSettingsStoreTests : IDisposable
     /// </para>
     /// <para>
     /// <b>这对本项目每一份设置 record 都成立</b>，不是这份独有的 ——
-    /// <c>DesktopLyricsSettings.PassThrough</c> 声明成默认开，同样会被 <c>{}</c> 关掉。
+    /// <c>LyricsSettings.ShowTranslation</c> 声明成默认开，同样会被 <c>{}</c> 关掉。
     /// 实际踩不到：<c>Save</c> 每次写完整的一份，缺字段只可能来自手工改文件。
     /// </para>
     /// <para>
