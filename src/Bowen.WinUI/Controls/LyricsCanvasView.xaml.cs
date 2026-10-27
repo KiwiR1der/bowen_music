@@ -13,6 +13,7 @@ using Microsoft.Graphics.DirectX;
 using Microsoft.Graphics.Canvas;
 using Microsoft.Graphics.Canvas.UI.Composition;
 using Microsoft.UI.Composition;
+using Microsoft.UI.Dispatching;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Input;
@@ -43,6 +44,13 @@ public sealed partial class LyricsCanvasView : UserControl
     private bool _paused;
     private bool _resourcesSuspended;
     private bool _broken;
+
+    // 引擎状态进入 Playing 只代表文件已加载；音频可能还在缓冲。
+    // 位置真正变化之前不让歌词时钟起步，否则会先滚一段再跳回来。
+    private PlaybackState _lastEngineState = PlaybackState.Idle;
+    private TimeSpan? _lastEnginePosition;
+    private bool _waitingForPlaybackToAdvance;
+    private DispatcherQueueTimer? _playbackProbeTimer;
     private CanvasDevice? _canvasDevice;
     private CompositionSurfaceBrush? _surfaceBrush;
     private SpriteVisual? _surfaceVisual;
@@ -170,7 +178,11 @@ public sealed partial class LyricsCanvasView : UserControl
         // 恢复态（重启后还没点播放）引擎里没有文件、Position 是 0；起点取自视图模型，
         // 它会在引擎闲置时退回上次的续播位置，进页就直接停在对应的那一句。
         _clock.Sync(_viewModel.TimelinePosition, force: true);
-        _clock.SetPlaying(_engine.State == PlaybackState.Playing);
+        _lastEngineState = _engine.State;
+        _lastEnginePosition = _engine.Position;
+        _waitingForPlaybackToAdvance = _engine.State == PlaybackState.Playing;
+        _clock.SetPlaying(false);
+        if (_waitingForPlaybackToAdvance) StartPlaybackProbe();
         _engine.PositionChanged += OnPositionChanged;
         _engine.StateChanged += OnStateChanged;
         _viewModel.PropertyChanged += OnViewModelPropertyChanged;
@@ -184,6 +196,7 @@ public sealed partial class LyricsCanvasView : UserControl
     {
         _loaded = false;
         UpdateRenderingSubscription();
+        StopPlaybackProbe();
         _engine.PositionChanged -= OnPositionChanged;
         _engine.StateChanged -= OnStateChanged;
         _viewModel.PropertyChanged -= OnViewModelPropertyChanged;
@@ -373,15 +386,108 @@ public sealed partial class LyricsCanvasView : UserControl
 
     private void OnPositionChanged(object? sender, PlaybackPositionChangedEventArgs args)
     {
+        // 新歌加载期间，上一首迟到的进度事件不能把歌词带到旧位置。
+        if (_lastEngineState == PlaybackState.Loading)
+        {
+            return;
+        }
+
         _clock.SetDuration(args.Duration);
-        _clock.Sync(args.Position);
+        if (!TryStartPlaybackClock(args.Position))
+        {
+            _clock.Sync(args.Position);
+        }
+
+        _lastEnginePosition = args.Position;
         _renderLoop?.Invalidate();
     }
     private void OnStateChanged(object? sender, PlaybackStateChangedEventArgs args)
     {
-        _clock.SetPlaying(args.State == PlaybackState.Playing);
+        var previous = _lastEngineState;
+        _lastEngineState = args.State;
+
+        if (args.State == PlaybackState.Loading)
+        {
+            // 新歌开始加载：上一首的位置不能再拿来判断“是否已经前进”。
+            _lastEnginePosition = null;
+            _waitingForPlaybackToAdvance = false;
+            _clock.SetPlaying(false);
+        }
+        else if (args.State == PlaybackState.Playing)
+        {
+            // 暂停后恢复：音频已经就绪，直接续上；新加载则等位置前进。
+            var resume = previous == PlaybackState.Paused
+                && _lastEnginePosition is { } position && position > TimeSpan.Zero;
+            _waitingForPlaybackToAdvance = !resume;
+            _clock.SetPlaying(resume);
+        }
+        else
+        {
+            _waitingForPlaybackToAdvance = false;
+            _clock.SetPlaying(false);
+            if (args.State is PlaybackState.Stopped or PlaybackState.Idle)
+            {
+                _lastEnginePosition = null;
+            }
+        }
+
+        if (_waitingForPlaybackToAdvance) StartPlaybackProbe();
+        else StopPlaybackProbe();
         _renderLoop?.Invalidate();
     }
+
+    /// <summary>
+    /// 位置真正变了才说明音频开始出了。同一位置的重复上报（缓冲中）不启动时钟。
+    /// </summary>
+    private bool TryStartPlaybackClock(TimeSpan position)
+    {
+        if (!_waitingForPlaybackToAdvance) return false;
+        if (_lastEnginePosition is not { } last)
+        {
+            _lastEnginePosition = position;
+            return false;
+        }
+        if (position == last) return false;
+
+        _waitingForPlaybackToAdvance = false;
+        StopPlaybackProbe();
+        _clock.Sync(position);
+        _clock.SetPlaying(true);
+        _lastEnginePosition = position;
+        _renderLoop?.Invalidate();
+        return true;
+    }
+
+    /// <summary>
+    /// 启动探测。PositionChanged 走低优先级队列，页面忙时会被压后；
+    /// 50 ms 直接读引擎位置，让歌词在音频开始后尽快起步。
+    /// </summary>
+    private void StartPlaybackProbe()
+    {
+        if (_playbackProbeTimer is null)
+        {
+            _playbackProbeTimer = DispatcherQueue.CreateTimer();
+            _playbackProbeTimer.Interval = TimeSpan.FromMilliseconds(50);
+            _playbackProbeTimer.IsRepeating = true;
+            _playbackProbeTimer.Tick += OnPlaybackProbeTick;
+        }
+
+        _playbackProbeTimer.Start();
+    }
+
+    private void StopPlaybackProbe() => _playbackProbeTimer?.Stop();
+
+    private void OnPlaybackProbeTick(DispatcherQueueTimer sender, object args)
+    {
+        if (!_waitingForPlaybackToAdvance || _engine.State != PlaybackState.Playing)
+        {
+            sender.Stop();
+            return;
+        }
+
+        TryStartPlaybackClock(_engine.Position);
+    }
+
     private void OnViewModelPropertyChanged(object? sender, PropertyChangedEventArgs args)
     {
         if (args.PropertyName == nameof(LyricsViewModel.Document)) _renderLoop?.SetDocument(_viewModel.Document);
