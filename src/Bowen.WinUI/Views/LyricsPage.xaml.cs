@@ -1116,7 +1116,7 @@ public sealed partial class LyricsPage : Page, INavigationAware
         SyncAppearanceControls();
         SyncPanelThemes();
         AppearanceOverlay.Visibility = Visibility.Visible;
-        AppearancePane.MaxHeight = Math.Max(0, ActualHeight - 178);
+        AppearancePane.MaxHeight = Math.Max(0, ActualHeight - 190);
 
         // 从左侧滑入，与评论面板从右侧滑入对称。
         var visual = ElementCompositionPreview.GetElementVisual(AppearancePane);

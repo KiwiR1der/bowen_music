@@ -466,8 +466,12 @@
         -->
         <Grid x:Name="AppearanceOverlay" Margin="0,72,0,94" Visibility="Collapsed">
             <Rectangle Fill="Transparent" Tapped="OnAppearanceDismissTapped" />
-            <Border x:Name="AppearancePane" Width="360" HorizontalAlignment="Left" VerticalAlignment="Top"
-                Margin="20,0,12,12" Background="{ThemeResource BowenAcrylicBrush}"
+            <!--
+                叠加层上边距 72、下边距 94，已经排除标题栏与播放条。
+                面板在这块剩余区域里垂直居中，上下各留 12。
+            -->
+            <Border x:Name="AppearancePane" Width="360" HorizontalAlignment="Left" VerticalAlignment="Center"
+                Margin="20,12,12,12" Background="{ThemeResource BowenAcrylicBrush}"
                 BorderBrush="{ThemeResource CommentBorderBrush}" BorderThickness="1" CornerRadius="16">
                 <Border.Resources>
                     <!-- 对齐分段沿用评论面板的选中态：品牌强调色底 + 深色字。 -->
